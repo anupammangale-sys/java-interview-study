@@ -10,6 +10,10 @@
   --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
   --r:10px;
 }
+/* Three blocks, not two. The bare :root above is the light palette. The media
+   query covers viewers on the system default. This third block is what makes
+   the explicit toggle work: without it, setting data-theme="dark" changes
+   nothing, because no rule matches it. */
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
@@ -17,6 +21,12 @@
     --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322;
     --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
   }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
 }
 
 .wrap{max-width:940px;margin:0 auto;padding:0 20px}
@@ -28,6 +38,17 @@ body{
 }
 
 .sitehead{border-bottom:1px solid var(--line);background:var(--surface);padding:54px 0 40px}
+.headtop{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;
+  transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.themebtn{display:inline-grid;place-items:center;padding:7px 10px;line-height:0;flex:none}
+.themebtn svg{width:16px;height:16px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
 .sitehead .kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin:0 0 10px}
 .sitehead h1{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-size:clamp(32px,5vw,48px);font-weight:700;letter-spacing:-.015em;line-height:1.05;margin:0}
 .sitehead .tagline{color:var(--ink-soft);font-size:17.5px;max-width:60ch;margin:14px 0 0}

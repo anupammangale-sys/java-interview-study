@@ -10,13 +10,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
 <link rel="stylesheet" href="site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 </head>
 <body>
 <header class="sitehead"><div class="wrap">
-<p class="kicker">Study material</p>
+<div class="headtop"><p class="kicker">Study material</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
 <h1>Java Interview Study</h1>
 <p class="tagline">Deep study material for Java backend interviews. Every page is built from code that was actually run, so the numbers are measured rather than claimed.</p>
-<p class="count"><b>4</b> of <b>23</b> episodes published</p>
+<p class="count"><b>5</b> of <b>23</b> episodes published</p>
 </div></header>
 <main class="wrap">
 <h2 class="track">Java and JVM</h2>
@@ -26,7 +30,7 @@
 <li class="ep live"><a class="epmain" href="ep02.html"><span class="epnum">02</span><span class="eptext"><span class="eptitle">Reading a Thread Dump</span><span class="eptopics">What a thread is doing: the states &middot; Taking a dump, and reading one entry &middot; Deadlock &middot; CPU at 100 percent &middot; When a dump is not enough: profilers and Flight Recorder &middot; Thread pool starvation</span></span><span class="pill live">Read</span></a></li>
 <li class="ep live"><a class="epmain" href="ep03.html"><span class="epnum">03</span><span class="eptext"><span class="eptitle">Where the Pauses Come From</span><span class="eptopics">How cleanup works: young, old, promotion &middot; The collectors: G1, Parallel, ZGC, and when each fits &middot; Reading GC logs: pause times and allocation rate &middot; The settings that matter, and the ones that do not &middot; Java inside a container: memory percentage, total memory, limits &middot; What "GC overhead limit exceeded" is really telling you</span></span><span class="pill live">Read</span></a></li>
 <li class="ep live"><a class="epmain" href="ep04.html"><span class="epnum">04</span><span class="eptext"><span class="eptitle">Inside a HashMap</span><span class="eptopics">HashMap internals: buckets, hashing, resizing, the tree change &middot; equals and hashCode, and the mutable key trap &middot; ConcurrentHashMap: Java 7 segments versus Java 8 onwards &middot; HashMap vs Hashtable vs synchronizedMap vs ConcurrentHashMap &middot; Fail-fast and fail-safe iteration &middot; ArrayList vs LinkedList vs CopyOnWriteArrayList: when it actually matters</span></span><span class="pill live">Read</span></a></li>
-<li class="ep"><div class="epmain"><span class="epnum">05</span><span class="eptext"><span class="eptitle">Concurrency and Multithreading</span><span class="eptopics">synchronized, volatile, and what the memory model guarantees &middot; The executor framework: pool types, queues, rejection &middot; CompletableFuture: chaining, combining, handling failure &middot; LIVE: the CompletableFuture deadlock on a shared pool &middot; Locks: ReentrantLock, read-write, and when to leave synchronized &middot; Atomic classes and compare-and-set</span></span><span class="pill">Coming</span></div></li>
+<li class="ep live"><a class="epmain" href="ep05.html"><span class="epnum">05</span><span class="eptext"><span class="eptitle">The Lost Update</span><span class="eptopics">synchronized, volatile, and what the memory model guarantees &middot; The executor framework: pool types, queues, rejection &middot; CompletableFuture: chaining, combining, handling failure &middot; LIVE: the CompletableFuture deadlock on a shared pool &middot; Locks: ReentrantLock, read-write, and when to leave synchronized &middot; Atomic classes and compare-and-set</span></span><span class="pill live">Read</span></a></li>
 <li class="ep"><div class="epmain"><span class="epnum">06</span><span class="eptext"><span class="eptitle">Virtual Threads and Modern Concurrency</span><span class="eptopics">Platform threads versus virtual threads &middot; How mounting and unmounting works &middot; Pinning: what stops a virtual thread from unmounting &middot; Virtual threads versus CompletableFuture versus reactive &middot; Structured concurrency &middot; What breaks when you migrate</span></span><span class="pill">Coming</span></div></li>
 <li class="ep"><div class="epmain"><span class="epnum">07</span><span class="eptext"><span class="eptitle">Java 8 Streams: Internals and API</span><span class="eptopics">The pipeline: source, intermediate, terminal &middot; Lazy evaluation and short-circuiting &middot; Collectors: groupingBy, mapping, partitioningBy, teeing &middot; reduce versus collect &middot; Parallel streams: when they help and when they hurt &middot; Optional: the right and wrong uses</span></span><span class="pill">Coming</span></div></li>
 </ul>
@@ -63,5 +67,31 @@
 </ul>
 </main>
 <footer class="wrap"><p>Every measurement on these pages came from running the code. Where a real result disagreed with the expected one, the real result is what got written down.</p></footer>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
 </body>
 </html>

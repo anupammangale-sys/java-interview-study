@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The Lost Update, episode 5 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>The Lost Update</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS: the interleaving simulator
+   =================================================================== */
+.lanes{display:grid;grid-template-columns:1fr 1fr 150px;gap:12px;padding:16px}
+.lane{border:1px solid var(--line-soft);border-radius:8px;background:var(--surface-2);overflow:hidden}
+.lanehead{padding:7px 11px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;
+  border-bottom:1px solid var(--line-soft);color:var(--ink-soft)}
+.step{padding:6px 11px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);
+  border-bottom:1px solid var(--line-soft);min-height:30px;display:flex;align-items:center;gap:8px}
+.step:last-child{border-bottom:none}
+.step.done{color:var(--ink)}
+.step.now{background:var(--held-bg);color:var(--held);font-weight:600}
+.step.lost{background:var(--alarm-bg);color:var(--alarm);font-weight:600}
+.memory{border:1px solid var(--line-soft);border-radius:8px;background:var(--surface-2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:6px}
+.memory .cell{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:44px;font-weight:700;
+  line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.memory .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+.memory.bad .cell{color:var(--alarm)}
+@media (max-width:700px){.lanes{grid-template-columns:1fr}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep05">
+  <a class="backlink" href="index.html">All episodes</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>The Lost Update</b>
+    <span>Episode 5 &middot; Concurrency and Multithreading</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> How a count goes wrong</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Thread pools</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> CompletableFuture</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Deadlock you cause</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Which lock</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Atomics</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>Eight threads, four million increments, and the answer is wrong</h1>
+      <p class="sub">Concurrency is where "it works on my machine" comes from, because broken concurrent code usually works. Everything on this page was produced by running it: a counter guarded six different ways, four lock types timed against each other, and a deadlock that no amount of extra threads can fix.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> How a count goes wrong</h2>
+
+  <ul class="prompts">
+    <li>Why is <code>count++</code> not safe when threads share it?</li>
+    <li>What exactly does <code>volatile</code> guarantee, and what does it not?</li>
+    <li>What does <code>synchronized</code> give you that <code>volatile</code> does not?</li>
+    <li>What is a happens-before relationship?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Start with the smallest possible broken program. Eight threads, each adding 1 to a shared counter half a million times. A correct counter ends at exactly 4,000,000.</p>
+
+  <h3>Measured, six ways of holding that counter</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>How the counter is held</th><th>Best result</th><th>Worst result</th><th>Best ms</th><th>Correct</th></tr></thead>
+    <tbody>
+      <tr><td><code>long</code></td><td class="num">4,000,000</td><td class="num">1,124,713</td><td class="num">0</td><td class="lose">no</td></tr>
+      <tr><td><code>volatile long</code></td><td class="num">1,278,827</td><td class="num">1,215,619</td><td class="num">56</td><td class="lose">no</td></tr>
+      <tr><td><code>synchronized</code></td><td class="num">4,000,000</td><td class="num">4,000,000</td><td class="num">185</td><td class="win">yes</td></tr>
+      <tr><td><code>ReentrantLock</code></td><td class="num">4,000,000</td><td class="num">4,000,000</td><td class="num">96</td><td class="win">yes</td></tr>
+      <tr><td><code>AtomicLong</code></td><td class="num">4,000,000</td><td class="num">4,000,000</td><td class="num">57</td><td class="win">yes</td></tr>
+      <tr><td><code>LongAdder</code></td><td class="num">4,000,000</td><td class="num">4,000,000</td><td class="num">5</td><td class="win">yes</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>Read the volatile row twice.</b> It lost about seventy percent of the updates, it was never once correct, and it was <b>slower than AtomicLong, which was always correct</b>. Marking a counter volatile buys you nothing here except a false sense of safety.</p>
+  </div>
+
+  <h3>Why the plain counter is the strangest row</h3>
+  <p>The plain counter finished in <strong>0 milliseconds</strong> and its results swung between 1.1 million and the full 4 million. Both of those are clues about the same thing.</p>
+  <p>When a field is not volatile, the compiler is allowed to assume no other thread is looking at it. So it can keep the value in a processor register, do all half a million additions there, and write back once at the end. That is why the time collapsed to nothing and why the answers are so wildly unpredictable: you are not measuring eight threads racing on memory, you are measuring whatever the optimiser decided to do that run.</p>
+  <p>This is worth saying in an interview because it explains why broken concurrent code so often <em>passes</em> your tests. The behaviour is not random in a helpful, reliably-fails way. It depends on the compiler, the processor, the load, and the timing.</p>
+
+  <h3>Why one plus plus is three operations</h3>
+  <p><code>count++</code> looks like one thing. It is three: <strong>read</strong> the current value, <strong>add one</strong> to it, <strong>write</strong> it back. Another thread can run in between any of them.</p>
+  <p>Step through it below and watch an update disappear.</p>
+
+  <div class="sim">
+    <div class="simhead">
+      <button class="btn" id="simStep">Next step</button>
+      <button class="btn" id="simAuto">Play</button>
+      <button class="btn" id="simMode" aria-pressed="false">Unlucky interleaving</button>
+      <button class="btn" id="simReset">Reset</button>
+      <div class="sp">
+        <div class="stat">increments asked for<b id="sAsked">0</b></div>
+        <div class="stat">counter says<b id="sGot">0</b></div>
+      </div>
+    </div>
+    <div class="lanes">
+      <div class="lane"><div class="lanehead">thread A</div><div id="laneA"></div></div>
+      <div class="lane"><div class="lanehead">thread B</div><div id="laneB"></div></div>
+      <div class="memory" id="memBox">
+        <div class="lbl">shared count</div>
+        <div class="cell" id="memVal">0</div>
+      </div>
+    </div>
+    <div class="simfoot" id="simFoot">Both threads want to add 1. Press Next step.</div>
+  </div>
+
+  <h3>What each keyword actually promises</h3>
+  <p><strong>volatile</strong> promises <em>visibility</em>. A write by one thread will be seen by every other thread, immediately, rather than sitting in a register or a processor cache. It also stops the compiler reordering operations around it.</p>
+  <p><strong>volatile does not promise atomicity.</strong> It makes each read and each write visible, but <code>count++</code> is a read, a change and a write, and another thread can still act between them. That is exactly what the measurement shows.</p>
+  <p><strong>synchronized</strong> promises both. Only one thread can be inside the block at a time, which gives you atomicity, and entering and leaving the block also flushes and refreshes memory, which gives you visibility.</p>
+
+  <div class="note">
+    <p><b>The one line rule.</b> Use <code>volatile</code> when one thread writes and others only read, for example a flag that tells workers to stop. Use <code>synchronized</code>, a lock, or an atomic class the moment a value is read and then written based on what was read.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"volatile makes it thread safe."</b> The measurement above is the answer: still wrong every single run, and slower than the correct options.</p>
+    <p><b>"It worked when I tested it."</b> Broken concurrent code usually works. The plain counter hit the correct answer on one of its five runs.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What is a happens-before relationship?</summary>
+    <div class="rvb">
+      <p>It is the rule that decides whether one thread is guaranteed to see what another thread did. If action A happens-before action B, then whatever A wrote is visible to B. If there is no such relationship, there is no guarantee at all, and you may see the new value, the old value, or in some cases a partly written one.</p>
+      <p>You do not create these by writing code in a particular order. They come from specific things:</p>
+      <ul class="body">
+        <li>Everything a thread does before <code>start()</code> is visible to the new thread.</li>
+        <li>Everything a thread does is visible to whoever successfully calls <code>join()</code> on it.</li>
+        <li>Releasing a lock happens-before the next acquisition of that same lock.</li>
+        <li>A write to a volatile field happens-before every later read of that same field.</li>
+      </ul>
+      <p>The practical consequence is the interesting part. Two threads reading and writing an ordinary field with no lock and no volatile between them have no relationship, so the second thread is not merely likely to see stale data, it is <strong>allowed to see stale data forever</strong>. A loop reading a plain boolean flag can legally never notice it changed, and in practice sometimes does not.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Can you give a case where volatile alone is the right answer?</summary>
+    <div class="rvb">
+      <p>Yes, and being able to give one shows you understand the boundary rather than just avoiding the keyword.</p>
+      <p>The classic is a stop flag. One thread writes it once, many threads only read it:</p>
+      <pre><code><span class="kw">private volatile boolean</span> running = <span class="kw">true</span>;
+
+<span class="kw">public void</span> shutdown() { running = <span class="kw">false</span>; }     <span class="cm">// one writer</span>
+
+<span class="kw">public void</span> workLoop() {
+    <span class="kw">while</span> (running) { doWork(); }                <span class="cm">// many readers</span>
+}</code></pre>
+      <p>This is safe because nobody reads the value and then writes a new one based on it. There is no read, change, write sequence to be interrupted. Every operation is a single whole read or a single whole write, which is exactly what volatile guarantees.</p>
+      <p>Without volatile this loop can genuinely hang forever, because the compiler may hoist the read out of the loop and test a cached copy. That is not a theoretical risk, it is a real and commonly seen bug.</p>
+      <p>The moment you write something like <code>if (!running) running = true;</code> you have a read followed by a write and volatile is no longer enough.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Is a plain long even safe to read and write?</summary>
+    <div class="rvb">
+      <p>Not necessarily, and this one surprises people.</p>
+      <p>Java guarantees that reads and writes of most types happen as one whole operation, so you never see half of an <code>int</code>. But <code>long</code> and <code>double</code> are 64 bits, and on some platforms the specification allows the runtime to treat them as two separate 32 bit operations.</p>
+      <p>That means another thread can in principle observe a value that is the top half of one write and the bottom half of another, a number that was never assigned by anybody. This is called word tearing.</p>
+      <p>Declaring the field <code>volatile</code> removes this: volatile reads and writes of <code>long</code> and <code>double</code> are always whole operations.</p>
+      <p>Honest caveat worth adding: on the 64 bit machines almost everyone runs today, this does not happen in practice. It matters as an answer because it shows you know what the specification guarantees rather than what your laptop happens to do, and that distinction is the whole subject.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> Thread pools, queues and what gets thrown away</h2>
+
+  <ul class="prompts">
+    <li>What are the three things a thread pool does with an arriving task?</li>
+    <li>Why is <code>newFixedThreadPool</code> risky in production?</li>
+    <li>Name the four rejection policies and what each does.</li>
+    <li>What is wrong with <code>newCachedThreadPool</code>?</li>
+  </ul>
+
+  <div class="teach">
+  <p>A pool has threads, a queue, and a policy for what happens when both are full. Most people know the first two.</p>
+
+  <h3>What happens to an arriving task</h3>
+  <ol class="body">
+    <li>If fewer threads exist than the core size, <strong>start a new thread</strong> for it, even if other threads are idle.</li>
+    <li>Otherwise, <strong>put it in the queue</strong>.</li>
+    <li>If the queue is full, start a new thread up to the maximum size.</li>
+    <li>If that is not possible either, <strong>hand it to the rejection policy</strong>.</li>
+  </ol>
+  <p>Step 3 is the one that catches people. With an <strong>unbounded</strong> queue, step 3 never happens, so the maximum pool size is never reached and is effectively ignored. That is exactly what the convenient factory methods give you.</p>
+
+  <h3>Measured, what the four policies actually do</h3>
+  <p>2 threads, a queue that holds 4, and 20 tasks submitted at once. So only 6 can be accepted at a time and 14 have to go somewhere.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Rejection policy</th><th>Ran</th><th>Rejected</th><th>Ran on the caller</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td><code>AbortPolicy</code> (default)</td><td class="num">6</td><td class="num">14</td><td class="num">0</td><td>throws at the caller, work lost unless you catch it</td></tr>
+      <tr class="win"><td><code>CallerRunsPolicy</code></td><td class="num">20</td><td class="num">0</td><td class="num">5</td><td>caller does the work, which slows the producer down</td></tr>
+      <tr><td><code>DiscardPolicy</code></td><td class="num">6</td><td class="num">0</td><td class="num">0</td><td>14 tasks silently vanished, no error anywhere</td></tr>
+      <tr><td><code>DiscardOldestPolicy</code></td><td class="num">6</td><td class="num">0</td><td class="num">0</td><td>drops the longest waiting task to make room</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>The row to be frightened of is DiscardPolicy.</b> Zero rejected, zero errors, and fourteen tasks gone. Nothing in your logs, nothing thrown, no metric moves. If those were payments or emails, they simply did not happen and nobody found out.</p>
+    <p><b>The row to reach for is CallerRunsPolicy.</b> All twenty tasks ran, five of them on the submitting thread. That is real backpressure: when the pool is overwhelmed the producer is forced to slow down, because it is busy doing the work itself.</p>
+  </div>
+
+  <h3>Why the convenient factory methods are traps</h3>
+  <pre><code><span class="cm">// unlimited queue: tasks pile up until memory runs out</span>
+Executors.newFixedThreadPool(10);
+
+<span class="cm">// unlimited threads: creates a new one per task if none is free</span>
+Executors.newCachedThreadPool();
+
+<span class="cm">// what to write instead: every limit visible and chosen</span>
+<span class="kw">new</span> ThreadPoolExecutor(
+    10, 10,                                <span class="cm">// core and max threads</span>
+    60L, TimeUnit.SECONDS,                 <span class="cm">// how long an idle thread lives</span>
+    <span class="kw">new</span> ArrayBlockingQueue&lt;&gt;(500),         <span class="cm">// a queue with a limit</span>
+    <span class="kw">new</span> ThreadPoolExecutor.CallerRunsPolicy());</code></pre>
+  <p><code>newFixedThreadPool</code> uses a queue with no size limit. Under sustained overload the queue grows until the heap dies, which turns a throughput problem into an out of memory crash and buries the real cause.</p>
+  <p><code>newCachedThreadPool</code> has no thread limit. A burst of ten thousand requests will try to create ten thousand threads, each needing about a megabyte of memory outside the heap.</p>
+
+  <div class="wrong">
+    <p><b>"Bigger pool, better throughput."</b> Only if threads come back. If they are all blocked on something slow, more threads means more blocked threads.</p>
+    <p><b>"An unbounded queue means we never drop work."</b> It means you never drop work <em>quickly</em>. You accept everything, answer far too late, and eventually run out of memory instead.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>How do you choose the pool size?</summary>
+    <div class="rvb">
+      <p>It depends entirely on what the threads spend their time doing, and saying that first is most of the answer.</p>
+      <p><strong>Work that uses the processor</strong>, like parsing or calculating, wants roughly as many threads as you have cores. More than that does not finish the work faster, it just adds time spent switching between threads.</p>
+      <p><strong>Work that waits</strong>, like calling a database or another service, can use many more threads than cores, because most are idle at any moment. The rough reasoning: if a call takes 100 milliseconds and you need to handle 200 per second, you need about 20 in flight at once, so a pool of 20 to 30 is sensible.</p>
+      <p>The more important point, and the one that separates a real answer from a formula: <strong>size the pool last</strong>. Set the timeouts first, so threads reliably come back. Give the queue a limit and decide what happens when it fills. Only then tune the number, using measurements from your own load rather than a rule of thumb.</p>
+      <p>And keep separate pools for separate jobs. If slow report generation shares a pool with fast customer requests, the reports will starve the customers.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What actually happens when you call shutdown?</summary>
+    <div class="rvb">
+      <p>There are two methods and they behave very differently, which is a common follow-up.</p>
+      <p><strong><code>shutdown()</code></strong> is polite. It stops accepting new tasks, but everything already submitted, including everything sitting in the queue, still runs. It returns immediately without waiting.</p>
+      <p><strong><code>shutdownNow()</code></strong> is abrupt. It stops accepting new work, tries to interrupt the threads currently running, and returns the list of tasks that were still queued and will now never run. Those returned tasks are your only record of what was lost, so ignoring the return value quietly loses work.</p>
+      <p>Neither of them waits. To actually wait you need <code>awaitTermination</code> with a timeout, and the usual correct pattern is: call <code>shutdown()</code>, wait a while, and if it has not finished call <code>shutdownNow()</code>.</p>
+      <p>The catch worth mentioning: interrupting only works if your task cooperates. Code that ignores <code>InterruptedException</code>, or that is blocked on something which does not respond to interruption, will keep running regardless. That is why a task swallowing that exception is a genuine bug, not a style preference.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> CompletableFuture</h2>
+
+  <ul class="prompts">
+    <li>What problem does CompletableFuture solve that Future does not?</li>
+    <li>Difference between <code>thenApply</code> and <code>thenCompose</code>?</li>
+    <li>How do you run two calls at the same time and combine them?</li>
+    <li>How do you handle a failure in the middle of a chain?</li>
+    <li>What is the difference between <code>join</code> and <code>get</code>?</li>
+  </ul>
+
+  <div class="teach">
+  <p>The old <code>Future</code> could only be asked "are you done yet". The only way to use the result was to block and wait for it, which throws away the point of doing the work in the background.</p>
+  <p><code>CompletableFuture</code> lets you say what should happen <em>when</em> the result arrives, without waiting for it.</p>
+
+  <h3>The methods worth knowing</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Method</th><th>Use it when</th></tr></thead>
+    <tbody>
+      <tr><td><code>supplyAsync</code></td><td>starting work in the background that returns something</td></tr>
+      <tr><td><code>runAsync</code></td><td>starting work in the background that returns nothing</td></tr>
+      <tr><td><code>thenApply</code></td><td>transforming the result with a plain method</td></tr>
+      <tr><td><code>thenCompose</code></td><td>the next step is itself asynchronous and returns another future</td></tr>
+      <tr><td><code>thenCombine</code></td><td>two independent futures, combine both results when both arrive</td></tr>
+      <tr><td><code>allOf</code></td><td>waiting for many futures to finish</td></tr>
+      <tr><td><code>exceptionally</code></td><td>supplying a fallback value if something failed</td></tr>
+      <tr><td><code>handle</code></td><td>reacting to both outcomes in one place</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>thenApply against thenCompose</h3>
+  <p>This is asked constantly and the answer is short: it is the difference between a value and another future.</p>
+  <pre><code><span class="cm">// getName returns a String, so thenApply</span>
+cf.thenApply(user -> user.getName());              <span class="cm">// CompletableFuture&lt;String&gt;</span>
+
+<span class="cm">// loadOrders itself returns a CompletableFuture</span>
+cf.thenApply(user -> loadOrders(user));            <span class="cm">// CompletableFuture&lt;CompletableFuture&lt;Orders&gt;&gt;  wrong</span>
+cf.thenCompose(user -> loadOrders(user));          <span class="cm">// CompletableFuture&lt;Orders&gt;  right</span></code></pre>
+  <p>Use <code>thenApply</code> when your function returns a plain value. Use <code>thenCompose</code> when it returns another future, so you get one future back instead of a future wrapped in a future.</p>
+
+  <h3>Doing two things at once</h3>
+  <pre><code>CompletableFuture&lt;User&gt; user = supplyAsync(() -> loadUser(id), pool);
+CompletableFuture&lt;Cart&gt; cart = supplyAsync(() -> loadCart(id), pool);
+
+<span class="cm">// both calls are already running; combine when both arrive</span>
+user.thenCombine(cart, (u, c) -> render(u, c))
+    .exceptionally(err -> renderError(err))
+    .thenAccept(this::send);</code></pre>
+  <p>Both calls start immediately, so the total time is the slower of the two rather than the sum. Doing this sequentially with two blocking calls would take both.</p>
+
+  <div class="note">
+    <p><b>The mistake that undoes all of it.</b> Calling <code>join()</code> or <code>get()</code> in the middle of a chain to grab an intermediate result turns the whole thing back into blocking code, and on a shared pool it can stop the program entirely. That is the next chapter.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"CompletableFuture makes it non blocking."</b> Only if you never block on it. The methods are non blocking, <code>join</code> and <code>get</code> are not.</p>
+    <p><b>"If I do not pass an executor it uses a new thread."</b> It uses a shared pool built into Java, sized to your processor count, and shared with every other piece of code that does the same. Long or blocking work there affects everything else.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What is the difference between join and get?</summary>
+    <div class="rvb">
+      <p>Both wait for the result. The difference is how failures are reported.</p>
+      <p><strong><code>get()</code></strong> is declared to throw checked exceptions, so the compiler forces you to handle or declare them. That makes it awkward inside a lambda, which cannot throw checked exceptions.</p>
+      <p><strong><code>join()</code></strong> throws only unchecked exceptions, so it fits inside lambdas and chains without ceremony. That convenience is why it is used far more often in practice.</p>
+      <p>There is one genuine functional difference worth naming: <code>get()</code> has an overload taking a timeout, and <code>join()</code> does not. If you need to give up after a while, you need <code>get(5, TimeUnit.SECONDS)</code>, or you can attach a timeout to the future itself with <code>orTimeout</code>.</p>
+      <p>The practical advice: prefer <code>join</code> for readability, but if you are waiting on anything that talks to another system, make sure a timeout exists somewhere, otherwise you have written a call that can wait forever.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How does exception handling work through a chain?</summary>
+    <div class="rvb">
+      <p>A failure travels down the chain and skips the normal steps until something handles it, in much the same way an exception unwinds a call stack.</p>
+      <p>If <code>supplyAsync</code> throws, every <code>thenApply</code> after it is skipped. The future is now in a failed state carrying that exception, and it stays that way until a handler is reached.</p>
+      <p>There are three handlers and they differ in what they can see and return:</p>
+      <ul class="body">
+        <li><code>exceptionally</code> runs only on failure, and returns a replacement value. This is your fallback.</li>
+        <li><code>handle</code> runs either way, receiving the result and the exception, one of which is null. Use it when you want one place that deals with both.</li>
+        <li><code>whenComplete</code> also runs either way, but cannot change the outcome. Use it for logging or cleanup.</li>
+      </ul>
+      <p>Two things that catch people. Placement matters: a handler only covers the steps <em>above</em> it, so one at the end of a long chain will not protect a later addition. And the exception you receive is usually wrapped in a <code>CompletionException</code>, so checking its type means looking at the cause rather than the exception itself.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> The deadlock you cause yourself</h2>
+
+  <ul class="prompts">
+    <li>Why can waiting for a task on the same pool stop everything?</li>
+    <li>Does a bigger pool fix it?</li>
+    <li>What is the actual fix?</li>
+    <li>Why is the default shared pool a bad place for blocking work?</li>
+  </ul>
+
+  <div class="teach">
+  <p>This one is nasty because the code looks correct. It is async code, using CompletableFuture, on an ordinary pool. It still stops forever.</p>
+  <pre><code>CompletableFuture.runAsync(() -> {
+    <span class="cm">// this inner task needs a thread from the same pool</span>
+    CompletableFuture&lt;String&gt; child = CompletableFuture.supplyAsync(() -> load(), pool);
+    child.join();          <span class="cm">// and this thread waits here until it runs</span>
+}, pool);</code></pre>
+  <p>The outer task occupies a thread and then waits. The inner task needs a thread to run. If the outer tasks have taken every thread in the pool, the inner tasks can never start, so the outer tasks wait forever.</p>
+
+  <h3>Measured, including the fix people try first</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Setup</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>2 threads, 2 tasks, same pool</td><td class="lose">stuck</td></tr>
+      <tr><td>4 threads, 2 tasks, same pool</td><td>finished</td></tr>
+      <tr><td>4 threads, 4 tasks, same pool</td><td class="lose">stuck</td></tr>
+      <tr><td>8 threads, 8 tasks, same pool</td><td class="lose">stuck</td></tr>
+      <tr class="win"><td>2 threads, 8 tasks, separate pool for the inner work</td><td>finished</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">
+    <p><b>Row two is the trap.</b> Doubling the pool made it work, so the obvious conclusion is "we needed a bigger pool". Row three kills that: the same doubled pool with more tasks is stuck again. The pool was never too small, it was <b>shared between work and the work it waits on</b>.</p>
+    <p>The last row is the fix. Two threads, four times as many tasks, and it completes, because the inner work has somewhere else to run.</p>
+  </div>
+
+  <h3>The three ways out</h3>
+  <ol class="body">
+    <li><strong>Do not block inside a pooled task.</strong> Chain instead: <code>thenCompose</code> lets the inner work continue the pipeline without anybody sitting and waiting for it. This is the real fix and it needs no extra threads.</li>
+    <li><strong>Use a separate pool</strong> for the inner work, so waiting for it can never starve it.</li>
+    <li><strong>Put a timeout on the wait</strong>, so a mistake becomes a slow failure you can see rather than a permanent freeze.</li>
+  </ol>
+
+  <div class="wrong">
+    <p><b>"Increase the pool size."</b> Measured above: it worked once by coincidence and failed as soon as the task count matched the pool size.</p>
+    <p><b>"Use the default pool, it is managed for you."</b> That shared pool is sized to your processor count and used by parallel streams and everything else that does not pass an executor. Blocking on it affects unrelated code across your whole application.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>How would you spot this in a live service?</summary>
+    <div class="rvb">
+      <p>Take a thread dump, and the shape is unmistakable once you know it.</p>
+      <p>You will see every thread from one pool, with the same name pattern such as <code>pool-1-thread-*</code>, all in <code>WAITING</code>, and all with the <strong>same stack trace</strong> ending in a wait on a future. Processor time on those threads will be near zero, because they are not doing anything, just waiting.</p>
+      <p>The distinguishing detail against ordinary slowness is that the queue keeps growing while every thread sits still. Nothing is progressing, but work keeps arriving. Memory and processor graphs both look completely healthy, which is why this gets misdiagnosed as a network problem.</p>
+      <p>Take three dumps about ten seconds apart. If those threads are on the identical line in all three, they are genuinely stuck rather than slow, and the line they are stuck on tells you which future they are waiting for.</p>
+      <p>The give-away in the code is then easy to find: look for a <code>join()</code> or <code>get()</code> inside a task that was itself submitted to a pool.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why does the same code sometimes work?</summary>
+    <div class="rvb">
+      <p>Because whether it deadlocks depends on timing, and that makes it far more dangerous than a bug that always fails.</p>
+      <p>Pools create threads lazily. If an inner task happens to be submitted while the pool still has room to create another thread, it gets one and everything completes. Under light load, with a handful of requests, that is often what happens. The code passes review, passes tests, and works in staging.</p>
+      <p>Under real load every thread is already busy with outer tasks, no capacity is left, and it locks up. So the failure appears at exactly the moment you least want it: peak traffic.</p>
+      <p>This is worth calling out because it happened while producing the measurements on this page. The first version of the test showed "8 threads, 8 tasks" completing successfully, which contradicted the pattern. It was a race in thread creation. Only after forcing every outer task to start before any of them asked for an inner thread did the result become stable and repeatable.</p>
+      <p>The lesson generalises: if a concurrency test passes, ask whether it passed for the reason you think.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> Which lock, and when</h2>
+
+  <ul class="prompts">
+    <li>What does ReentrantLock give you that synchronized does not?</li>
+    <li>When is a read write lock actually worth it?</li>
+    <li>What is an optimistic read?</li>
+    <li>What does reentrant mean?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Four ways to guard the same shared state, measured under a read heavy load: seven threads reading, one writing. This is the shape of most caches and configuration holders.</p>
+
+  <h3>Measured, and the result flips</h3>
+  <p><strong>A. A tiny critical section.</strong> The read is just two field accesses.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Guarded by</th><th>Reads per second</th><th>Writes per second</th></tr></thead>
+    <tbody>
+      <tr><td><code>synchronized</code></td><td class="num">19,250,694</td><td class="num">3,428,515</td></tr>
+      <tr><td><code>ReentrantLock</code></td><td class="num">38,513,575</td><td class="num">6,813,658</td></tr>
+      <tr><td><code>ReentrantReadWriteLock</code></td><td class="num lose">10,250,907</td><td class="num">4,274,611</td></tr>
+      <tr class="win"><td><code>StampedLock</code> optimistic</td><td class="num">928,711,295</td><td class="num">2,785,128</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>B. A longer critical section.</strong> Identical code, except the read does some real work while holding the lock.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Guarded by</th><th>Reads per second</th><th>Writes per second</th></tr></thead>
+    <tbody>
+      <tr><td><code>synchronized</code></td><td class="num">1,616,345</td><td class="num">41,960</td></tr>
+      <tr><td><code>ReentrantLock</code></td><td class="num">1,773,562</td><td class="num">83,977</td></tr>
+      <tr class="win"><td><code>ReentrantReadWriteLock</code></td><td class="num">3,920,600</td><td class="num">4,656,121</td></tr>
+      <tr><td><code>StampedLock</code> optimistic</td><td class="num">7,840,480</td><td class="num">1,244,837</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>The read write lock went from worst to best.</b> In test A it was the slowest of all four, well behind a plain lock, which is the exact opposite of what it is famous for. In test B, with nothing changed but how long the lock is held, it became more than twice as fast as a plain lock.</p>
+    <p>So "use a read write lock for read heavy work" is only true when the critical section is long enough to pay for its extra bookkeeping. When the guarded work is two field reads, that bookkeeping costs more than the sharing saves.</p>
+  </div>
+
+  <h3>What each one is for</h3>
+  <p>Click one to see what it gives you and when it is the right choice.</p>
+
+  <div class="dx">
+    <div class="dxq">
+      <p>Which lock are you asking about?</p>
+      <div class="opts" id="lockOpts">
+        <button class="opt" data-k="sync">synchronized</button>
+        <button class="opt" data-k="reentrant">ReentrantLock</button>
+        <button class="opt" data-k="rw">ReentrantReadWriteLock</button>
+        <button class="opt" data-k="stamped">StampedLock</button>
+      </div>
+    </div>
+    <div class="dxout" id="lockOut">
+      <span class="lbl">Lock</span>
+      <p class="verdict">Pick one</p>
+      <p>The tables show what they cost. This is what they are for, and when each one earns its place.</p>
+    </div>
+  </div>
+
+  <div class="wrong">
+    <p><b>"ReentrantLock is faster than synchronized."</b> It measured faster here, but modern Java optimises <code>synchronized</code> heavily and the gap depends entirely on the workload. Choose <code>ReentrantLock</code> for what it can do, not for speed.</p>
+    <p><b>"Read write locks are for read heavy workloads."</b> Only when the lock is held long enough. Measured above it was the slowest option when the critical section was tiny.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What does reentrant mean, and why does it matter?</summary>
+    <div class="rvb">
+      <p>It means a thread that already holds the lock can take it again without blocking on itself.</p>
+      <p>Consider a method that takes a lock and then calls another method on the same object which also takes that lock. Without reentrancy the thread would wait for a lock it is itself holding, which can never be released, so it would deadlock instantly with a single thread and no other party involved.</p>
+      <p>Both <code>synchronized</code> and <code>ReentrantLock</code> are reentrant, which is why this ordinary looking code works at all. The lock keeps a count: each acquisition increases it, each release decreases it, and only when it reaches zero is the lock actually free.</p>
+      <p>The practical consequence people miss is that with <code>ReentrantLock</code> you must unlock exactly as many times as you locked. Taking it twice and unlocking once leaves it held forever. That is one more reason the <code>lock()</code> and <code>try/finally unlock()</code> pattern is not optional.</p>
+      <p>Worth naming as a contrast: the read lock of a read write lock is <strong>not</strong> upgradable. Holding a read lock and then asking for the write lock deadlocks, because the write lock waits for all readers to leave, including you.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What is an optimistic read and when does it fail?</summary>
+    <div class="rvb">
+      <p>It is reading without taking a lock at all, then checking afterwards whether anybody wrote while you were reading. If nobody did, the read was valid and cost almost nothing. If somebody did, you throw the result away and read again properly.</p>
+      <pre><code><span class="kw">long</span> stamp = lock.tryOptimisticRead();   <span class="cm">// no lock taken</span>
+<span class="kw">long</span> value = a + b;                      <span class="cm">// read the fields</span>
+<span class="kw">if</span> (!lock.validate(stamp)) {             <span class="cm">// did a writer get in?</span>
+    stamp = lock.readLock();             <span class="cm">// yes, do it properly</span>
+    <span class="kw">try</span> { value = a + b; } <span class="kw">finally</span> { lock.unlockRead(stamp); }
+}</code></pre>
+      <p>That is where the 928 million reads per second came from: in the common case there is no lock, no waiting, and no writing to shared lock state.</p>
+      <p>It fails when writes are frequent. Every write invalidates readers in flight, so they all redo their work, and you pay for the optimistic attempt <em>and</em> the real read. With enough writers it becomes slower than simply taking the read lock.</p>
+      <p>Two rules that matter in practice. You must copy what you read into local variables and validate before acting on it, because the data can change underneath you mid-read. And <code>StampedLock</code> is <strong>not reentrant</strong>, so unlike the other locks here, asking for it twice on one thread deadlocks.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> Atomics and compare-and-set</h2>
+
+  <ul class="prompts">
+    <li>How does an atomic class work without a lock?</li>
+    <li>What is compare-and-set?</li>
+    <li>When is LongAdder better than AtomicLong, and when is it worse?</li>
+    <li>What is the ABA problem?</li>
+  </ul>
+
+  <div class="teach">
+  <p>The atomic classes give you correct read, change and write without a lock. The trick is a single processor instruction that does all three at once.</p>
+
+  <h3>Compare-and-set</h3>
+  <p>The instruction says: <em>if this memory location still holds the value I expect, replace it with this new value, and tell me whether it worked.</em> The whole thing happens as one indivisible step, so nothing can slip in between.</p>
+  <pre><code><span class="cm">// what incrementAndGet does underneath</span>
+<span class="kw">while</span> (<span class="kw">true</span>) {
+    <span class="kw">long</span> current = value;                        <span class="cm">// read</span>
+    <span class="kw">long</span> next = current + 1;                     <span class="cm">// change</span>
+    <span class="kw">if</span> (compareAndSet(current, next)) <span class="kw">return</span> next; <span class="cm">// write, only if unchanged</span>
+    <span class="cm">// somebody beat us to it, so read again and retry</span>
+}</code></pre>
+  <p>No thread ever waits. A thread that loses the race simply tries again with the new value. This is why atomics are often called lock free: threads are never blocked, though under heavy contention they can spend a lot of time retrying.</p>
+
+  <h3>Measured, and this is where LongAdder appears</h3>
+  <p>From the counter in chapter one, eight threads incrementing four million times:</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>How</th><th>Best ms</th><th>Compared to synchronized</th></tr></thead>
+    <tbody>
+      <tr><td><code>synchronized</code></td><td class="num">185</td><td>baseline</td></tr>
+      <tr><td><code>ReentrantLock</code></td><td class="num">96</td><td>about 2 times faster</td></tr>
+      <tr><td><code>AtomicLong</code></td><td class="num">57</td><td>about 3 times faster</td></tr>
+      <tr class="win"><td><code>LongAdder</code></td><td class="num">5</td><td>about 37 times faster</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Why LongAdder is so much faster.</strong> With eight threads hammering one <code>AtomicLong</code>, they are all competing for the same memory location, so most compare-and-set attempts fail and get retried. <code>LongAdder</code> gives each thread its own separate counter and only adds them together when you ask for the total. Threads stop fighting each other entirely.</p>
+  <div class="note">
+    <p><b>The trade, and the reason AtomicLong still exists.</b> <code>LongAdder</code> is much faster to write and slower to read, because reading means summing every internal counter. It also has no compare-and-set, so you cannot do conditional updates with it. Use it for counters and metrics that are written constantly and read occasionally. Use <code>AtomicLong</code> when you read often, or need the exact value at a moment, or need compare-and-set.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"Atomic classes are lock free so they are always faster."</b> Under heavy contention they spend their time retrying. That is exactly why LongAdder was added and why it beat AtomicLong by 11 times here.</p>
+    <p><b>"AtomicInteger makes my whole class thread safe."</b> Each operation on it is atomic. Two operations are not. Reading an atomic, deciding something, then writing it is still a race unless you use a single compare-and-set or an update method.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What is the ABA problem?</summary>
+    <div class="rvb">
+      <p>Compare-and-set asks "is the value still what I expect". It cannot tell the difference between a value that never changed and a value that changed away and came back.</p>
+      <p>Thread one reads A and prepares to swap it for C. Before it acts, thread two changes A to B and then back to A. Thread one's compare-and-set now succeeds, because the value it sees is still A, even though the world moved underneath it.</p>
+      <p>For a plain counter this does not matter: a number that returns to the same value is genuinely the same value. It matters when the value is a <strong>reference</strong> and the identity carries meaning, for example the head of a stack you are popping from. The node may have been removed, reused and pushed back, so your swap corrupts the structure while looking perfectly valid.</p>
+      <p>The fix is to give each change a version number, so the pair of value and version is compared rather than the value alone. Java provides <code>AtomicStampedReference</code> for exactly this, where the stamp is a counter you increment on every write.</p>
+      <p>Honest framing for an interview: you are unlikely to hit this unless you are writing lock free data structures by hand, which you probably should not be. Knowing it exists demonstrates you understand what compare-and-set actually promises, which is narrower than most people assume.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How would you safely update a value based on its current value?</summary>
+    <div class="rvb">
+      <p>Use the update methods rather than reading and writing separately, because the separate version is a race no matter how atomic each half is.</p>
+      <pre><code><span class="cm">// broken: two atomic operations do not make one atomic operation</span>
+<span class="kw">if</span> (counter.get() &lt; limit) counter.incrementAndGet();
+
+<span class="cm">// correct: one call, retried internally until it succeeds</span>
+counter.updateAndGet(v -> v &lt; limit ? v + 1 : v);</code></pre>
+      <p><code>updateAndGet</code> and <code>accumulateAndGet</code> take your function and run the read, apply, compare-and-set loop for you. If another thread wins the race, your function is simply applied again to the new value.</p>
+      <p>That leads to the one rule that catches people: <strong>the function must have no side effects</strong>. It can be called several times for a single successful update, so logging, sending a message or mutating anything else inside it will happen more than once.</p>
+      <p>The same idea appears on maps. <code>map.compute</code>, <code>computeIfAbsent</code> and <code>merge</code> exist so that a read, decide and write on a concurrent map is one atomic operation rather than three separate calls with gaps between them.</p>
+    </div>
+  </details>
+</section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>race condition</dt><dd>When the answer depends on which thread happens to run first. The counter losing updates is one.</dd>
+        <dt>atomic</dt><dd>Happens as one indivisible step that nothing can interrupt. <code>count++</code> is not atomic: it is a read, a change and a write.</dd>
+        <dt>visibility</dt><dd>Whether a change made by one thread can be seen by another. Without volatile or a lock, it may never be.</dd>
+        <dt>volatile</dt><dd>Guarantees visibility and stops reordering. Does <em>not</em> make read-change-write safe.</dd>
+        <dt>happens-before</dt><dd>The rule that decides whether one thread is guaranteed to see another thread's work. No relationship means no guarantee at all.</dd>
+        <dt>lost update</dt><dd>Two threads read the same value, both add to it, and one of the two additions disappears.</dd>
+        <dt>critical section</dt><dd>The code inside a lock. How long you hold it decides which lock is fastest.</dd>
+        <dt>contention</dt><dd>Several threads wanting the same lock or memory location at once. What LongAdder is designed to avoid.</dd>
+        <dt>reentrant</dt><dd>A thread already holding the lock can take it again without blocking on itself. StampedLock is not reentrant.</dd>
+        <dt>optimistic read</dt><dd>Reading with no lock, then checking whether a writer got in. If one did, read again properly.</dd>
+        <dt>compare-and-set</dt><dd>One processor instruction: replace this value only if it still equals what I expect. How atomic classes work without locks. Often shortened to CAS.</dd>
+        <dt>lock free</dt><dd>Threads are never blocked waiting. They retry instead, which is cheap when contention is low and expensive when it is high.</dd>
+        <dt>ABA problem</dt><dd>A value changed away and back, so compare-and-set succeeds even though the world moved. Matters for references, not for counters.</dd>
+        <dt>rejection policy</dt><dd>What a thread pool does with a task when its threads and queue are both full. The default throws.</dd>
+        <dt>backpressure</dt><dd>Making the producer slow down when the system cannot keep up. CallerRunsPolicy is one way to get it.</dd>
+        <dt>executor</dt><dd>The thing that owns the threads and runs the tasks you submit. A thread pool is one.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---- lock chooser ---- */
+  var LOCKS={
+    sync:{lbl:"Lock",v:"synchronized: the default, and usually the right one",
+      n:"Built into the language, so there is no lock object to create and no way to forget to release it. The lock is freed automatically when the block exits, including when an exception is thrown, which removes the most common mistake with every other option here. Reentrant, so a thread already holding it can take it again. What it cannot do: give up after a while, be interrupted, or let readers share. Measured at 19.3 million reads per second with a tiny critical section and 1.6 million with a longer one.",
+      x:"synchronized (lock) { ... }"},
+    reentrant:{lbl:"Lock",v:"ReentrantLock: when you need to give up or be interrupted",
+      n:"Does the same job as synchronized and adds three things it cannot do. You can try to take the lock and give up after a timeout, which turns a possible deadlock into a failed request. You can take it in a way that allows the thread to be interrupted and cancelled. And you can ask for fairness, so the longest waiting thread goes next instead of whoever happens to win. The cost is that you must release it yourself, in a finally block, every time. Measured fastest of the two plain locks here at 38.5 million reads per second.",
+      x:"lock.lock(); try { ... } finally { lock.unlock(); }"},
+    rw:{lbl:"Lock",v:"ReentrantReadWriteLock: only when the lock is held long enough",
+      n:"Many readers can hold it at once, but a writer excludes everybody. That sounds ideal for read heavy work and the measurement says it depends entirely on how long you hold it. With a tiny critical section it was the slowest of all four at 10.3 million reads per second, well behind a plain lock, because its bookkeeping costs more than the sharing saves. With a longer critical section the same code became the best of the plain locks at 3.9 million, more than twice a plain lock. One trap: a read lock cannot be upgraded to a write lock, and trying deadlocks, because the write lock waits for all readers including you.",
+      x:"rw.readLock().lock(); try { ... } finally { rw.readLock().unlock(); }"},
+    stamped:{lbl:"Lock",v:"StampedLock: reads that take no lock at all",
+      n:"Its optimistic mode reads without locking and then checks whether a writer got in. If not, the read cost almost nothing, which is where 928 million reads per second came from. If a writer did get in, you throw the result away and read again properly. It wins when writes are rare and loses when they are frequent, because every write makes readers redo their work. Two things to know before using it: it is NOT reentrant, so taking it twice on one thread deadlocks, and you must copy what you read into local variables and validate before acting on it.",
+      x:"long s=lock.tryOptimisticRead(); ... if(!lock.validate(s)){ /* read properly */ }"}
+  };
+  picker('#lockOpts .opt','k',LOCKS,'#lockOut',chooserHtml);
+
+  /* ---- interleaving simulator: why count++ is not atomic ---- */
+  var laneA=document.getElementById("laneA"), laneB=document.getElementById("laneB"),
+      memVal=document.getElementById("memVal"), memBox=document.getElementById("memBox"),
+      sAsked=document.getElementById("sAsked"), sGot=document.getElementById("sGot"),
+      simFoot=document.getElementById("simFoot");
+
+  // each script is a list of [lane, label, action]
+  var BAD=[
+    ["A","read count  -> 0",   function(s){s.a=s.mem}],
+    ["B","read count  -> 0",   function(s){s.b=s.mem}],
+    ["A","add 1       -> 1",   function(s){s.a=s.a+1}],
+    ["B","add 1       -> 1",   function(s){s.b=s.b+1}],
+    ["A","write 1",            function(s){s.mem=s.a}],
+    ["B","write 1",            function(s){s.mem=s.b; s.lost=true}]
+  ];
+  var GOOD=[
+    ["A","read count  -> 0",   function(s){s.a=s.mem}],
+    ["A","add 1       -> 1",   function(s){s.a=s.a+1}],
+    ["A","write 1",            function(s){s.mem=s.a}],
+    ["B","read count  -> 1",   function(s){s.b=s.mem}],
+    ["B","add 1       -> 2",   function(s){s.b=s.b+1}],
+    ["B","write 2",            function(s){s.mem=s.b}]
+  ];
+
+  var sim={i:0,timer:null,bad:true,state:null};
+
+  function resetSim(){
+    if(sim.timer){clearInterval(sim.timer);sim.timer=null;document.getElementById("simAuto").textContent="Play"}
+    sim.i=0; sim.state={mem:0,a:0,b:0,lost:false};
+    laneA.innerHTML=""; laneB.innerHTML="";
+    var script=sim.bad?BAD:GOOD;
+    script.forEach(function(step,idx){
+      var d=document.createElement("div");
+      d.className="step"; d.dataset.idx=idx; d.textContent=step[1];
+      (step[0]==="A"?laneA:laneB).appendChild(d);
+    });
+    // keep the lanes aligned by padding the shorter one
+    memBox.className="memory"; memVal.textContent="0";
+    sAsked.textContent="0"; sGot.textContent="0";
+    simFoot.className="simfoot";
+    simFoot.textContent=sim.bad
+      ? "Both threads want to add 1. Press Next step and watch the shared value."
+      : "Same two threads, but this time A finishes completely before B starts.";
+    paintSteps();
+  }
+  function paintSteps(){
+    var script=sim.bad?BAD:GOOD;
+    [].slice.call(document.querySelectorAll(".step")).forEach(function(d){
+      var idx=parseInt(d.dataset.idx,10);
+      d.className="step"+(idx<sim.i?" done":(idx===sim.i?" now":""));
+    });
+  }
+  function stepSim(){
+    var script=sim.bad?BAD:GOOD;
+    if(sim.i>=script.length){ finishSim(); return; }
+    script[sim.i][2](sim.state);
+    sim.i++;
+    memVal.textContent=sim.state.mem;
+    sAsked.textContent="2";
+    sGot.textContent=sim.state.mem;
+    paintSteps();
+    if(sim.i>=script.length) finishSim();
+  }
+  function finishSim(){
+    if(sim.timer){clearInterval(sim.timer);sim.timer=null;document.getElementById("simAuto").textContent="Play"}
+    [].slice.call(document.querySelectorAll(".step")).forEach(function(d){
+      d.className="step done";
+    });
+    if(sim.state.lost){
+      memBox.className="memory bad";
+      simFoot.className="simfoot crash";
+      simFoot.textContent="Two threads each added 1, and the count is 1. Both read 0 before either wrote, so the second write overwrote the first. That is a lost update, and it is what happened 2.9 million times in the measured run.";
+      var last=laneB.lastChild; if(last) last.className="step lost";
+    }else{
+      simFoot.className="simfoot ok";
+      simFoot.textContent="Count is 2, which is correct. Nothing about the code changed. The only difference is that the two threads did not overlap, which is why this bug hides so well.";
+    }
+  }
+
+  document.getElementById("simStep").addEventListener("click",stepSim);
+  document.getElementById("simReset").addEventListener("click",resetSim);
+  document.getElementById("simAuto").addEventListener("click",function(){
+    var b=this;
+    if(sim.timer){clearInterval(sim.timer);sim.timer=null;b.textContent="Play";return}
+    var script=sim.bad?BAD:GOOD;
+    if(sim.i>=script.length) resetSim();
+    b.textContent="Pause";
+    sim.timer=setInterval(function(){
+      if(sim.i>=(sim.bad?BAD:GOOD).length){clearInterval(sim.timer);sim.timer=null;b.textContent="Play";return}
+      stepSim();
+    },700);
+  });
+  document.getElementById("simMode").addEventListener("click",function(){
+    sim.bad=!sim.bad;
+    this.setAttribute("aria-pressed",sim.bad?"false":"true");
+    this.textContent=sim.bad?"Unlucky interleaving":"No overlap";
+    resetSim();
+  });
+  resetSim();
+
+  /* ---- quiz ---- */
+  var Q=[
+    {c:1,q:"Why is count++ not safe when threads share it?",
+     a:"Because it is three operations, not one: <b>read</b> the value, <b>add</b> one, <b>write</b> it back. Another thread can run between any of them. If both threads read 0 before either writes, both write 1, and one increment vanishes. Measured with 8 threads and 4,000,000 increments, a plain counter finished anywhere between 1,124,713 and 4,000,000, and marking it volatile still never once produced the right answer."},
+    {c:1,q:"What does volatile guarantee, and what does it not?",
+     a:"It guarantees <b>visibility</b>: a write by one thread is seen by all others immediately rather than sitting in a register or cache, and it stops the compiler reordering around it. It does <b>not</b> guarantee atomicity. Each read and each write is whole, but read-change-write is still three steps with gaps. The measurement is blunt about this: volatile lost about 70 percent of the updates and was <b>slower than AtomicLong, which was always correct</b>. Use volatile for a flag one thread writes and others only read. Use a lock or an atomic the moment you write based on what you read."},
+    {c:1,q:"What is a happens-before relationship?",
+     a:"The rule that decides whether one thread is guaranteed to see another thread's work. If A happens-before B, whatever A wrote is visible to B. With no such relationship there is no guarantee at all, and the second thread is <b>allowed to see stale data forever</b>, not merely likely to. You get one from: starting a thread, joining a thread, releasing then acquiring the same lock, and writing then reading the same volatile field. This is why a loop reading a plain boolean flag can legally never notice it changed."},
+    {c:2,q:"What does a thread pool do with an arriving task?",
+     a:"In order: start a new thread if fewer exist than the core size, even if others are idle; otherwise queue it; if the queue is full, start a new thread up to the maximum; if that is impossible, hand it to the rejection policy. The step people miss is the third, because with an <b>unbounded queue it never happens</b>, so the maximum pool size is silently ignored. That is exactly what <code>newFixedThreadPool</code> gives you, and under sustained overload the queue grows until the heap dies."},
+    {c:2,q:"Name the four rejection policies and what each does.",
+     a:"Measured with 2 threads, a queue of 4, and 20 tasks. <b>AbortPolicy</b> (the default): 6 ran, 14 threw at the caller. <b>CallerRunsPolicy</b>: all 20 ran, 5 of them on the submitting thread, which slows the producer down and is real backpressure. <b>DiscardPolicy</b>: 6 ran and <b>14 silently vanished</b>, zero errors anywhere. <b>DiscardOldestPolicy</b>: same, but it drops the longest waiting task to make room. DiscardPolicy is the frightening one: if those were payments, they did not happen and nothing told you."},
+    {c:3,q:"What is the difference between thenApply and thenCompose?",
+     a:"Whether your function returns a plain value or another future. <code>thenApply</code> is for a normal transformation: give it a function returning a String and you get a future of String. <code>thenCompose</code> is for when the next step is itself asynchronous: if your function returns a future, <code>thenApply</code> gives you a future wrapped in a future, while <code>thenCompose</code> flattens it into one. Same relationship as map and flatMap on a stream."},
+    {c:3,q:"How do you run two calls at the same time and combine the results?",
+     a:"Start both with <code>supplyAsync</code> so they are already running, then join them with <code>thenCombine</code>, which fires when both arrive. Total time becomes the slower of the two rather than the sum. Add <code>exceptionally</code> for a fallback if either fails. The mistake that undoes it is calling <code>join()</code> on the first before starting the second, which makes them sequential again and throws away the whole point."},
+    {c:4,q:"Why can waiting for a task on the same pool stop everything?",
+     a:"The outer task occupies a thread and then waits. The inner task needs a thread to run. If outer tasks have taken every thread, the inner tasks can never start, so the outer tasks wait forever. Measured: 2 threads with 2 tasks got stuck; 4 threads with 4 tasks got stuck; 8 threads with 8 tasks got stuck. In a thread dump this looks like a whole pool in WAITING with the same stack trace and near zero processor time, while the queue keeps growing."},
+    {c:4,q:"Does a bigger pool fix the same-pool deadlock?",
+     a:"No, and the measurement traps you on purpose. Going from 2 threads to 4 with 2 tasks <b>did</b> finish, which makes it look like the pool was too small. Then 4 threads with 4 tasks was stuck again, and 8 with 8 was stuck. The pool was never too small: it was <b>shared between work and the work it waits on</b>. The real fixes are not to block inside a pooled task at all (chain with <code>thenCompose</code>), or give the inner work a separate pool. Measured, 2 threads and 8 tasks with a separate inner pool completed fine."},
+    {c:5,q:"When is a read write lock actually worth using?",
+     a:"Only when the lock is held long enough to pay for its extra bookkeeping, and the measurement flips completely on this. With a tiny critical section, two field reads, it was the <b>slowest of all four options</b> at 10.3 million reads per second, well behind a plain ReentrantLock at 38.5 million. With a longer critical section and nothing else changed, it became the best plain lock at 3.9 million against 1.8 million. So the famous advice is only true when the guarded work is substantial."},
+    {c:5,q:"What is an optimistic read?",
+     a:"Reading without taking a lock at all, then checking afterwards whether a writer got in. If not, the read cost almost nothing, which is where StampedLock's 928 million reads per second came from. If a writer did get in, you discard the result and take a real read lock. It wins when writes are rare and loses when they are frequent, because every write forces readers to redo their work. Two catches: StampedLock is <b>not reentrant</b>, so taking it twice on one thread deadlocks, and you must copy what you read into locals and validate before acting on it."},
+    {c:6,q:"When is LongAdder better than AtomicLong, and when is it worse?",
+     a:"Better when many threads write and few read. With 8 threads incrementing, LongAdder finished in 5 ms against AtomicLong's 57 ms, about <b>11 times faster</b>, and 37 times faster than synchronized. The reason is that AtomicLong has every thread competing for one memory location, so most compare-and-set attempts fail and retry, while LongAdder gives each thread its own counter and only sums them when asked. Worse when you read often, because reading means summing every internal counter, and it has no compare-and-set so you cannot do conditional updates. Counters and metrics: LongAdder. Anything you read frequently or update conditionally: AtomicLong."}
+  ];
+  wireQuiz(Q,{1:"How a count goes wrong",2:"Thread pools",3:"CompletableFuture",
+              4:"Deadlock you cause",5:"Which lock",6:"Atomics"});
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
