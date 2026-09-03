@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="One Element at a Time, episode 7 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>One Element at a Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS: the pipeline tracer
+   =================================================================== */
+.pipe{display:grid;grid-template-columns:132px 1fr;gap:14px;padding:16px}
+.source{border:1px solid var(--line-soft);border-radius:8px;background:var(--surface-2);padding:12px}
+.source h6{margin:0 0 9px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600}
+.els{display:flex;flex-wrap:wrap;gap:4px}
+.el{width:30px;height:26px;border-radius:4px;background:var(--surface);border:1px solid var(--line);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;display:grid;place-items:center;
+  color:var(--ink-faint);transition:background-color .2s,border-color .2s}
+.el.now{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:700}
+.el.passed{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.el.dropped{background:var(--surface-2);border-color:var(--line);color:var(--ink-faint);
+  text-decoration:line-through}
+.el.untouched{opacity:.45}
+.stages{display:flex;flex-direction:column;gap:8px}
+.stage{display:flex;align-items:center;gap:12px;border:1px solid var(--line-soft);border-radius:8px;
+  background:var(--surface-2);padding:10px 13px;min-height:44px;transition:background-color .2s,border-color .2s}
+.stage .sname{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;
+  color:var(--ink-soft);flex:none;width:150px}
+.stage .sval{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-faint)}
+.stage.active{background:var(--held-bg);border-color:var(--held)}
+.stage.active .sname,.stage.active .sval{color:var(--held)}
+.stage.stopped{background:var(--freed-bg);border-color:var(--freed)}
+.stage.stopped .sname,.stage.stopped .sval{color:var(--freed)}
+.counts{display:flex;gap:20px;padding:0 16px 14px}
+.counts div{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint)}
+.counts b{color:var(--ink);font-weight:600}
+@media (max-width:700px){.pipe{grid-template-columns:1fr}.stage .sname{width:120px}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep07">
+  <a class="backlink" href="index.html">All episodes</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>One Element at a Time</b>
+    <span>Episode 7 &middot; Java 8 Streams</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> The pipeline</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Lazy and short-circuit</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> Collectors</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> reduce vs collect</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Parallel streams</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Optional</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>Seven elements out of a million</h1>
+      <p class="sub">A stream is not a loop and not a collection. It is a recipe that does nothing until you ask for an answer, then pulls elements through one at a time and stops the moment it can. Everything here was measured, including the case where going parallel made things four times slower.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> The pipeline</h2>
+
+  <ul class="prompts">
+    <li>What are the three parts of a stream pipeline?</li>
+    <li>What is the difference between an intermediate and a terminal operation?</li>
+    <li>Why can you not reuse a stream?</li>
+    <li>How is a stream different from a collection?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Every stream has exactly three parts.</p>
+  <ol class="body">
+    <li>A <strong>source</strong>: a collection, an array, a range, a file, a generator.</li>
+    <li>Zero or more <strong>intermediate operations</strong>: <code>filter</code>, <code>map</code>, <code>sorted</code>, <code>distinct</code>, <code>limit</code>. Each returns another stream and <strong>does nothing on its own</strong>.</li>
+    <li>Exactly one <strong>terminal operation</strong>: <code>collect</code>, <code>toList</code>, <code>forEach</code>, <code>count</code>, <code>findFirst</code>, <code>reduce</code>. This is what makes anything happen.</li>
+  </ol>
+
+  <h3>Measured: nothing runs until you ask</h3>
+  <p>A pipeline with a counter in every stage, built but not finished:</p>
+  <pre><code>pipeline built, elements touched: <span class="st">0</span>
+after toList(),  elements touched: <span class="st">6</span></code></pre>
+  <p>Zero. The <code>filter</code> and <code>map</code> were written, and neither ran. Adding the terminal operation ran both across three elements, which is the six.</p>
+  <div class="note">
+    <p><b>This is the single most useful sentence about streams.</b> An intermediate operation is a description of work, not the work. Nothing executes until a terminal operation asks for a result. A pipeline with no terminal operation is dead code that compiles.</p>
+  </div>
+
+  <h3>How a stream differs from a collection</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th></th><th>Collection</th><th>Stream</th></tr></thead>
+    <tbody>
+      <tr><td>Holds the elements</td><td>yes</td><td>no, it reads from a source</td></tr>
+      <tr><td>Can be walked more than once</td><td>yes</td><td>no, one pass only</td></tr>
+      <tr><td>Computes when</td><td>immediately</td><td>only at the terminal operation</td></tr>
+      <tr><td>Can be endless</td><td>no</td><td>yes</td></tr>
+      <tr><td>Changes the original</td><td>can</td><td>never</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Measured: a stream is used once</h3>
+  <pre><code>first  use: [a, b]
+second use: <span class="bad">IllegalStateException</span> - stream has already been operated upon or closed</code></pre>
+  <p>A stream carries a flag saying whether it has been consumed. Using it twice fails immediately rather than quietly giving you the wrong answer. If you need two passes, either collect to a list first, or keep a <code>Supplier</code> that builds a fresh stream each time.</p>
+
+  <div class="wrong">
+    <p><b>"Streams are a replacement for loops."</b> They are a way of describing a transformation. For a simple loop over a few items with a side effect, an ordinary <code>for</code> loop is clearer and faster, and using a stream there is worse code.</p>
+    <p><b>"A stream stores its elements."</b> It reads them from the source as needed. Change the source before the terminal operation runs and the stream sees the change.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What happens if you change the source while a stream is open?</summary>
+    <div class="rvb">
+      <p>Usually you get an exception, and the reason is worth knowing because it connects to how streams read their source.</p>
+      <p>Because a stream does not copy the elements, it reads from the collection when the terminal operation runs. Most collections detect being changed during that read and throw <code>ConcurrentModificationException</code>, the same mechanism as changing a list while looping over it.</p>
+      <p>The confusing part is <em>when</em> it happens. Building the pipeline is fine, changing the list is fine, and the failure appears at the terminal operation, which may be lines away from the change. Nothing is wrong with the line that throws.</p>
+      <p>There is one legitimate case: changing the source between building the pipeline and running the terminal operation is allowed and the stream simply sees the newer contents. It is legal and almost always a bug waiting to happen, because the code reads as though the stream was fixed at the moment it was written.</p>
+      <p>The habit that avoids all of it: build and finish the pipeline in one expression, and do not hold a stream in a variable.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Which operations are intermediate and which are terminal?</summary>
+    <div class="rvb">
+      <p>The reliable test is the return type rather than memorising lists. <strong>If it returns a stream, it is intermediate. If it returns anything else, it is terminal.</strong></p>
+      <p><strong>Intermediate:</strong> <code>filter</code>, <code>map</code>, <code>flatMap</code>, <code>distinct</code>, <code>sorted</code>, <code>peek</code>, <code>limit</code>, <code>skip</code>, <code>takeWhile</code>, <code>dropWhile</code>. All return a stream, all do nothing until asked.</p>
+      <p><strong>Terminal:</strong> <code>collect</code>, <code>toList</code>, <code>forEach</code>, <code>count</code>, <code>reduce</code>, <code>min</code>, <code>max</code>, <code>findFirst</code>, <code>findAny</code>, <code>anyMatch</code>, <code>allMatch</code>, <code>noneMatch</code>, <code>toArray</code>. All return a value, a collection, an <code>Optional</code>, or nothing.</p>
+      <p>Two worth calling out. <code>peek</code> is intermediate and exists for looking, not for doing: because it is intermediate it may not run at all if nothing downstream needs that element, so using it for real side effects gives you results that depend on what the terminal operation happens to require. <code>sorted</code> is intermediate but cannot stream one element at a time, because it has to see everything before it can emit anything, which is covered in the next chapter.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> Lazy, and stopping early</h2>
+
+  <ul class="prompts">
+    <li>Do elements go through the pipeline one at a time or stage by stage?</li>
+    <li>What is short-circuiting, and which operations do it?</li>
+    <li>Which operations have to see everything before they can emit anything?</li>
+    <li>Why can you have an endless stream?</li>
+  </ul>
+
+  <div class="teach">
+  <p>The intuition most people start with is that <code>filter</code> runs over the whole list, then <code>map</code> runs over what survived. That is not what happens.</p>
+
+  <h3>Measured: the order the stages actually run</h3>
+  <pre><code>filter ann
+  map ann
+filter bob
+  map bob
+filter cat
+  map cat</code></pre>
+  <p>Each element goes all the way through the pipeline before the next one starts. There is no intermediate list between the stages, which is why a long pipeline does not allocate a collection per stage.</p>
+
+  <h3>Watch it happen</h3>
+  <p>Six numbers through a filter and a map. Step through and watch a single element travel down before the next one begins. Then switch the ending from <code>toList</code> to <code>findFirst</code> and watch it stop.</p>
+
+  <div class="sim">
+    <div class="simhead">
+      <button class="btn" id="simStep">Next step</button>
+      <button class="btn" id="simAuto">Play</button>
+      <button class="btn" id="simMode" aria-pressed="false">ends with toList()</button>
+      <button class="btn" id="simReset">Reset</button>
+    </div>
+    <div class="pipe">
+      <div class="source">
+        <h6>source</h6>
+        <div class="els" id="els" aria-hidden="true"></div>
+      </div>
+      <div class="stages" id="stages" aria-hidden="true"></div>
+    </div>
+    <div class="counts">
+      <div>filter ran <b id="cFilter">0</b></div>
+      <div>map ran <b id="cMap">0</b></div>
+      <div>result <b id="cResult">[]</b></div>
+    </div>
+    <div class="simfoot" id="simFoot">Press Next step. Watch one element go all the way down before the next starts.</div>
+  </div>
+
+  <h3>Measured: how much of a million gets looked at</h3>
+  <pre><code>findFirst() gave 14
+filter ran <span class="st">7</span> times, map ran <span class="st">1</span> time, out of 1,000,000
+
+count() gave 142,857 and had to look at <span class="bad">1,000,000</span> elements</code></pre>
+  <div class="note">
+    <p><b>Seven out of a million.</b> <code>findFirst</code> asked for elements until it had an answer and then stopped. The first multiple of seven is seven, so the filter ran seven times and the map ran once. That is short-circuiting, and it is only possible because nothing runs eagerly.</p>
+    <p><code>count</code> cannot stop early here, because it has to test every element to know how many pass.</p>
+  </div>
+
+  <h3>Which operations stop early</h3>
+  <ul class="body">
+    <li><strong>Stop as soon as they can:</strong> <code>findFirst</code>, <code>findAny</code>, <code>anyMatch</code>, <code>allMatch</code>, <code>noneMatch</code>, <code>limit</code>, <code>takeWhile</code>.</li>
+    <li><strong>Must see everything:</strong> <code>count</code> when there is a filter, <code>collect</code>, <code>forEach</code>, <code>reduce</code>, <code>min</code>, <code>max</code>.</li>
+  </ul>
+  <p>Note that <code>allMatch</code> stops at the first element that fails, and <code>noneMatch</code> at the first that passes. Both stop on the answer that settles the question.</p>
+
+  <h3>Operations that have to buffer</h3>
+  <p><code>sorted</code> and <code>distinct</code> break the one at a time flow, and knowing this explains a lot of surprising behaviour.</p>
+  <p><code>sorted</code> cannot emit anything until it has seen every element, because the smallest might be last. So a pipeline with <code>sorted</code> in it pulls everything through the earlier stages first, then sorts, then continues. Putting <code>filter</code> before <code>sorted</code> rather than after can therefore change the work enormously.</p>
+
+  <h3>Why endless streams work</h3>
+  <pre><code>Stream.iterate(1, n -> n + 1)      <span class="cm">// no end</span>
+      .filter(n -> n % 7 == 0)
+      .limit(5)                    <span class="cm">// now it has one</span>
+      .toList();</code></pre>
+  <p>This finishes because nothing is produced until asked. The source generates a value only when the pipeline pulls one, and <code>limit</code> stops pulling after five. Written eagerly this could never terminate.</p>
+
+  <div class="wrong">
+    <p><b>"filter runs over everything, then map runs over the rest."</b> Measured false. Each element goes through every stage before the next one starts.</p>
+    <p><b>"peek is for debugging so it always runs."</b> It is an intermediate operation, so it runs only for elements the terminal operation actually pulls. With <code>findFirst</code> on a million elements, a <code>peek</code> would print seven lines.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Does the order of filter and map matter?</summary>
+    <div class="rvb">
+      <p>Yes, and it is one of the few stream optimisations worth doing by hand.</p>
+      <p>Put <code>filter</code> first when you can. Every element that the filter removes is one the map never has to transform. Mapping first means doing the expensive work on elements you are about to throw away.</p>
+      <pre><code><span class="cm">// maps a million, keeps a few</span>
+list.stream().map(this::expensive).filter(x -> x.isValid())
+
+<span class="cm">// filters a million cheaply, maps only what survives</span>
+list.stream().filter(x -> x.isValid()).map(this::expensive)</code></pre>
+      <p>The compiler will not reorder these for you, because <code>map</code> can have side effects and changes the type, so swapping them is not always safe. You have to do it.</p>
+      <p>The much larger version of the same point is <code>sorted</code>. Sorting has to see everything, so filtering before it means sorting a smaller set. Filtering after means sorting elements you then discard. With a million elements and a filter that keeps a hundred, that is the difference between sorting a hundred things and sorting a million.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What is the difference between findFirst and findAny?</summary>
+    <div class="rvb">
+      <p><code>findFirst</code> promises the first element in the stream's order. <code>findAny</code> promises only that it is some element that matched.</p>
+      <p>On a sequential stream they behave identically, because there is only one obvious element to return, and <code>findAny</code> gives you the first anyway.</p>
+      <p>The difference appears when you go parallel. <code>findFirst</code> has to work out which match came earliest in the original order, which means coordination between threads and possibly waiting for a thread working on earlier elements. <code>findAny</code> can return whatever any thread found first and stop everything immediately, which is genuinely faster.</p>
+      <p>So the rule: use <code>findAny</code> when you truly do not care which one, and <code>findFirst</code> when order is part of the answer. Choosing <code>findFirst</code> out of habit in a parallel stream quietly costs you the thing you went parallel for.</p>
+      <p>The same distinction shows up in <code>forEach</code> against <code>forEachOrdered</code>, for the same reason.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> Collectors</h2>
+
+  <ul class="prompts">
+    <li>What does groupingBy return, and how do you change the values?</li>
+    <li>What is the difference between groupingBy and partitioningBy?</li>
+    <li>What happens if toMap gets a duplicate key?</li>
+    <li>What is teeing for?</li>
+  </ul>
+
+  <div class="teach">
+  <p><code>collect</code> takes a recipe for building a container. The useful part is that recipes nest: a collector can take another collector to describe what happens to each group.</p>
+
+  <h3>Measured output, from real data</h3>
+  <p>Five people with a department and a salary:</p>
+  <pre><code>groupingBy(dept)                 = 3 groups, keys [hr, sales, eng]
+groupingBy + counting            = {hr=1, sales=2, eng=2}
+groupingBy + mapping(name)       = {hr=[Eve], sales=[Cat, Dan], eng=[Ann, Bob]}
+partitioningBy(salary &gt;= 100)    = {false=[Cat, Dan, Eve], true=[Ann, Bob]}
+toMap with a merge function      = {hr=80, sales=95, eng=120}
+joining with prefix and suffix   = [Ann, Bob, Cat, Dan, Eve]
+teeing(count, average)           = 5 people, average 97.0</code></pre>
+
+  <h3>The nesting is the point</h3>
+  <pre><code><span class="cm">// the default: values are Lists of the whole object</span>
+Map&lt;String, List&lt;Person&gt;&gt; byDept =
+    people.stream().collect(groupingBy(Person::dept));
+
+<span class="cm">// second argument says what to do with each group instead</span>
+Map&lt;String, Long&gt; countByDept =
+    people.stream().collect(groupingBy(Person::dept, counting()));
+
+Map&lt;String, List&lt;String&gt;&gt; namesByDept =
+    people.stream().collect(groupingBy(Person::dept,
+                            mapping(Person::name, toList())));</code></pre>
+  <p>That second argument is called the downstream collector, and it is what turns <code>groupingBy</code> from one trick into the answer to most grouping questions in an interview.</p>
+
+  <h3>groupingBy against partitioningBy</h3>
+  <p>They look similar and differ in one guarantee that catches people:</p>
+  <pre><code>partitioningBy, where nobody matches:
+{false=[Ann, Bob, Cat, Dan, Eve], true=<span class="st">[]</span>}</code></pre>
+  <div class="note">
+    <p><b>partitioningBy always returns both keys</b>, even when one side is empty. <code>groupingBy</code> simply has no entry for a group with no members. So with partitioning you can safely call <code>get(true)</code> and get an empty list; with grouping you get null.</p>
+    <p>Also: partitioning takes a condition and always gives exactly two groups. Grouping takes a function and gives as many groups as there are distinct results.</p>
+  </div>
+
+  <h3>The toMap trap</h3>
+  <pre><code><span class="cm">// throws IllegalStateException the moment two people share a department</span>
+people.stream().collect(toMap(Person::dept, Person::salary));
+
+<span class="cm">// third argument says what to do about it</span>
+people.stream().collect(toMap(Person::dept, Person::salary, Math::max));</code></pre>
+  <p>The two argument version has no way to combine values, so a duplicate key is an error. Real data has duplicate keys far more often than people expect, so the three argument version is usually what you want.</p>
+
+  <div class="wrong">
+    <p><b>"toMap is the simple one."</b> It is the one most likely to throw in production. Anything grouped by a non unique field needs the merge function.</p>
+    <p><b>"groupingBy gives me a count."</b> It gives you lists. You get counts by adding <code>counting()</code> as the downstream collector.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What is teeing for?</summary>
+    <div class="rvb">
+      <p>Running two collectors over the same stream in a single pass and combining their results.</p>
+      <p>Without it, getting a count and an average means either two passes over the data, which needs collecting to a list first because a stream is single use, or writing a custom collector.</p>
+      <pre><code>String summary = people.stream().collect(teeing(
+        counting(),
+        averagingInt(Person::salary),
+        (count, avg) -> count + " people, average " + avg));
+<span class="cm">// 5 people, average 97.0</span></code></pre>
+      <p>The three arguments are: the first collector, the second collector, and a function that takes both results and produces the final answer. Every element is fed to both collectors as it passes.</p>
+      <p>Where it genuinely earns its place is when the source is expensive or endless, so a second pass is not available. For an ordinary in memory list, collecting once and calling two methods is often clearer, and saying that shows judgement rather than just knowing the method exists.</p>
+      <p>Worth knowing it arrived in Java 12, so it is not part of the original Java 8 set that most stream questions are about.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you keep the order of a grouped result?</summary>
+    <div class="rvb">
+      <p><code>groupingBy</code> returns a <code>HashMap</code> by default, so the keys come out in whatever order hashing produces. In the measured output above the keys came back as hr, sales, eng, which is neither insertion nor alphabetical order.</p>
+      <p>The fix is the three argument form, where the middle argument supplies the map:</p>
+      <pre><code><span class="cm">// keys in the order first encountered</span>
+groupingBy(Person::dept, LinkedHashMap::new, toList())
+
+<span class="cm">// keys sorted</span>
+groupingBy(Person::dept, TreeMap::new, toList())</code></pre>
+      <p>Note the argument order is map factory in the middle and downstream collector last, which is easy to get backwards.</p>
+      <p>The same applies to <code>toMap</code>, which takes the map factory as a fourth argument after the merge function.</p>
+      <p>A related gotcha: the <em>values</em> within each group keep the stream's encounter order, because they are collected into a list. So the values are ordered even when the keys are not, which is why this bug often goes unnoticed until someone displays the groups to a user.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> reduce against collect</h2>
+
+  <ul class="prompts">
+    <li>What is the difference between reduce and collect?</li>
+    <li>Why is building a String with reduce slow?</li>
+    <li>What are the three arguments to reduce?</li>
+  </ul>
+
+  <div class="teach">
+  <p><strong><code>reduce</code></strong> combines values by producing a <em>new</em> value each step. <strong><code>collect</code></strong> pours values into a container that is changed as it goes.</p>
+  <p>For numbers there is no practical difference. For anything you build up, the difference is enormous.</p>
+
+  <h3>Measured: joining strings</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Items</th><th>reduce</th><th>collect</th><th>Ratio</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1,000</td><td class="num">0 ms</td><td class="num">0 ms</td><td class="num">4x</td></tr>
+      <tr><td class="num">5,000</td><td class="num">11 ms</td><td class="num">0 ms</td><td class="num">58x</td></tr>
+      <tr><td class="num">20,000</td><td class="num">115 ms</td><td class="num">0 ms</td><td class="num">322x</td></tr>
+      <tr class="win"><td class="num">50,000</td><td class="num">626 ms</td><td class="num">1 ms</td><td class="num">510x</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Look at the reduce column growing: 0, 11, 115, 626. Doubling and a half the items multiplies the time by far more than that. The work grows with the <strong>square</strong> of the item count.</p>
+  <div class="note">
+    <p><b>Why.</b> Strings cannot be changed once created. <code>reduce("", (a, b) -> a + b)</code> makes a brand new String at every step, copying everything accumulated so far. Joining 50,000 words means copying an ever growing string 50,000 times.</p>
+    <p><code>Collectors.joining()</code> appends into one buffer that grows as needed, so each word is copied once.</p>
+  </div>
+
+  <h3>The rule</h3>
+  <p>Use <strong>reduce</strong> when combining produces a new value and that is cheap: adding numbers, taking a maximum, combining booleans.</p>
+  <p>Use <strong>collect</strong> when you are building something up: a String, a list, a map, anything with a container.</p>
+
+  <h3>The three arguments to reduce</h3>
+  <pre><code><span class="cm">// 1. no starting value: might be nothing, so you get an Optional</span>
+Optional&lt;Integer&gt; total = nums.stream().reduce(Integer::sum);
+
+<span class="cm">// 2. with a starting value: always an answer</span>
+<span class="kw">int</span> total = nums.stream().reduce(0, Integer::sum);
+
+<span class="cm">// 3. with a combiner, for parallel streams where partial results must merge</span>
+<span class="kw">int</span> totalLength = words.stream()
+    .reduce(0, (sum, w) -> sum + w.length(), Integer::sum);</code></pre>
+  <p>The third argument exists because in a parallel stream each thread produces a partial result and something has to combine them. It is ignored on a sequential stream, which is why a wrong combiner can pass every test and then break the day someone adds <code>.parallel()</code>.</p>
+
+  <div class="wrong">
+    <p><b>"reduce and collect are two ways to write the same thing."</b> Measured 510 times apart on the same task at 50,000 items.</p>
+    <p><b>"The starting value is just a default."</b> With a parallel stream the starting value is used by <em>each</em> thread, so a non neutral starting value like 10 gets added once per thread rather than once overall.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What makes a reduce safe to run in parallel?</summary>
+    <div class="rvb">
+      <p>Three properties, and they are the actual answer to "why did my parallel reduce give a different number".</p>
+      <p><strong>The starting value must be neutral.</strong> Combining it with anything must give that thing back: 0 for addition, 1 for multiplication, an empty string for joining. In a parallel stream each thread starts from it, so a starting value of 10 on four threads adds 40, not 10.</p>
+      <p><strong>The operation must be associative.</strong> Grouping must not matter, so that <code>(a op b) op c</code> equals <code>a op (b op c)</code>. Addition and maximum qualify. Subtraction and division do not, which is why a parallel subtracting reduce gives a different answer every run.</p>
+      <p><strong>It must not depend on outside state.</strong> The function should use only its two arguments. Anything reading or writing a variable outside is a race, and it will usually appear to work in testing because sequential streams hide it.</p>
+      <p>The reason this bites so often: none of these are checked, and a sequential stream satisfies all of them by accident. The code is correct until somebody adds one word.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> Parallel streams</h2>
+
+  <ul class="prompts">
+    <li>When does going parallel actually help?</li>
+    <li>When does it make things slower?</li>
+    <li>Which pool do parallel streams use, and why does that matter?</li>
+    <li>Why is the source data structure relevant?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Adding <code>.parallel()</code> is one word, which is exactly the problem: it is far too easy to add somewhere it does not belong.</p>
+
+  <h3>Measured, on a machine with 12 processors</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Work</th><th>Sequential</th><th>Parallel</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>1,000 items, add them up</td><td class="num">24 us</td><td class="num">96 us</td><td class="lose">4.0x SLOWER</td></tr>
+      <tr><td>2,000,000 items, add them up</td><td class="num">3,905 us</td><td class="num">1,064 us</td><td class="win">3.7x faster</td></tr>
+      <tr><td>20,000 items, real work on each</td><td class="num">26,277 us</td><td class="num">3,106 us</td><td class="win">8.5x faster</td></tr>
+      <tr><td>20,000 in a LinkedList, real work</td><td class="num">27,080 us</td><td class="num">3,478 us</td><td class="win">7.8x faster</td></tr>
+      <tr><td>1,000,000 in an ArrayList, add up</td><td class="num">2,758 us</td><td class="num">670 us</td><td class="win">4.1x faster</td></tr>
+      <tr><td>1,000,000 in a LinkedList, add up</td><td class="num">2,884 us</td><td class="num">3,186 us</td><td class="lose">no gain at all</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Three separate lessons in that table.</p>
+  <p><strong>Row one: small collections lose.</strong> A thousand additions is so cheap that splitting the work, handing it to threads and merging the results costs four times more than just doing it.</p>
+  <p><strong>Rows four and six: the source structure matters, but only sometimes.</strong> A LinkedList cannot be split cheaply, because finding the middle means walking to it. With expensive work per element that barely matters, and parallel still won 7.8 times. With cheap work the splitting cost is the whole cost, and parallel gained <strong>nothing</strong> while an ArrayList of the same size gained 4.1 times.</p>
+  <p><strong>Rows two and three: the more work per element, the better it goes.</strong> Trivial work on two million items gave 3.7 times. Real work on twenty thousand gave 8.5 times, closer to the twelve processors available.</p>
+
+  <h3>The thing to check before going parallel at all</h3>
+  <pre><code>2,000,000 boxed Integers       5,394 us
+2,000,000 primitive ints         520 us   <span class="st">10.4x faster</span></code></pre>
+  <div class="note">
+    <p><b>Using a primitive stream beat going parallel in every row of the table above.</b> A <code>Stream&lt;Integer&gt;</code> unwraps and rewraps a value at every step. An <code>IntStream</code> does not. So before reaching for <code>.parallel()</code>, check whether you are streaming boxed numbers, because that fix is free, keeps the code sequential, and here was worth more than twelve processors.</p>
+  </div>
+
+  <h3>The pool nobody mentions</h3>
+  <p>Parallel streams do not create threads. They use one pool shared by the whole application, sized to your processor count. Every parallel stream anywhere in your code, including in libraries, uses the same one.</p>
+  <p>So a slow parallel stream in one place delays parallel streams everywhere else. And anything that <strong>blocks</strong> inside a parallel stream, a network call or a database query, occupies a thread in that shared pool while doing nothing, which can starve the whole application.</p>
+  <div class="note">
+    <p><b>The rule.</b> Parallel streams are for work that keeps the processor busy, over a large amount of data, from a source that splits cheaply. Never put a blocking call inside one.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"parallel() makes it faster."</b> Measured four times slower on a thousand items, and no better at all on a million in a LinkedList.</p>
+    <p><b>"It uses more threads so it scales."</b> It uses one shared pool sized to your processors. Two parallel streams at once do not each get twelve threads, they share.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why does the source data structure matter so much?</summary>
+    <div class="rvb">
+      <p>Because parallelism starts by splitting the data, and how cheaply that can be done depends entirely on the structure.</p>
+      <p>An <code>ArrayList</code> or an array knows its size and can be split by arithmetic: the middle is at index size over two, and both halves can be handed out immediately. That is why it parallelises well.</p>
+      <p>A <code>LinkedList</code> knows only where the first element is. Finding the middle means walking half the list, and each half has to be split the same way. The splitting itself is work proportional to the data.</p>
+      <p>The measurement shows exactly when that matters. With real work on each element, the splitting cost was small next to the work, and parallel still won 7.8 times. With cheap work, splitting <em>was</em> the cost: an ArrayList of a million gained 4.1 times, and a LinkedList of the same size gained nothing.</p>
+      <p>Worth naming the others: <code>HashSet</code> and <code>HashMap</code> split reasonably, <code>Stream.iterate</code> splits badly because it must produce values in order, and <code>IntStream.range</code> splits perfectly because it is only arithmetic.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How would you decide whether to use a parallel stream?</summary>
+    <div class="rvb">
+      <p>Answer it as a sequence of checks rather than a rule, because that is how it is actually decided.</p>
+      <p><strong>Is there enough data?</strong> Thousands at least. Measured, a thousand items were four times slower in parallel.</p>
+      <p><strong>Is there enough work per element?</strong> Trivial work gave 3.7 times on two million items; real work gave 8.5 times on twenty thousand.</p>
+      <p><strong>Does the source split cheaply?</strong> Array backed or a numeric range, yes. Linked structures, often not worth it.</p>
+      <p><strong>Does anything in the pipeline block?</strong> If yes, stop. That occupies the shared pool and affects the whole application.</p>
+      <p><strong>Have you already removed the boxing?</strong> Measured, that was worth 10.4 times on its own and costs nothing.</p>
+      <p>Then measure it on your own data, because every row in the table above would have been a plausible guess and half of them would have been wrong.</p>
+      <p>The honest summary worth saying out loud: parallel streams are a narrow tool. Most code that calls <code>.parallel()</code> in a real service should not.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> Optional</h2>
+
+  <ul class="prompts">
+    <li>What is Optional actually for?</li>
+    <li>Why is calling <code>get()</code> discouraged?</li>
+    <li>Where should Optional not be used?</li>
+    <li>Difference between <code>orElse</code> and <code>orElseGet</code>?</li>
+  </ul>
+
+  <div class="teach">
+  <p><code>Optional</code> exists to make "there might be no answer" part of the method signature instead of a surprise at runtime.</p>
+  <p>A method returning <code>User</code> that sometimes returns null is lying to whoever calls it. A method returning <code>Optional&lt;User&gt;</code> tells the truth, and the compiler makes the caller acknowledge it.</p>
+
+  <h3>Using it properly</h3>
+  <pre><code><span class="cm">// what people write first: the same null check with extra ceremony</span>
+Optional&lt;User&gt; u = find(id);
+<span class="kw">if</span> (u.isPresent()) { send(u.get().email()); }
+
+<span class="cm">// what it is for</span>
+find(id).map(User::email).ifPresent(this::send);
+
+<span class="cm">// with a fallback</span>
+String email = find(id).map(User::email).orElse(<span class="st">"unknown"</span>);
+
+<span class="cm">// or fail clearly</span>
+User user = find(id).orElseThrow(() -> <span class="kw">new</span> UserNotFound(id));</code></pre>
+  <p>If your code has <code>isPresent</code> followed by <code>get</code>, you have written a null check with more typing. The value is in <code>map</code>, <code>filter</code>, <code>ifPresent</code>, <code>orElse</code> and <code>orElseThrow</code>.</p>
+
+  <h3>orElse against orElseGet</h3>
+  <pre><code><span class="cm">// the argument is evaluated ALWAYS, even when the value is present</span>
+config.get(key).orElse(loadDefaultFromDisk());
+
+<span class="cm">// the function runs ONLY when the value is absent</span>
+config.get(key).orElseGet(() -> loadDefaultFromDisk());</code></pre>
+  <div class="note">
+    <p><b>This is the most common real bug with Optional.</b> <code>orElse</code> takes a value, so whatever produces that value runs regardless. If it is a constant, that is fine. If it hits a disk, a database or throws, you are doing that work on every call including the ones that did not need it.</p>
+  </div>
+
+  <h3>Where not to use it</h3>
+  <ul class="body">
+    <li><strong>Not as a field.</strong> It is not serialisable, and a field that might be absent is better expressed as a nullable field or a different type.</li>
+    <li><strong>Not as a method parameter.</strong> The caller then has to wrap the value, and you have three cases instead of two: present, empty, and null Optional. Overload the method instead.</li>
+    <li><strong>Not for collections.</strong> An empty list already means no results. <code>Optional&lt;List&gt;</code> gives two ways to say nothing.</li>
+  </ul>
+  <p><code>Optional</code> was designed for one job: a return type for something that may legitimately have no answer.</p>
+
+  <div class="wrong">
+    <p><b>"Optional removes NullPointerException."</b> Calling <code>get()</code> on an empty one throws <code>NoSuchElementException</code>. You have changed the name of the failure, not removed it, unless you use the methods that handle absence.</p>
+    <p><b>"Wrap everything in Optional to be safe."</b> An <code>Optional</code> that is never empty is noise. Use it where absence is a real, expected outcome.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What is the difference between map and flatMap on Optional?</summary>
+    <div class="rvb">
+      <p>The same distinction as on a stream: whether your function returns a plain value or another wrapped one.</p>
+      <p>If <code>getAddress()</code> returns an <code>Address</code>, use <code>map</code> and you get <code>Optional&lt;Address&gt;</code>.</p>
+      <p>If <code>getAddress()</code> itself returns <code>Optional&lt;Address&gt;</code>, because the address may be missing, then <code>map</code> gives you <code>Optional&lt;Optional&lt;Address&gt;&gt;</code>, which is useless. <code>flatMap</code> flattens it back to one level.</p>
+      <pre><code>findUser(id)
+    .flatMap(User::getAddress)      <span class="cm">// returns Optional&lt;Address&gt;</span>
+    .map(Address::city)             <span class="cm">// returns String</span>
+    .orElse("unknown");</code></pre>
+      <p>This chaining is where <code>Optional</code> earns its place. The same code with null checks needs a nested check at every step, and each one is a place to forget.</p>
+      <p>The practical tell: if you find yourself with an <code>Optional</code> of an <code>Optional</code>, you used <code>map</code> where you needed <code>flatMap</code>.</p>
+    </div>
+  </details>
+</section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>pipeline</dt><dd>A source, some intermediate operations, and one terminal operation. Nothing runs until the terminal one.</dd>
+        <dt>intermediate operation</dt><dd>Returns another stream and does nothing on its own. <code>filter</code>, <code>map</code>, <code>sorted</code>.</dd>
+        <dt>terminal operation</dt><dd>Returns something that is not a stream, and is what makes the whole pipeline run. <code>collect</code>, <code>count</code>, <code>findFirst</code>.</dd>
+        <dt>lazy</dt><dd>Work is described now and done later, only if something asks for the result.</dd>
+        <dt>short-circuiting</dt><dd>Stopping as soon as the answer is known. <code>findFirst</code> looked at 7 elements out of a million.</dd>
+        <dt>collector</dt><dd>A recipe for building a container from a stream. Collectors nest, which is what makes grouping powerful.</dd>
+        <dt>downstream collector</dt><dd>The second argument to <code>groupingBy</code>, saying what to do with each group instead of listing it.</dd>
+        <dt>reduce</dt><dd>Combines values by producing a new value each step. Cheap for numbers, quadratic for strings.</dd>
+        <dt>associative</dt><dd>Grouping does not change the answer. Addition is, subtraction is not. Required for a correct parallel reduce.</dd>
+        <dt>boxing</dt><dd>Wrapping a primitive <code>int</code> in an <code>Integer</code> object. Measured 10.4 times slower than a primitive stream.</dd>
+        <dt>primitive stream</dt><dd><code>IntStream</code>, <code>LongStream</code>, <code>DoubleStream</code>. No wrapping, so much faster for numbers.</dd>
+        <dt>splitting</dt><dd>Dividing the source so threads can work on parts. Cheap for arrays, expensive for linked structures.</dd>
+        <dt>common pool</dt><dd>The single shared pool every parallel stream in the application uses, sized to your processor count.</dd>
+        <dt>Optional</dt><dd>A return type meaning there may legitimately be no answer. Not for fields, parameters or collections.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---- pipeline tracer ---- */
+  var SRC=[3,7,12,14,21,25];
+  var elsEl=document.getElementById("els"), stagesEl=document.getElementById("stages"),
+      cFilter=document.getElementById("cFilter"), cMap=document.getElementById("cMap"),
+      cResult=document.getElementById("cResult"), foot=document.getElementById("simFoot");
+
+  var sim={i:0,stage:0,timer:null,first:false,filtered:0,mapped:0,result:[],
+           states:[],active:null,stopped:false};
+
+  function keeps(n){ return n % 7 === 0; }
+
+  function resetSim(){
+    if(sim.timer){clearInterval(sim.timer);sim.timer=null;document.getElementById("simAuto").textContent="Play"}
+    sim.i=0; sim.stage=0; sim.filtered=0; sim.mapped=0; sim.result=[]; sim.stopped=false;
+    sim.states=SRC.map(function(){return "untouched"});
+    sim.active=null;
+    foot.className="simfoot";
+    foot.textContent=sim.first
+      ? "Same pipeline, ending in findFirst(). Watch where it stops."
+      : "Press Next step. Watch one element go all the way down before the next starts.";
+    paint();
+  }
+
+  function paint(){
+    elsEl.innerHTML="";
+    SRC.forEach(function(n,i){
+      var d=document.createElement("div");
+      d.className="el "+sim.states[i];
+      d.textContent=n;
+      elsEl.appendChild(d);
+    });
+    var cur=sim.active;
+    var rows=[
+      {name:"filter n % 7 == 0", val: cur && sim.stage>=1 ? cur.n : "", on: sim.stage===1},
+      {name:"map n * 2",         val: cur && sim.stage>=2 ? (cur.kept? cur.n : "skipped") : "", on: sim.stage===2},
+      {name: sim.first?"findFirst()":"toList()", val:"", on: sim.stage===3}
+    ];
+    stagesEl.innerHTML="";
+    rows.forEach(function(r){
+      var d=document.createElement("div");
+      d.className="stage"+(r.on?" active":"")+(sim.stopped&&r.name.indexOf("find")===0?" stopped":"");
+      d.innerHTML='<span class="sname">'+r.name+'</span><span class="sval">'
+                 +(r.val===""?"":String(r.val))+'</span>';
+      stagesEl.appendChild(d);
+    });
+    cFilter.textContent=sim.filtered;
+    cMap.textContent=sim.mapped;
+    cResult.textContent="["+sim.result.join(", ")+"]";
+  }
+
+  function step(){
+    if(sim.stopped) return;
+    if(sim.i>=SRC.length){ finish(); return; }
+    var n=SRC[sim.i];
+
+    if(sim.stage===0){                       // pull the element
+      sim.active={n:n,kept:false};
+      sim.states[sim.i]="now";
+      sim.stage=1;
+    } else if(sim.stage===1){                // filter
+      sim.filtered++;
+      sim.active.kept=keeps(n);
+      if(!sim.active.kept){
+        sim.states[sim.i]="dropped";
+        sim.i++; sim.stage=0; sim.active=null;
+        paint(); return;
+      }
+      sim.stage=2;
+    } else if(sim.stage===2){                // map
+      sim.mapped++;
+      sim.result.push(n*2);
+      sim.states[sim.i]="passed";
+      sim.stage=3;
+    } else {                                 // terminal
+      if(sim.first){
+        sim.stopped=true;
+        paint();
+        foot.className="simfoot ok";
+        foot.textContent="Stopped. findFirst() had its answer after looking at "+sim.filtered
+          +" of "+SRC.length+" elements, and map ran "+sim.mapped+" time. The remaining elements were never touched. "
+          +"On a million element stream the measured numbers were 7 and 1.";
+        return;
+      }
+      sim.i++; sim.stage=0; sim.active=null;
+    }
+    paint();
+    if(sim.i>=SRC.length) finish();
+  }
+
+  function finish(){
+    if(sim.timer){clearInterval(sim.timer);sim.timer=null;document.getElementById("simAuto").textContent="Play"}
+    if(sim.stopped) return;
+    foot.className="simfoot ok";
+    foot.textContent="Done. filter ran "+sim.filtered+" times and map ran "+sim.mapped
+      +" times. Every element went all the way through the pipeline before the next one started, "
+      +"and no list was built between the stages.";
+    paint();
+  }
+
+  document.getElementById("simStep").addEventListener("click",step);
+  document.getElementById("simReset").addEventListener("click",resetSim);
+  document.getElementById("simAuto").addEventListener("click",function(){
+    var b=this;
+    if(sim.timer){clearInterval(sim.timer);sim.timer=null;b.textContent="Play";return}
+    if(sim.stopped||sim.i>=SRC.length) resetSim();
+    b.textContent="Pause";
+    sim.timer=setInterval(function(){
+      if(sim.stopped||sim.i>=SRC.length){clearInterval(sim.timer);sim.timer=null;b.textContent="Play";return}
+      step();
+    },600);
+  });
+  document.getElementById("simMode").addEventListener("click",function(){
+    sim.first=!sim.first;
+    this.setAttribute("aria-pressed",sim.first?"true":"false");
+    this.textContent=sim.first?"ends with findFirst()":"ends with toList()";
+    resetSim();
+  });
+  resetSim();
+
+  /* ---- quiz ---- */
+  var Q=[
+    {c:1,q:"What are the three parts of a stream pipeline, and which one does the work?",
+     a:"A <b>source</b>, zero or more <b>intermediate operations</b>, and exactly one <b>terminal operation</b>. The terminal one does the work: intermediate operations only describe it. Measured with counters in every stage, a built pipeline touched <b>0</b> elements, and adding <code>toList()</code> touched 6. The reliable test for which is which is the return type: if it returns a stream it is intermediate, anything else is terminal. A pipeline with no terminal operation is dead code that compiles."},
+    {c:1,q:"Why can you not reuse a stream?",
+     a:"A stream carries a flag saying whether it has been consumed, and using it again throws <code>IllegalStateException: stream has already been operated upon or closed</code>. It fails loudly rather than quietly giving a wrong answer. A stream does not hold elements, it reads them from a source, so there is nothing to replay. If you need two passes, collect to a list first, or keep a <code>Supplier</code> that builds a fresh stream each time."},
+    {c:2,q:"Do elements go through the pipeline one at a time or stage by stage?",
+     a:"One at a time, all the way through. Measured with a peek at each stage, the order was: filter ann, map ann, filter bob, map bob, filter cat, map cat. <b>Not</b> filter everything then map everything. This is why a long pipeline does not allocate an intermediate collection per stage, and it is what makes short-circuiting possible at all. The exceptions are <code>sorted</code> and <code>distinct</code>, which must see everything before emitting anything."},
+    {c:2,q:"What is short-circuiting, and how much does it save?",
+     a:"Stopping as soon as the answer is known. Measured on a million element stream: <code>findFirst</code> with a filter for multiples of seven ran the filter <b>7 times and the map once</b>. The same stream with <code>count()</code> had to look at all 1,000,000, because it must test every element to know how many pass. Operations that stop early: <code>findFirst</code>, <code>findAny</code>, <code>anyMatch</code>, <code>allMatch</code>, <code>noneMatch</code>, <code>limit</code>, <code>takeWhile</code>."},
+    {c:2,q:"Does the order of filter and map matter?",
+     a:"Yes, and it is one of the few stream optimisations worth doing by hand. Put <code>filter</code> first: every element it removes is one the map never transforms. Mapping first does expensive work on elements you then discard. The compiler cannot reorder them for you, because <code>map</code> may have side effects and changes the type. The larger version is <code>sorted</code>, which must see everything: filtering before it means sorting a smaller set, which with a million elements and a filter keeping a hundred is the difference between sorting 100 and sorting 1,000,000."},
+    {c:3,q:"What is the difference between groupingBy and partitioningBy?",
+     a:"<code>groupingBy</code> takes a function and gives as many groups as there are distinct results. <code>partitioningBy</code> takes a condition and always gives exactly two. The guarantee that catches people: <b>partitioningBy always returns both keys even when one side is empty</b>, so <code>get(true)</code> safely gives an empty list, while <code>groupingBy</code> simply has no entry and returns null. Both take a downstream collector as a second argument, which is what turns them from one trick into the answer to most grouping questions."},
+    {c:3,q:"What happens if toMap gets a duplicate key?",
+     a:"The two argument version throws <code>IllegalStateException</code>, because it has no way to decide which value wins. Real data has duplicate keys far more often than people expect, so the three argument version with a merge function is usually what you want: <code>toMap(Person::dept, Person::salary, Math::max)</code>. There is also a four argument form taking a map factory, if you need ordering. Worth remembering that <code>groupingBy</code> returns a HashMap by default, so key order is neither insertion nor sorted."},
+    {c:4,q:"Why is building a String with reduce so slow?",
+     a:"Because Strings cannot be changed, so <code>reduce(\"\", (a, b) -> a + b)</code> creates a brand new String at every step, copying everything accumulated so far. The work grows with the <b>square</b> of the item count. Measured: 1,000 items 4x slower, 5,000 items 58x, 20,000 items 322x, 50,000 items <b>510x</b> (626 ms against 1 ms). <code>Collectors.joining()</code> appends into one buffer so each item is copied once. Rule: reduce when combining makes a cheap new value, collect when you are building something up."},
+    {c:4,q:"What makes a reduce safe to run in parallel?",
+     a:"Three things. The <b>starting value must be neutral</b>, so combining it with anything gives that thing back, because each thread starts from it: a starting value of 10 on four threads adds 40. The <b>operation must be associative</b>, so grouping does not matter, which addition and maximum satisfy and subtraction does not. And it <b>must not touch outside state</b>. None of these are checked, and a sequential stream satisfies all three by accident, which is why the code is correct until somebody adds <code>.parallel()</code>."},
+    {c:5,q:"When does a parallel stream make things slower?",
+     a:"Measured, two clear cases. <b>Small collections</b>: 1,000 items added up was <b>4.0 times slower</b> in parallel, because splitting, scheduling and merging cost more than the work. <b>Sources that split badly</b>: 1,000,000 items in an ArrayList gained 4.1 times, and the identical work on a LinkedList gained <b>nothing at all</b>, because finding the middle of a linked structure means walking to it. Interestingly a LinkedList with expensive work per element still gained 7.8 times, because then the work dominates the splitting cost."},
+    {c:5,q:"Which pool do parallel streams use, and why does it matter?",
+     a:"One pool shared by the entire application, sized to the processor count. Every parallel stream anywhere, including inside libraries, uses the same one. So a slow parallel stream in one place delays parallel streams everywhere else, and <b>anything that blocks inside one</b>, a network or database call, occupies a shared thread while doing nothing and can starve the whole application. Parallel streams are for processor bound work over a lot of data from a source that splits cheaply. Never put a blocking call in one."},
+    {c:6,q:"What is the difference between orElse and orElseGet?",
+     a:"<code>orElse</code> takes a <b>value</b>, so whatever produces it runs every time, even when the Optional has a value. <code>orElseGet</code> takes a function that runs <b>only when empty</b>. So <code>orElse(loadDefaultFromDisk())</code> hits the disk on every call including the ones that did not need it, while <code>orElseGet(() -> loadDefaultFromDisk())</code> does not. Fine for a constant, a real bug for anything expensive. More generally: if your code says <code>isPresent</code> then <code>get</code>, you have written a null check with extra typing. The value is in <code>map</code>, <code>filter</code>, <code>ifPresent</code>, <code>orElseGet</code> and <code>orElseThrow</code>."}
+  ];
+  wireQuiz(Q,{1:"The pipeline",2:"Lazy and short-circuit",3:"Collectors",
+              4:"reduce vs collect",5:"Parallel streams",6:"Optional"});
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
