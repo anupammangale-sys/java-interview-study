@@ -1,0 +1,1122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The Employee Questions, episode 8 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>The Employee Questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS: the problem drill
+   =================================================================== */
+.drill{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.drillbar{display:flex;flex-wrap:wrap;gap:6px;padding:13px 16px;border-bottom:1px solid var(--line-soft)}
+.pbtn{font:inherit;font-size:12.5px;color:var(--ink-soft);background:var(--surface);
+  border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer;
+  transition:background-color .15s,border-color .15s,color .15s}
+.pbtn:hover{background:var(--surface-2);color:var(--ink)}
+.pbtn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:600}
+.pbtn:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.drillbody{padding:16px 17px}
+.task{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:19px;font-weight:600;margin:0 0 12px}
+.drillbody pre{margin-bottom:12px}
+.outline{border-left:3px solid var(--freed);background:var(--freed-bg);padding:11px 14px;
+  border-radius:0 8px 8px 0;margin:0 0 12px;font-family:"IBM Plex Mono",monospace;font-size:13px;
+  color:var(--ink);overflow-x:auto;white-space:pre}
+.trap{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:11px 14px;
+  border-radius:0 8px 8px 0;margin:0;font-size:14px}
+.trap b{color:var(--alarm)}
+.trap p{margin:0;max-width:none}
+.reveal{padding:0 17px 16px}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep08">
+  <a class="backlink" href="index.html">All episodes</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>The Employee Questions</b>
+    <span>Episode 8 &middot; The Streams Coding Round</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> Grouping</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Counting and duplicates</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> Nth highest and top N</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Sorting</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Flattening</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Checked exceptions</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>The answers, and the two that quietly give the wrong result</h1>
+      <p class="sub">The problems a streams coding round actually sets, with solutions that were compiled and run rather than typed from memory. Two of the standard answers produce the wrong output, and you would not notice in a review.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> Grouping</h2>
+
+  <ul class="prompts">
+    <li>Group employee names by department.</li>
+    <li>Count, total and average salary per department.</li>
+    <li>Find the highest paid person in each department, without an Optional in the result.</li>
+    <li>Which department has the highest average salary?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Every one of these is <code>groupingBy</code> with a different second argument. Learn that shape and most of the round is done.</p>
+  <pre><code><span class="kw">record</span> Employee(String name, String dept, <span class="kw">int</span> salary, <span class="kw">int</span> age) {}
+
+Ann  eng   120     Dan  sales  90     Finn hr  80
+Bob  eng   100     Eve  sales 110     Gita hr  95
+Cara eng   140</code></pre>
+
+  <h3>Drill it</h3>
+  <p>Pick a problem, work out your answer, then reveal. Every solution here was compiled and run, and the output shown is what it actually printed.</p>
+
+  <div class="drill">
+    <div class="drillbar" id="drillBar"></div>
+    <div class="drillbody" id="drillBody"></div>
+    <div class="reveal" id="drillActs"></div>
+  </div>
+
+  <h3>The shape to memorise</h3>
+  <pre><code>collect(groupingBy(classifier, downstream))</code></pre>
+  <p>The classifier decides the key. The downstream collector decides what the value is. With no downstream you get a list of the whole objects, which is almost never what was asked for.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>You want</th><th>Downstream collector</th></tr></thead>
+    <tbody>
+      <tr><td>how many</td><td><code>counting()</code></td></tr>
+      <tr><td>just one field</td><td><code>mapping(Employee::name, toList())</code></td></tr>
+      <tr><td>a total</td><td><code>summingInt(Employee::salary)</code></td></tr>
+      <tr><td>an average</td><td><code>averagingInt(Employee::salary)</code></td></tr>
+      <tr><td>the biggest one</td><td><code>maxBy(comparingInt(Employee::salary))</code></td></tr>
+      <tr><td>anything, then transform it</td><td><code>collectingAndThen(inner, fn)</code></td></tr>
+      <tr><td>count, min, max, average, total at once</td><td><code>summarizingInt(Employee::salary)</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>The Optional problem, and the fix worth knowing.</b> <code>maxBy</code> returns an <code>Optional</code>, so grouping with it gives you <code>Map&lt;String, Optional&lt;Employee&gt;&gt;</code>, which is awkward to use. <code>collectingAndThen</code> unwraps it as part of the collector:</p>
+    <pre><code>groupingBy(Employee::dept,
+    collectingAndThen(maxBy(comparingInt(Employee::salary)),
+                      o -> o.map(Employee::name).orElse("none")))
+<span class="cm">// -> {hr=Gita, sales=Eve, eng=Cara}</span></code></pre>
+  </div>
+
+  <div class="wrong">
+    <p><b>Returning the whole object when they asked for names.</b> <code>groupingBy(Employee::dept)</code> gives <code>Map&lt;String, List&lt;Employee&gt;&gt;</code>. Add <code>mapping(Employee::name, toList())</code>.</p>
+    <p><b>Assuming the keys come out in order.</b> Real output was <code>{hr=..., sales=..., eng=...}</code>, which is neither insertion nor alphabetical, because <code>groupingBy</code> returns a HashMap.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>How do you make the grouped keys come out in a sensible order?</summary>
+    <div class="rvb">
+      <p>Use the three argument form, where the map is supplied in the middle:</p>
+      <pre><code><span class="cm">// keys in the order first encountered</span>
+groupingBy(Employee::dept, LinkedHashMap::new, toList())
+
+<span class="cm">// keys sorted</span>
+groupingBy(Employee::dept, TreeMap::new, toList())</code></pre>
+      <p>The argument order catches people out: classifier, then map factory, then downstream collector. It reads as though the collector should come second because that is the two argument form.</p>
+      <p>The measured default was <code>{hr=[Finn, Gita], sales=[Dan, Eve], eng=[Ann, Bob, Cara]}</code>, so the keys arrived in an order that matches nothing about the input. If you print a grouped result to a user, or compare it in a test with a fixed expected string, that is a real bug.</p>
+      <p>Worth adding: the <em>values</em> inside each group do keep the stream's order, because they are collected into a list. So the values are ordered even when the keys are not, which is exactly why this goes unnoticed for a while.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How would you do this without streams, and when would you?</summary>
+    <div class="rvb">
+      <p>With a loop and <code>computeIfAbsent</code>, and it is genuinely fine:</p>
+      <pre><code>Map&lt;String, List&lt;String&gt;&gt; byDept = <span class="kw">new</span> HashMap&lt;&gt;();
+<span class="kw">for</span> (Employee e : staff) {
+    byDept.computeIfAbsent(e.dept(), k -> <span class="kw">new</span> ArrayList&lt;&gt;()).add(e.name());
+}</code></pre>
+      <p>Saying this in an interview is a good sign rather than a bad one, as long as you can also write the stream version. It shows you know the stream is a choice, not an obligation.</p>
+      <p>The loop is better when you need several results in one pass without <code>teeing</code>, when the logic has early exits or side effects that read badly as a pipeline, or when someone will debug it at three in the morning.</p>
+      <p>The stream is better when the transformation is the whole point and the pipeline reads as a description of the answer, which grouping usually does.</p>
+      <p>What is not a good reason either way is performance. For a few thousand objects the difference is nothing, and if someone claims otherwise the correct response is to ask for the measurement.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> Counting and duplicates</h2>
+
+  <ul class="prompts">
+    <li>Find the duplicates in a list, two different ways.</li>
+    <li>Build a frequency map.</li>
+    <li>Find the first character that appears exactly once.</li>
+    <li>Check whether two words are anagrams.</li>
+  </ul>
+
+  <div class="teach">
+  <p>Everything here is one collector: <code>groupingBy(identity(), counting())</code>. Then you filter or sort the result.</p>
+  <pre><code>List&lt;String&gt; words = [apple, pear, apple, fig, pear, apple, plum];
+
+words.stream().collect(groupingBy(identity(), counting()))
+<span class="cm">// -> {plum=1, apple=3, pear=2, fig=1}</span></code></pre>
+
+  <h3>Duplicates, and the version worth knowing</h3>
+  <pre><code><span class="cm">// the obvious way: count, then keep the ones above one</span>
+words.stream().collect(groupingBy(identity(), counting()))
+     .entrySet().stream()
+     .filter(e -> e.getValue() &gt; 1)
+     .map(Map.Entry::getKey)
+     .toList();                              <span class="cm">// -> [apple, pear]</span>
+
+<span class="cm">// the neat one, using the fact that Set.add returns false for a repeat</span>
+Set&lt;String&gt; seen = <span class="kw">new</span> HashSet&lt;&gt;();
+words.stream().filter(w -> !seen.add(w)).collect(toSet());   <span class="cm">// -> [apple, pear]</span></code></pre>
+  <p>The second is shorter and interviewers like it. Be ready for the follow-up: it uses state outside the stream, so it is <strong>not safe in parallel</strong>. Saying that unprompted turns a trick into understanding.</p>
+
+  <h3>The one where the standard answer is wrong</h3>
+  <p>First character appearing exactly once in <code>"swiss cheese"</code>. The answer everyone writes:</p>
+  <pre><code>text.chars().filter(Character::isLetter).mapToObj(c -> (<span class="kw">char</span>) c)
+    .collect(groupingBy(identity(), counting()))
+    .entrySet().stream()
+    .filter(e -> e.getValue() == 1)
+    .map(Map.Entry::getKey)
+    .findFirst();
+
+<span class="cm">// -> </span><span class="bad">c</span><span class="cm">   which is wrong</span></code></pre>
+  <div class="note">
+    <p><b>The correct answer is <code>w</code>.</b> The letters are s, w, i, s, s, c, h, e, e, s, e. The first one appearing exactly once is <code>w</code>. The code above returns <code>c</code> because <code>groupingBy</code> builds a <b>HashMap</b>, so "first" means first in hash order, not first in the string.</p>
+    <p>One word fixes it:</p>
+    <pre><code>.collect(groupingBy(identity(), <span class="st">LinkedHashMap::new</span>, counting()))
+<span class="cm">// -> w</span></code></pre>
+    <p>This is worth remembering because it passes every casual review. The code looks right, runs without error, and returns a plausible letter.</p>
+  </div>
+
+  <h3>Character counting</h3>
+  <pre><code>"swiss cheese".chars()
+    .filter(Character::isLetter)
+    .mapToObj(c -> (<span class="kw">char</span>) c)
+    .collect(groupingBy(identity(), LinkedHashMap::new, counting()));
+<span class="cm">// -> {s=4, w=1, i=1, c=1, h=1, e=3}</span></code></pre>
+  <p><code>String.chars()</code> gives an <code>IntStream</code>, so the cast back to <code>char</code> is needed before grouping. Forgetting it gives you a map keyed by numbers, which is a common stumble under pressure.</p>
+
+  <div class="wrong">
+    <p><b>Using findFirst on a HashMap result.</b> Measured to give the wrong letter. Any question with "first" in it needs an ordered map or a different approach entirely.</p>
+    <p><b>Filtering a stream with an outside Set and then going parallel.</b> The neat duplicates trick becomes a race.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Solve first non repeating without a map at all.</summary>
+    <div class="rvb">
+      <p>Worth having, because it sidesteps the ordering bug completely and shows you understand what the map was for.</p>
+      <pre><code>String text = "swiss cheese";
+text.chars()
+    .filter(Character::isLetter)
+    .filter(c -> text.indexOf(c) == text.lastIndexOf(c))
+    .mapToObj(c -> String.valueOf((<span class="kw">char</span>) c))
+    .findFirst()
+    .orElse("none");</code></pre>
+      <p>If a character's first and last position are the same, it appears exactly once. The stream keeps the string's order naturally, so "first" means what you expect.</p>
+      <p>Be honest about the trade if asked: this scans the string twice per character, so it is quadratic, while the map version is linear. For a word it does not matter, for a large document it does.</p>
+      <p>That is a good thing to volunteer. It shows you can produce the neat answer and still know when it is the wrong one, which is more convincing than either alone.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you check for anagrams?</summary>
+    <div class="rvb">
+      <p>Sort the characters of both and compare, which is the version to reach for first:</p>
+      <pre><code><span class="kw">private static</span> String sorted(String s) {
+    <span class="kw">return</span> s.chars().sorted()
+            .collect(StringBuilder::<span class="kw">new</span>, StringBuilder::appendCodePoint, StringBuilder::append)
+            .toString();
+}
+sorted("listen").equals(sorted("silent"));   <span class="cm">// -> true</span></code></pre>
+      <p>The three argument <code>collect</code> is the awkward part and worth understanding rather than memorising: a supplier that makes the container, an accumulator that adds one element, and a combiner that merges two containers for the parallel case.</p>
+      <p>A cleaner alternative that avoids it entirely is to compare frequency maps, which also handles the follow-up "what about counting letters" in the same breath:</p>
+      <pre><code>Map&lt;Integer, Long&gt; freq(String s) {
+    <span class="kw">return</span> s.chars().boxed().collect(groupingBy(identity(), counting()));
+}
+freq("listen").equals(freq("silent"));       <span class="cm">// -> true</span></code></pre>
+      <p>Mention the real world caveats if the conversation allows: case, spaces and accented characters all need deciding before either version is correct.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> Nth highest and top N</h2>
+
+  <ul class="prompts">
+    <li>Find the second highest salary.</li>
+    <li>Why does <code>distinct()</code> matter in that answer?</li>
+    <li>Find the top two earners in each department.</li>
+  </ul>
+
+  <div class="teach">
+  <p>Nth highest is three operations, and the middle one is the part people forget.</p>
+  <pre><code>staff.stream()
+     .map(Employee::salary)
+     .<span class="st">distinct()</span>                      <span class="cm">// without this, duplicates shift the answer</span>
+     .sorted(Comparator.reverseOrder())
+     .skip(1)                          <span class="cm">// skip(n-1) for the nth</span>
+     .findFirst()
+     .orElse(-1);                      <span class="cm">// -> 120</span></code></pre>
+  <div class="note">
+    <p><b>Why distinct matters.</b> With salaries 140, 140, 120, the second highest is 120, not 140. Without <code>distinct()</code> you skip one <em>row</em> rather than one <em>value</em> and return 140. Interviewers add a duplicate to the data specifically to see whether you noticed.</p>
+  </div>
+
+  <h3>Top N per group</h3>
+  <p>This one needs the group collected first, because you cannot sort within a group until you have the group.</p>
+  <pre><code>staff.stream().collect(groupingBy(Employee::dept,
+    collectingAndThen(toList(), list -> list.stream()
+        .sorted(Comparator.comparingInt(Employee::salary).reversed())
+        .limit(2)
+        .map(Employee::name)
+        .toList())));
+
+<span class="cm">// -> {hr=[Gita, Finn], sales=[Eve, Dan], eng=[Cara, Ann]}</span></code></pre>
+  <p><code>collectingAndThen</code> is doing the work: collect each group to a list, then run a second pipeline over that list. It is the standard shape whenever a per group answer needs sorting or limiting.</p>
+
+  <h3>Highest average, not highest total</h3>
+  <pre><code>staff.stream()
+     .collect(groupingBy(Employee::dept, averagingInt(Employee::salary)))
+     .entrySet().stream()
+     .max(Map.Entry.comparingByValue())
+     .map(Map.Entry::getKey)
+     .orElse("none");                  <span class="cm">// -> eng</span></code></pre>
+  <p><code>Map.Entry.comparingByValue()</code> and <code>comparingByKey()</code> save writing a lambda and read better.</p>
+
+  <div class="wrong">
+    <p><b>Forgetting distinct on Nth highest.</b> The single most common way to fail this question.</p>
+    <p><b>Sorting the whole stream to get the top one.</b> <code>max()</code> exists and is a single pass. Sorting to take one element is doing far more work than asked.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What if there is no second highest?</summary>
+    <div class="rvb">
+      <p>The pipeline handles it without special casing, which is the point worth making.</p>
+      <p>With one distinct salary, <code>skip(1)</code> leaves an empty stream and <code>findFirst()</code> returns an empty <code>Optional</code>. Nothing throws. What you do next is a design decision rather than a coding one:</p>
+      <pre><code>.findFirst()                          <span class="cm">// Optional&lt;Integer&gt;</span>
+.orElse(-1)                           <span class="cm">// a sentinel, usually a bad idea</span>
+.orElseThrow(() -> <span class="kw">new</span> NoSuchElementException("no second salary"))</code></pre>
+      <p>Returning the <code>Optional</code> is often the best answer, because the caller then has to decide, and the signature tells the truth. Returning <code>-1</code> invites someone to treat it as a salary.</p>
+      <p>The interviewer is usually checking two things here: that you noticed the case exists, and that you did not reach for a null. Saying "I would return the Optional and let the caller decide" answers both.</p>
+      <p>A related trap: on an empty list the same pipeline is also fine, which is worth stating because the loop version needs an explicit guard.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> Sorting</h2>
+
+  <ul class="prompts">
+    <li>Sort by one field then another.</li>
+    <li>Sort descending by one field and ascending by the next.</li>
+    <li>What happens when a sort field is null?</li>
+    <li>Sort a map by value and keep the order.</li>
+  </ul>
+
+  <div class="teach">
+  <h3>The reversed() trap, measured</h3>
+  <p>Sort by age descending, then by name ascending. Here are both versions and what they actually printed:</p>
+  <pre><code><span class="cm">// reversed() applies to the WHOLE chain built so far</span>
+comparingInt(Person::age).thenComparing(Person::name).reversed()
+<span class="cm">// -> [</span><span class="bad">34:Dan, 34:Ann</span><span class="cm">, 29:Cara, 22:Eve]   names reversed too</span>
+
+<span class="cm">// reverse the age comparator only, then add the name</span>
+comparingInt(Person::age).reversed().thenComparing(Person::name)
+<span class="cm">// -> [</span><span class="st">34:Ann, 34:Dan</span><span class="cm">, 29:Cara, 22:Eve]   correct</span></code></pre>
+  <div class="note">
+    <p><b>Both compile, both run, and both look right at a glance.</b> The difference only shows when two people share an age, which test data often avoids. Put <code>reversed()</code> immediately after the part you want reversed, not at the end.</p>
+  </div>
+
+  <h3>Nulls</h3>
+  <pre><code><span class="cm">// throws NullPointerException the moment one age is null</span>
+.sorted(Comparator.comparing(Person::age))
+
+<span class="cm">// nulls at the end</span>
+.sorted(Comparator.comparing(Person::age, Comparator.nullsLast(naturalOrder())))
+<span class="cm">// -> [Eve=22, Cara=29, Ann=34, Dan=34, Bob=null]</span>
+
+<span class="cm">// nulls at the front</span>
+.sorted(Comparator.comparing(Person::age, Comparator.nullsFirst(naturalOrder())))
+<span class="cm">// -> [Bob=null, Eve=22, Cara=29, Ann=34, Dan=34]</span></code></pre>
+  <p>The two argument <code>comparing</code> takes the field getter and a comparator for that field, which is where <code>nullsFirst</code> or <code>nullsLast</code> goes. Wrapping the whole comparator instead is a common mistake and does not protect against a null field.</p>
+
+  <h3>Sorting a map by value</h3>
+  <pre><code>scores.entrySet().stream()
+      .sorted(Map.Entry.&lt;String, Integer&gt;comparingByValue().reversed())
+      .collect(toMap(Map.Entry::getKey, Map.Entry::getValue,
+                     (a, b) -> a, <span class="st">LinkedHashMap::new</span>));
+<span class="cm">// -> {bob=9, cara=5, ann=3}</span>
+
+<span class="cm">// the same without LinkedHashMap</span>
+<span class="cm">// -> </span><span class="bad">{ann=3, cara=5, bob=9}</span><span class="cm">   the sort is thrown away</span></code></pre>
+  <div class="note">
+    <p><b>Sorting into a plain toMap discards the sort.</b> You did the work and then poured it into a HashMap, which has no order. This is the second answer on this page that runs cleanly and gives the wrong result.</p>
+    <p>Note also the explicit type on <code>Map.Entry.&lt;String, Integer&gt;comparingByValue()</code>. Without it the compiler often cannot work out the types in a chained call.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>reversed() at the end of a chain.</b> It reverses everything before it, not just the last part.</p>
+    <p><b>toMap after sorting.</b> Use the four argument form with <code>LinkedHashMap::new</code>, or you have sorted for nothing.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Is stream sorting stable, and why does that matter?</summary>
+    <div class="rvb">
+      <p>Yes for an ordered source, and it matters more than it sounds.</p>
+      <p>Stable means two elements the comparator considers equal keep the order they arrived in. So you can sort by one thing, then sort the result by another, and the first sort survives as the tie break.</p>
+      <p>That is why the <code>reversed()</code> bug above is subtle. In that example the names were already alphabetical in the source, so with a correct comparator the tie between the two 34 year olds resolved to Ann then Dan, and with the buggy one it flipped to Dan then Ann. If the source had been in a different order, the bug would have shown differently or not at all.</p>
+      <p>The practical rule: prefer one comparator with <code>thenComparing</code> over sorting twice. It states the intent in one place and does not depend on stability to be correct.</p>
+      <p>One caveat worth knowing: on a <strong>parallel</strong> stream, stability is preserved for <code>sorted</code>, but <code>forEach</code> does not keep encounter order at all. If you sorted and then printed with <code>forEach</code> in parallel, the output is unordered. <code>forEachOrdered</code> is the fix, and it gives back much of what parallel bought you.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> Flattening</h2>
+
+  <ul class="prompts">
+    <li>Turn a list of lists into one list.</li>
+    <li>Why does <code>map</code> not work for this?</li>
+    <li>Sum a quantity across nested objects.</li>
+    <li>What does <code>Optional::stream</code> do?</li>
+  </ul>
+
+  <div class="teach">
+  <p><code>flatMap</code> is for when each element expands into several. The function returns a stream, and all those streams are joined into one.</p>
+  <pre><code>List&lt;List&lt;Integer&gt;&gt; nested = [[1, 2], [3, 4, 5], [], [6]];
+
+nested.stream().flatMap(List::stream).toList();   <span class="cm">// -> [1, 2, 3, 4, 5, 6]</span>
+nested.stream().map(List::stream).toList();       <span class="cm">// -> 4 Stream objects, not the numbers</span></code></pre>
+  <p>That second line is the whole reason <code>flatMap</code> exists. <code>map</code> gives you a stream of streams, which is almost never useful. Note also that the empty list simply contributes nothing, so no special case is needed.</p>
+
+  <h3>Across nested objects</h3>
+  <pre><code><span class="kw">record</span> Item(String sku, <span class="kw">int</span> qty) {}
+<span class="kw">record</span> Order(String id, List&lt;Item&gt; items) {}
+
+<span class="cm">// every item across every order</span>
+orders.stream().flatMap(o -> o.items().stream()).map(Item::sku).toList();
+<span class="cm">// -> [a, b, a]</span>
+
+<span class="cm">// total quantity per sku, sorted by sku</span>
+orders.stream()
+      .flatMap(o -> o.items().stream())
+      .collect(groupingBy(Item::sku, TreeMap::new, summingInt(Item::qty)));
+<span class="cm">// -> {a=7, b=1}</span></code></pre>
+  <p>Once flattened, everything from the earlier chapters applies unchanged. Most nested data questions are one <code>flatMap</code> followed by a familiar collector.</p>
+
+  <h3>Two smaller ones worth knowing</h3>
+  <pre><code><span class="cm">// splitting text into words</span>
+sentences.stream().flatMap(s -> Arrays.stream(s.split(" "))).distinct().sorted().toList();
+<span class="cm">// -> [cat, mat, on, sat, the]</span>
+
+<span class="cm">// dropping the empty Optionals</span>
+List&lt;Optional&lt;String&gt;&gt; maybes = [Optional.of("x"), Optional.empty(), Optional.of("y")];
+maybes.stream().flatMap(Optional::stream).toList();      <span class="cm">// -> [x, y]</span></code></pre>
+  <p><code>Optional::stream</code> gives a stream of nothing or one thing, so flattening drops the empties. It reads better than <code>filter(Optional::isPresent).map(Optional::get)</code> and cannot throw.</p>
+
+  <div class="wrong">
+    <p><b>Using map where you need flatMap.</b> If you end up with a stream of streams, or a list of lists you did not want, that is the tell.</p>
+    <p><b>Special casing the empty inner list.</b> An empty stream contributes nothing to the flattened result, so no check is needed.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>How do you flatten something three levels deep?</summary>
+    <div class="rvb">
+      <p>Chain <code>flatMap</code> once per level, and keep each step small enough to read:</p>
+      <pre><code>companies.stream()
+    .flatMap(c -> c.departments().stream())
+    .flatMap(d -> d.employees().stream())
+    .map(Employee::name)
+    .toList();</code></pre>
+      <p>Each <code>flatMap</code> removes one level of nesting. Three levels of containers means two <code>flatMap</code> calls, which is the arithmetic people get wrong under pressure.</p>
+      <p>Once it gets deeper than that, the pipeline usually stops explaining itself and a named helper method reads better. That is a judgement worth voicing in an interview, because it shows you are optimising for the reader rather than for fitting everything into one expression.</p>
+      <p>A genuine gotcha at any depth: if an intermediate level can be null rather than an empty collection, <code>flatMap</code> will throw. Defend at the source by returning empty collections instead of null, which is the better fix anyway, or add a filter before each expansion.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> Checked exceptions inside lambdas</h2>
+
+  <ul class="prompts">
+    <li>Why does a method that throws a checked exception not compile inside <code>map</code>?</li>
+    <li>Give three ways to handle it.</li>
+    <li>Which one would you choose in real code?</li>
+  </ul>
+
+  <div class="teach">
+  <p>This stops every stream coding round eventually, and the reason is simple once stated.</p>
+  <pre><code><span class="kw">int</span> parse(String s) <span class="kw">throws</span> Exception { ... }
+
+words.stream().map(<span class="kw">this</span>::parse).toList();   <span class="cm">// does not compile</span></code></pre>
+  <p><code>map</code> takes a <code>Function</code>, and <code>Function.apply</code> is not declared to throw anything checked. So no method that throws a checked exception can be used there. It is not a limitation of streams, it is what the interface says.</p>
+
+  <h3>Three ways round it, all run</h3>
+  <p><strong>A. Catch inside the lambda</strong> and rethrow as something unchecked.</p>
+  <pre><code>words.stream().map(s -> {
+    <span class="kw">try</span> { <span class="kw">return</span> parse(s); }
+    <span class="kw">catch</span> (Exception e) { <span class="kw">throw new</span> RuntimeException(e); }
+}).toList();                                <span class="cm">// -> [1, 2, 3]</span></code></pre>
+  <p>Correct, and it ruins the readability that made you use a stream.</p>
+
+  <p><strong>B. Extract that into a helper</strong>, so the pipeline stays clean.</p>
+  <pre><code><span class="kw">interface</span> ThrowingFunction&lt;T, R&gt; { R apply(T t) <span class="kw">throws</span> Exception; }
+
+<span class="kw">static</span> &lt;T, R&gt; Function&lt;T, R&gt; unchecked(ThrowingFunction&lt;T, R&gt; f) {
+    <span class="kw">return</span> t -> {
+        <span class="kw">try</span> { <span class="kw">return</span> f.apply(t); }
+        <span class="kw">catch</span> (Exception e) { <span class="kw">throw new</span> RuntimeException(e); }
+    };
+}
+
+words.stream().map(unchecked(<span class="kw">this</span>::parse)).toList();   <span class="cm">// -> [1, 2, 3]</span></code></pre>
+  <p>Write it once, use it everywhere. This is the answer that shows you understand functional interfaces rather than just using them.</p>
+
+  <p><strong>C. Do not throw at all.</strong> Separate what worked from what did not.</p>
+  <pre><code>Map&lt;Boolean, List&lt;String&gt;&gt; split = mixed.stream().collect(partitioningBy(<span class="kw">this</span>::isNumber));
+<span class="cm">// -> valid [1, 3], invalid [oops]</span>
+
+split.get(<span class="kw">true</span>).stream().map(Integer::parseInt).toList();   <span class="cm">// -> [1, 3]</span></code></pre>
+
+  <div class="note">
+    <p><b>Which to choose.</b> For a batch where one bad row should not kill the job, C is usually right and it is the answer that sounds like production experience: you end up with the failures in hand rather than an exception and no idea which row caused it.</p>
+    <p>For code where a failure genuinely is fatal, B keeps the pipeline readable. What B costs you is visible in the measured output: the original becomes <code>RuntimeException wrapping not a number: oops</code>, so the checked exception is now wrapped one level deeper and anything catching it must unwrap the cause.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>Catching and returning null.</b> The nulls flow down the pipeline and fail somewhere else, usually in a collector, with a stack trace pointing nowhere near the cause.</p>
+    <p><b>Swallowing the exception with an empty catch.</b> Elements disappear silently, which is Episode 5's DiscardPolicy in a different costume.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why can a lambda not throw a checked exception in the first place?</summary>
+    <div class="rvb">
+      <p>Because a lambda is an implementation of an interface method, and it can only throw what that method declares.</p>
+      <p><code>Function.apply</code> is declared with no <code>throws</code> clause. A lambda passed to <code>map</code> becomes an implementation of it, so it may not throw anything checked, exactly as an overriding method may not add checked exceptions its parent did not declare. There is nothing special about lambdas here.</p>
+      <p>The proof is that it works fine with an interface that does declare it. <code>Callable.call</code> throws <code>Exception</code>, so a lambda passed where a <code>Callable</code> is expected can throw whatever it likes. Same lambda syntax, different rule, because the interface is different.</p>
+      <p>So the real question behind the question is whether you understand that a lambda is just an interface implementation with less typing. Saying that gets you further than listing the workarounds.</p>
+      <p>Worth adding what the standard library actually does: it defines separate interfaces where throwing matters, such as <code>Callable</code>, rather than adding <code>throws</code> to <code>Function</code>, because that would force every caller everywhere to handle it.</p>
+    </div>
+  </details>
+</section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>classifier</dt><dd>The function you give <code>groupingBy</code> that decides the key each element belongs under.</dd>
+        <dt>downstream collector</dt><dd>The second argument to <code>groupingBy</code>, deciding what each group's value is. Without it you get lists of whole objects.</dd>
+        <dt>collectingAndThen</dt><dd>Runs a collector, then applies a function to its result. How you unwrap an Optional or sort within a group.</dd>
+        <dt>identity()</dt><dd><code>Function.identity()</code>, a function returning its input unchanged. Used as the classifier when grouping by the element itself.</dd>
+        <dt>summarizingInt</dt><dd>One collector giving count, sum, min, max and average together in a single pass.</dd>
+        <dt>naturalOrder</dt><dd>The default ordering of a comparable type. Needed as the inner comparator when wrapping with nullsFirst or nullsLast.</dd>
+        <dt>nullsFirst / nullsLast</dt><dd>Wraps a comparator so null values sort to one end instead of throwing.</dd>
+        <dt>stable sort</dt><dd>Elements the comparator calls equal keep the order they arrived in. Java's stream sort is stable for an ordered source.</dd>
+        <dt>flatMap</dt><dd>For when each element expands into several. The function returns a stream, and all of them are joined into one.</dd>
+        <dt>functional interface</dt><dd>An interface with one abstract method, which a lambda can implement. <code>Function</code>, <code>Predicate</code>, <code>Callable</code>.</dd>
+        <dt>checked exception</dt><dd>One the compiler forces you to handle or declare. Cannot be thrown from a lambda unless the interface declares it.</dd>
+        <dt>encounter order</dt><dd>The order elements arrive in the stream. Preserved by most operations, thrown away by collecting into a HashMap.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---- problem drill ---- */
+  var PROBLEMS=[
+    {t:"Names grouped by department",
+     code:"staff.stream().collect(\n    groupingBy(Employee::dept,\n               mapping(Employee::name, toList())));",
+     out:"{hr=[Finn, Gita], sales=[Dan, Eve], eng=[Ann, Bob, Cara]}",
+     trap:"Without <code>mapping</code> you get whole Employee objects, not names. And the keys arrive in HashMap order, which is neither insertion nor alphabetical."},
+    {t:"How many people in each department",
+     code:"staff.stream().collect(\n    groupingBy(Employee::dept, counting()));",
+     out:"{hr=2, sales=2, eng=3}",
+     trap:"<code>counting()</code> returns <code>Long</code>, not <code>Integer</code>. That matters if you compare the result to an int literal in a test."},
+    {t:"Average salary per department",
+     code:"staff.stream().collect(\n    groupingBy(Employee::dept, averagingInt(Employee::salary)));",
+     out:"{hr=87.5, sales=100.0, eng=120.0}",
+     trap:"<code>averagingInt</code> returns <code>Double</code> even though the input is int. Use <code>summingInt</code> when you want a total and an int back."},
+    {t:"Highest paid person in each department",
+     code:"staff.stream().collect(groupingBy(Employee::dept,\n    collectingAndThen(maxBy(comparingInt(Employee::salary)),\n                      o -> o.map(Employee::name).orElse(\"none\"))));",
+     out:"{hr=Gita, sales=Eve, eng=Cara}",
+     trap:"<code>maxBy</code> alone gives <code>Map&lt;String, Optional&lt;Employee&gt;&gt;</code>, which is awkward to use. <code>collectingAndThen</code> unwraps it inside the collector."},
+    {t:"Second highest salary",
+     code:"staff.stream().map(Employee::salary)\n     .distinct()\n     .sorted(Comparator.reverseOrder())\n     .skip(1).findFirst().orElse(-1);",
+     out:"120",
+     trap:"Leaving out <code>distinct()</code> is the classic failure. With salaries 140, 140, 120 you would skip a row rather than a value and wrongly return 140."},
+    {t:"Top two earners in each department",
+     code:"staff.stream().collect(groupingBy(Employee::dept,\n    collectingAndThen(toList(), list -> list.stream()\n        .sorted(comparingInt(Employee::salary).reversed())\n        .limit(2).map(Employee::name).toList())));",
+     out:"{hr=[Gita, Finn], sales=[Eve, Dan], eng=[Cara, Ann]}",
+     trap:"You cannot sort within a group until the group exists, so the group has to be collected first. That is what <code>collectingAndThen(toList(), ...)</code> is for."},
+    {t:"Words that appear more than once",
+     code:"Set<String> seen = new HashSet<>();\nwords.stream().filter(w -> !seen.add(w)).collect(toSet());",
+     out:"[apple, pear]",
+     trap:"Neat, and it uses state outside the stream, so it is <b>not safe in parallel</b>. Say that before the interviewer does."},
+    {t:"First character appearing exactly once",
+     code:"text.chars().filter(Character::isLetter).mapToObj(c -> (char) c)\n    .collect(groupingBy(identity(), LinkedHashMap::new, counting()))\n    .entrySet().stream()\n    .filter(e -> e.getValue() == 1)\n    .map(Map.Entry::getKey).findFirst();",
+     out:"w        (with a plain HashMap this returns c, which is wrong)",
+     trap:"Measured. Without <code>LinkedHashMap::new</code> the answer is <b>c</b>, because \"first\" becomes first in hash order rather than first in the string. It runs cleanly and returns a plausible letter."},
+    {t:"Sort by age descending, then name ascending",
+     code:"comparingInt(Person::age).reversed().thenComparing(Person::name)",
+     out:"[34:Ann, 34:Dan, 29:Cara, 22:Eve]",
+     trap:"Putting <code>.reversed()</code> at the end reverses the whole chain, giving <b>34:Dan, 34:Ann</b>. Both compile and the difference only shows when two values tie."},
+    {t:"Sort by a field that can be null",
+     code:"Comparator.comparing(Person::age,\n    Comparator.nullsLast(Comparator.naturalOrder()))",
+     out:"[Eve=22, Cara=29, Ann=34, Dan=34, Bob=null]",
+     trap:"A plain <code>comparing(Person::age)</code> throws NullPointerException. The null handling goes in the <b>second</b> argument, around the field's comparator."},
+    {t:"Sort a map by value, keeping the order",
+     code:"scores.entrySet().stream()\n    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())\n    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue,\n                   (a, b) -> a, LinkedHashMap::new));",
+     out:"{bob=9, cara=5, ann=3}",
+     trap:"Without <code>LinkedHashMap::new</code> the result is <b>{ann=3, cara=5, bob=9}</b>. You sorted and then poured it into a HashMap, throwing the sort away."},
+    {t:"Total quantity per sku across all orders",
+     code:"orders.stream()\n    .flatMap(o -> o.items().stream())\n    .collect(groupingBy(Item::sku, TreeMap::new, summingInt(Item::qty)));",
+     out:"{a=7, b=1}",
+     trap:"<code>map</code> instead of <code>flatMap</code> gives a stream of streams. Empty inner lists need no special case: they contribute nothing."},
+    {t:"Call a method that throws a checked exception",
+     code:"static <T, R> Function<T, R> unchecked(ThrowingFunction<T, R> f) {\n    return t -> {\n        try { return f.apply(t); }\n        catch (Exception e) { throw new RuntimeException(e); }\n    };\n}\nwords.stream().map(unchecked(this::parse)).toList();",
+     out:"[1, 2, 3]        on a bad value: RuntimeException wrapping not a number: oops",
+     trap:"<code>Function.apply</code> declares no checked exception, so nothing that throws one can go in <code>map</code>. If failures are expected rather than fatal, partition the input instead of throwing."}
+  ];
+
+  var bar=document.getElementById("drillBar"), body=document.getElementById("drillBody"),
+      acts=document.getElementById("drillActs");
+  var chosen=0, shown=false;
+
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+  function paintDrill(){
+    bar.innerHTML="";
+    PROBLEMS.forEach(function(p,i){
+      var b=document.createElement("button");
+      b.className="pbtn"; b.type="button";
+      b.setAttribute("aria-pressed", i===chosen ? "true":"false");
+      b.textContent=(i+1);
+      b.title=p.t;
+      b.addEventListener("click",function(){chosen=i;shown=false;paintDrill()});
+      bar.appendChild(b);
+    });
+    var p=PROBLEMS[chosen];
+    var html='<p class="task">'+(chosen+1)+'. '+p.t+'</p>';
+    if(shown){
+      html+='<pre><code>'+esc(p.code)+'</code></pre>';
+      html+='<div class="outline">'+esc(p.out)+'</div>';
+      html+='<div class="trap"><p><b>The trap.</b> '+p.trap+'</p></div>';
+    }else{
+      html+='<p style="color:var(--ink-faint)">Work out your answer, then reveal. '
+           +'Every solution here was compiled and run, and the output shown is what it printed.</p>';
+    }
+    body.innerHTML=html;
+    acts.innerHTML="";
+    var btn=document.createElement("button");
+    btn.className="btn";
+    btn.textContent=shown?"Next problem":"Reveal answer";
+    btn.addEventListener("click",function(){
+      if(shown){ chosen=(chosen+1)%PROBLEMS.length; shown=false; }
+      else { shown=true; }
+      paintDrill();
+    });
+    acts.appendChild(btn);
+  }
+  paintDrill();
+
+  /* ---- quiz ---- */
+  var Q=[
+    {c:1,q:"Group employee names by department, and say what goes wrong without the second argument.",
+     a:"<code>collect(groupingBy(Employee::dept, mapping(Employee::name, toList())))</code>, giving <code>{hr=[Finn, Gita], sales=[Dan, Eve], eng=[Ann, Bob, Cara]}</code>. Without <code>mapping</code> you get <code>Map&lt;String, List&lt;Employee&gt;&gt;</code>, the whole objects rather than the names. The shape to memorise is <code>groupingBy(classifier, downstream)</code>: the classifier picks the key, the downstream collector decides what the value is. Also note the keys came out in HashMap order, which is neither insertion nor alphabetical."},
+    {c:1,q:"How do you get the highest paid person per department without an Optional in the result?",
+     a:"<code>collectingAndThen</code>. Grouping with <code>maxBy</code> alone gives <code>Map&lt;String, Optional&lt;Employee&gt;&gt;</code>, which is awkward for every caller. Wrapping it unwraps inside the collector: <code>groupingBy(Employee::dept, collectingAndThen(maxBy(comparingInt(Employee::salary)), o -> o.map(Employee::name).orElse(\"none\")))</code>, giving <code>{hr=Gita, sales=Eve, eng=Cara}</code>. The same shape handles sorting or limiting within a group."},
+    {c:2,q:"Find the duplicates in a list, and give the version interviewers like.",
+     a:"The neat one uses the fact that <code>Set.add</code> returns false for something already present: <code>Set&lt;String&gt; seen = new HashSet&lt;&gt;(); words.stream().filter(w -> !seen.add(w)).collect(toSet())</code>, giving <code>[apple, pear]</code>. Be ready for the follow-up: it keeps state outside the stream, so it is <b>not safe in parallel</b>. Saying that unprompted turns a trick into understanding. The safe alternative is <code>groupingBy(identity(), counting())</code> then filter for counts above one."},
+    {c:2,q:"Find the first character appearing exactly once, and explain why the usual answer is wrong.",
+     a:"The usual answer groups by character with <code>counting()</code>, filters for 1, and takes <code>findFirst</code>. On \"swiss cheese\" that returns <b>c</b>, and the correct answer is <b>w</b>. <code>groupingBy</code> builds a <b>HashMap</b>, so \"first\" means first in hash order, not first in the string. One word fixes it: <code>groupingBy(identity(), LinkedHashMap::new, counting())</code>. This matters because the wrong version compiles, runs and returns a plausible letter."},
+    {c:3,q:"Find the second highest salary, and say what breaks without one operation.",
+     a:"<code>map(Employee::salary).distinct().sorted(reverseOrder()).skip(1).findFirst()</code>, giving 120. Without <b><code>distinct()</code></b> you skip a row rather than a value: with salaries 140, 140, 120 the second highest is 120, but you would return 140. Interviewers add a duplicate to the data specifically to check. For the nth highest it is <code>skip(n-1)</code>, and returning the <code>Optional</code> rather than a sentinel is the better answer when there might not be one."},
+    {c:3,q:"Get the top two earners in each department.",
+     a:"You cannot sort within a group until the group exists, so collect it first and run a second pipeline over it: <code>groupingBy(Employee::dept, collectingAndThen(toList(), list -> list.stream().sorted(comparingInt(Employee::salary).reversed()).limit(2).map(Employee::name).toList()))</code>, giving <code>{hr=[Gita, Finn], sales=[Eve, Dan], eng=[Cara, Ann]}</code>. That <code>collectingAndThen(toList(), ...)</code> shape is the standard answer to any per group question needing sorting or limiting."},
+    {c:4,q:"Sort by age descending then name ascending, and name the trap.",
+     a:"<code>comparingInt(Person::age).reversed().thenComparing(Person::name)</code>. The trap is putting <code>.reversed()</code> at the end: <code>comparingInt(age).thenComparing(name).reversed()</code> reverses the <b>whole chain</b>, so names come out backwards too. Measured, the correct version gave <code>34:Ann, 34:Dan</code> and the buggy one gave <code>34:Dan, 34:Ann</code>. Both compile, and the difference only shows when two elements tie, which test data often avoids."},
+    {c:4,q:"Sort by a field that can be null.",
+     a:"<code>Comparator.comparing(Person::age, Comparator.nullsLast(Comparator.naturalOrder()))</code>, giving <code>[Eve=22, Cara=29, Ann=34, Dan=34, Bob=null]</code>. A plain <code>comparing(Person::age)</code> throws NullPointerException, because it calls <code>compareTo</code> on null. The null handling belongs in the <b>second argument</b>, wrapping the comparator for that field. Wrapping the whole comparator instead does not protect against a null field value."},
+    {c:4,q:"You sorted a map by value and the order disappeared. Why?",
+     a:"Because <code>toMap</code> returns a HashMap by default, which has no order, so the sort is thrown away. Measured: sorting scores by value descending then collecting gave <code>{ann=3, cara=5, bob=9}</code> instead of <code>{bob=9, cara=5, ann=3}</code>. The fix is the four argument form: <code>toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new)</code>. Note also you often need an explicit type on <code>Map.Entry.&lt;String, Integer&gt;comparingByValue()</code> for the compiler to work out the chain."},
+    {c:5,q:"Turn a list of lists into one list, and say why map does not work.",
+     a:"<code>nested.stream().flatMap(List::stream).toList()</code> gives <code>[1, 2, 3, 4, 5, 6]</code>. Using <code>map(List::stream)</code> gives you a <b>stream of streams</b>, measured as 4 Stream objects rather than the numbers, which is exactly why <code>flatMap</code> exists. Each <code>flatMap</code> removes one level of nesting, so three levels of containers needs two calls. Empty inner lists need no special case, because an empty stream contributes nothing."},
+    {c:5,q:"What does Optional::stream do?",
+     a:"It turns an <code>Optional</code> into a stream of nothing or one thing, so flattening a list of Optionals drops the empties: <code>maybes.stream().flatMap(Optional::stream).toList()</code> gave <code>[x, y]</code> from a list containing an empty. It reads better than <code>filter(Optional::isPresent).map(Optional::get)</code> and cannot throw. The same idea appears on Optional itself, where <code>flatMap</code> is used when your function returns another Optional, to avoid an Optional of an Optional."},
+    {c:6,q:"Why does a method throwing a checked exception not compile inside map, and what do you do?",
+     a:"Because <code>map</code> takes a <code>Function</code>, and <code>Function.apply</code> declares no checked exception. A lambda is an implementation of that interface method, so it may not throw more than the method declares, exactly like an overriding method. Nothing special about lambdas: a lambda passed where a <code>Callable</code> is expected can throw, because <code>Callable.call</code> declares it. Three fixes: catch inside the lambda, extract that into an <code>unchecked</code> helper wrapping a throwing interface, or do not throw at all and <code>partitioningBy</code> valid from invalid. For batch work the third is usually right, because you end up holding the failures instead of an exception and no idea which row caused it."}
+  ];
+  wireQuiz(Q,{1:"Grouping",2:"Counting and duplicates",3:"Nth highest and top N",
+              4:"Sorting",5:"Flattening",6:"Checked exceptions"});
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
