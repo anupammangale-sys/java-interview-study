@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="A Million Threads, episode 6 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>A Million Threads</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS: the carrier and virtual thread simulator
+   =================================================================== */
+.rig{display:grid;grid-template-columns:1fr 260px;gap:16px;padding:16px}
+.carriers{display:flex;flex-direction:column;gap:8px}
+.carrier{display:flex;align-items:center;gap:10px;border:1px solid var(--line-soft);
+  border-radius:8px;background:var(--surface-2);padding:9px 12px;min-height:46px;
+  transition:background-color .2s,border-color .2s}
+.carrier .cname{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-faint);
+  font-weight:600;flex:none;width:62px}
+.carrier .slot{flex:1;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-faint)}
+.carrier.busy{background:var(--freed-bg);border-color:var(--freed-line)}
+.carrier.busy .slot{color:var(--freed);font-weight:600}
+.carrier.stuck{background:var(--alarm-bg);border-color:var(--alarm)}
+.carrier.stuck .slot{color:var(--alarm);font-weight:600}
+.queuebox{border:1px solid var(--line-soft);border-radius:8px;background:var(--surface-2);padding:12px}
+.queuebox h6{margin:0 0 9px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600}
+.vts{display:flex;flex-wrap:wrap;gap:4px}
+.vt{width:22px;height:22px;border-radius:4px;background:var(--surface);border:1px solid var(--line);
+  font-family:"IBM Plex Mono",monospace;font-size:10px;display:grid;place-items:center;
+  color:var(--ink-faint);transition:background-color .2s,border-color .2s}
+.vt.waiting{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+.vt.done{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+@media (max-width:760px){.rig{grid-template-columns:1fr}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep06">
+  <a class="backlink" href="index.html">All episodes</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>A Million Threads</b>
+    <span>Episode 6 &middot; Virtual Threads</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> Two kinds of thread</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Mounting and unmounting</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> Pinning</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Which model</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Structured concurrency</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> What breaks</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>One million threads in 656 milliseconds</h1>
+      <p class="sub">Virtual threads make blocking cheap again, which undoes most of the reason asynchronous code existed. Everything here was measured on Java 24, including one result that contradicts the advice almost every article still gives.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> Two kinds of thread</h2>
+
+  <ul class="prompts">
+    <li>What is the difference between a platform thread and a virtual thread?</li>
+    <li>Why can you have a million of one and not the other?</li>
+    <li>What problem were virtual threads actually built to solve?</li>
+    <li>When do virtual threads give you nothing?</li>
+  </ul>
+
+  <div class="teach">
+  <p>A <strong>platform thread</strong> is a thin wrapper around a thread belonging to the operating system. Creating one asks the operating system for a real thread, which comes with about a megabyte of memory reserved outside the heap, and the operating system decides when it runs.</p>
+  <p>A <strong>virtual thread</strong> is an ordinary Java object on the heap. Java schedules it itself, onto a small set of real threads. The operating system never knows it exists.</p>
+
+  <h3>Measured: how many can exist</h3>
+  <p>Threads that only wait, so this is the cost of existing rather than the cost of working. Each kind run in its own program.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Asked for</th><th>Platform, time to start</th><th>Virtual, time to start</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1,000</td><td class="num">37 ms</td><td class="num">9 ms</td></tr>
+      <tr><td class="num">10,000</td><td class="num">513 ms</td><td class="num">18 ms</td></tr>
+      <tr><td class="num">20,000</td><td class="num">2,129 ms</td><td class="num">not measured</td></tr>
+      <tr><td class="num">50,000</td><td class="num">12,605 ms</td><td class="num">not measured</td></tr>
+      <tr><td class="num">100,000</td><td class="num">not attempted</td><td class="num">76 ms</td></tr>
+      <tr><td class="num">500,000</td><td class="num">not attempted</td><td class="num">398 ms</td></tr>
+      <tr class="win"><td class="num">1,000,000</td><td class="num">not attempted</td><td class="num">656 ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">
+    <p><b>Read the platform column downwards.</b> It is not linear. Ten thousand took 513 ms, twenty thousand took four times that, fifty thousand took twenty five times that. Meanwhile virtual threads created <b>a million in 656 milliseconds</b>, which is faster than platform threads managed twenty thousand.</p>
+  </div>
+
+  <h3>Measured: the thing that actually matters</h3>
+  <p>Counting threads is not the point. Here are ten thousand tasks, each waiting 100 ms for something slow, which is what a service calling other services does all day.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Executor</th><th>Wall time</th><th>Tasks divided by threads, times the wait</th></tr></thead>
+    <tbody>
+      <tr><td>fixed pool, 200 threads</td><td class="num">5,043 ms</td><td class="num">about 5,000 ms</td></tr>
+      <tr><td>fixed pool, 1000 threads</td><td class="num">1,048 ms</td><td class="num">about 1,000 ms</td></tr>
+      <tr><td>fixed pool, 2000 threads</td><td class="num">572 ms</td><td class="num">about 500 ms</td></tr>
+      <tr class="win"><td>one virtual thread per task</td><td class="num">203 ms</td><td class="num">about 100 ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The third column is the arithmetic you can do in your head, and the measurement matches it almost exactly. With a fixed pool, wall time is <strong>tasks divided by threads, multiplied by how long each one waits</strong>. You are rationing threads.</p>
+  <p>Virtual threads remove the divisor. Ten thousand tasks each waiting 100 ms takes about 100 ms, because all ten thousand wait at the same time.</p>
+
+  <h3>What they were built for</h3>
+  <p>Nearly every backend service spends its time waiting: for a database, for another service, for a queue. The thread doing the waiting is not using the processor, it is just occupying a scarce and expensive resource.</p>
+  <p>The old answer was to stop blocking, and write callbacks or reactive pipelines instead. That works, and it makes the code much harder to read, debug and profile. Virtual threads take the other route: <strong>keep the simple blocking code, and make blocking cheap.</strong></p>
+
+  <div class="wrong">
+    <p><b>"Virtual threads make everything faster."</b> They make <em>waiting</em> cheap. Work that keeps the processor busy gains nothing, because you still only have as many cores as you have. Measured here on a machine with 12 processors, processor bound work would land at the same total time either way.</p>
+    <p><b>"They are just a lighter thread pool."</b> The point is not to pool them at all. You create one per task and let it end. Pooling virtual threads is a mistake, and the reason is in chapter six.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why does creating platform threads get slower and slower?</summary>
+    <div class="rvb">
+      <p>Because each one is a request to the operating system, and the operating system is doing real work each time.</p>
+      <p>It has to reserve a stack, which is about a megabyte of address space per thread by default. It has to create its own bookkeeping structures. And every additional thread makes its scheduler's job harder, because there are more candidates to consider each time it decides what runs next.</p>
+      <p>The measurements show that curve clearly: 1,000 in 37 ms, 10,000 in 513 ms, 20,000 in 2,129 ms, 50,000 in 12,605 ms. Doubling from ten to twenty thousand cost four times as much, not twice.</p>
+      <p>The memory is the harder limit in production. Fifty thousand platform threads is roughly fifty gigabytes of reserved stack space, which is why a service creating threads per request falls over long before the processor is busy, and why it shows up as the container being killed rather than as a Java error.</p>
+      <p>A virtual thread has none of this. It starts as a small object on the heap with a stack that grows and shrinks as needed, so a million of them is a heap question, not an operating system question.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>When do virtual threads give you nothing at all?</summary>
+    <div class="rvb">
+      <p>When your threads are busy rather than waiting. Being able to say this clearly is what separates understanding from enthusiasm.</p>
+      <p>Virtual threads work by unmounting from their carrier whenever they block, freeing it for someone else. A thread that never blocks never unmounts, so there is nothing to gain. Image processing, parsing large files, cryptography, heavy calculation: all of these keep the processor busy, and you can only ever run as many of those at once as you have cores.</p>
+      <p>In fact you can do slightly worse, because you have added a scheduling layer for no benefit. For that kind of work a fixed pool sized to the core count remains exactly right.</p>
+      <p>The other case is work that is already fast. If a task takes a microsecond, thread creation cost was never your problem, and a pool was fine.</p>
+      <p>The honest summary: virtual threads are for code that waits on other systems. That happens to be most backend code, which is why they matter, but it is a specific claim rather than a general one.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> Mounting and unmounting</h2>
+
+  <ul class="prompts">
+    <li>What is a carrier thread?</li>
+    <li>What happens when a virtual thread blocks?</li>
+    <li>Where does its stack go while it is not running?</li>
+    <li>How many carriers are there by default?</li>
+  </ul>
+
+  <div class="teach">
+  <p>A virtual thread does not run by itself. To execute, it has to be <strong>mounted</strong> onto a real platform thread, called a <strong>carrier</strong>. There is a small pool of carriers, by default one per processor.</p>
+  <p>The interesting part is what happens when the virtual thread blocks. Instead of the carrier sitting there waiting, Java <strong>unmounts</strong> the virtual thread: it copies its stack onto the heap, frees the carrier for somebody else, and remembers where to resume. When the thing it was waiting for arrives, it is mounted again, possibly onto a completely different carrier.</p>
+
+  <div class="note">
+    <p><b>This is the entire trick.</b> A blocked platform thread holds a real operating system thread hostage. A blocked virtual thread holds nothing except some heap memory. That is why ten thousand of them can wait at the same time on a machine with twelve processors.</p>
+  </div>
+
+  <h3>Watch it happen</h3>
+  <p>Three carriers, twelve virtual threads. Each one runs briefly, then waits for something slow. Watch what the carriers do while the waiting happens, then switch on pinning and watch them stop being useful.</p>
+
+  <div class="sim">
+    <div class="simhead">
+      <button class="btn" id="simRun">Run</button>
+      <button class="btn" id="simMode" aria-pressed="false">Unmounts normally</button>
+      <button class="btn" id="simReset">Reset</button>
+      <div class="sp">
+        <div class="stat">finished<b id="sDone">0</b></div>
+        <div class="stat">waiting<b id="sWait">0</b></div>
+        <div class="stat">ticks<b id="sTick">0</b></div>
+      </div>
+    </div>
+    <div class="rig">
+      <div class="carriers" id="carriers" aria-hidden="true"></div>
+      <div class="queuebox">
+        <h6>virtual threads</h6>
+        <div class="vts" id="vts" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="simfoot" id="simFoot">Press Run. Green means a carrier is doing useful work.</div>
+  </div>
+
+  <h3>Where the stack lives</h3>
+  <p>A platform thread's stack is a fixed block of memory reserved by the operating system, whether it is used or not. That is where the megabyte goes.</p>
+  <p>A virtual thread's stack lives on the heap and is only as big as it currently needs. While the thread is running it is copied onto the carrier's real stack; when it unmounts, the used part is copied back to the heap. That copying is not free, but it is far cheaper than reserving a megabyte per thread, and it is why a virtual thread's cost is proportional to how deep its call stack actually is.</p>
+
+  <h3>How many carriers</h3>
+  <p>By default, one per processor. On the machine these measurements came from that is twelve. You can change it, but the number is deliberately small: carriers are meant to be always busy, never waiting, so having many more than you have processors would defeat the purpose.</p>
+  <pre><code><span class="cm"># only if you have measured a reason to</span>
+-Djdk.virtualThreadScheduler.parallelism=16
+-Djdk.virtualThreadScheduler.maxPoolSize=256</code></pre>
+
+  <div class="wrong">
+    <p><b>"A virtual thread runs on its own thread."</b> It borrows a carrier while it is running and gives it back the moment it waits. It may run on a different carrier each time.</p>
+    <p><b>"Unmounting is free."</b> The stack has to be copied both ways. It is cheap next to reserving a megabyte, but a virtual thread with a very deep call stack that blocks constantly will pay for it.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Which operations actually cause an unmount?</summary>
+    <div class="rvb">
+      <p>The ones Java rewrote to know about virtual threads. That covers almost everything you would normally block on:</p>
+      <ul class="body">
+        <li><code>Thread.sleep</code></li>
+        <li>Reading and writing sockets, which means almost all network calls, including database drivers and HTTP clients that use standard Java networking</li>
+        <li>Waiting on locks, queues, latches and futures from the concurrency library</li>
+        <li>Waiting on an object monitor</li>
+      </ul>
+      <p>The important consequence is that <strong>you do not write anything special</strong>. Ordinary blocking code unmounts automatically. That is the whole design goal: existing code, existing libraries, no rewrite.</p>
+      <p>What does not unmount is anything that blocks below Java, in code written in C. The virtual thread's stack is interleaved with native frames that Java cannot move to the heap, so it has to stay put and the carrier stays with it.</p>
+      <p>Ordinary file input and output is worth a specific mention, because it is the common surprise: on most platforms file operations are not truly non blocking underneath, so Java runs them on a separate pool rather than unmounting. It works correctly and does not pin, but it does not get the full benefit either.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Should you ever change the number of carriers?</summary>
+    <div class="rvb">
+      <p>Rarely, and only with a measurement in hand, because the default is deliberately equal to your processor count for a good reason.</p>
+      <p>Carriers are meant to be doing actual work at all times. Waiting is supposed to happen by unmounting, not by a carrier sitting idle. If that holds, having more carriers than processors just adds switching overhead without letting more work happen.</p>
+      <p>The case where raising it genuinely helps is when something in your stack still holds a carrier while blocking, which is chapter three. If profiling shows carriers stuck rather than working, more carriers is a way to buy time while you fix the real cause.</p>
+      <p>Worth knowing that two settings exist and they are different. Parallelism is the target number of carriers running at once. Maximum pool size is the ceiling the scheduler may temporarily grow to when it detects carriers are stuck, which is a safety valve rather than something you tune.</p>
+      <p>The better answer in an interview is to say you would find out why carriers are not free, rather than adding more of them.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> Pinning, and what changed in Java 24</h2>
+
+  <ul class="prompts">
+    <li>What is pinning and why does it matter?</li>
+    <li>Did blocking inside <code>synchronized</code> pin the carrier?</li>
+    <li>What changed in Java 24?</li>
+    <li>What still pins?</li>
+  </ul>
+
+  <div class="teach">
+  <p><strong>Pinning</strong> is when a virtual thread blocks but cannot unmount, so it keeps its carrier. The carrier does no work and cannot be given to anybody else. Enough pinned threads and you are back to a small fixed pool, having paid for virtual threads and got nothing.</p>
+
+  <h3>The advice almost every article still gives</h3>
+  <p>For years the rule has been: blocking inside a <code>synchronized</code> block pins the carrier, so replace <code>synchronized</code> with <code>ReentrantLock</code> before adopting virtual threads. That advice was correct for Java 21, 22 and 23.</p>
+
+  <h3>Measured on Java 24</h3>
+  <p>Two thousand virtual threads, each locking <strong>its own</strong> object so there is no contention at all, then sleeping 200 ms. The only thing that could serialise them is pinning. The machine has 12 carriers.</p>
+  <pre><code>if pinning happens, expect roughly 33,200 ms
+if it does not, expect roughly 200 ms
+
+blocking inside                       wall time
+--------------------------------------------------
+synchronized (own monitor)               <span class="st">236 ms</span>
+ReentrantLock (own lock)                 <span class="st">212 ms</span></code></pre>
+  <div class="note">
+    <p><b>They are the same, and both are near the theoretical floor.</b> If <code>synchronized</code> still pinned, the first row would have been about 33 seconds. Java 24 removed that behaviour, so a virtual thread blocking inside <code>synchronized</code> now unmounts like anything else.</p>
+    <p>So the most repeated piece of virtual threads advice is <b>out of date on Java 24</b>, and correct on Java 21 to 23. Know both, and know which version you are on. Saying that in an interview is a much stronger answer than either rule alone.</p>
+  </div>
+
+  <h3>What still pins</h3>
+  <p>The remaining case is code that blocks below Java, in native code written in C. The virtual thread's stack is then mixed with frames that Java cannot copy to the heap, so it cannot be moved and the carrier stays with it.</p>
+  <p>In practice that means some older database drivers and libraries with native components. The way to find out is to measure rather than guess: Java can record an event whenever a virtual thread is pinned, and looking for those events tells you whether your dependencies have the problem.</p>
+
+  <div class="wrong">
+    <p><b>"You must replace all synchronized with ReentrantLock."</b> True on Java 21 to 23. Measured false on Java 24. Doing it anyway is a large change to working code for no gain.</p>
+    <p><b>"Pinning means deadlock."</b> It means lost throughput. The work still completes, just with far less parallelism than you were expecting, which makes it a performance mystery rather than an obvious failure.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>How would you detect pinning in a running service?</summary>
+    <div class="rvb">
+      <p>Java records an event every time a virtual thread is pinned for a meaningful length of time, and that event is the direct evidence. Start a recording, run your load, and look for those events. Each one tells you where it happened, so you get the exact code path rather than a suspicion.</p>
+      <p>The symptom that sends you looking is distinctive. Throughput is far lower than the arithmetic says it should be, the processor is not busy, and adding more virtual threads changes nothing. That last part is the giveaway: with virtual threads working properly, more concurrent waiting work should cost almost nothing.</p>
+      <p>A thread dump helps too. On a service using virtual threads properly, the carrier threads should be doing work or idle. Carriers sitting inside application code that is waiting for something is the picture of pinning.</p>
+      <p>Practical caveat worth adding: before hunting pinning, check the simpler explanation. A connection pool with twenty connections limits you to twenty concurrent database calls no matter how many virtual threads you have. That is not pinning, it is chapter six.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>If synchronized no longer pins, is there any reason left to prefer ReentrantLock?</summary>
+    <div class="rvb">
+      <p>Yes, but the reasons are the same ones that always applied, and none of them are about virtual threads any more.</p>
+      <p><code>ReentrantLock</code> can be taken with a timeout, so a thread can give up rather than wait forever. That turns a potential deadlock into a failed request you can retry, which is genuinely valuable in a service.</p>
+      <p>It can be taken in a way that allows the waiting thread to be interrupted, so work can be cancelled.</p>
+      <p>It can be made fair, so the longest waiting thread goes next rather than whoever happens to win the race.</p>
+      <p>And it can be acquired in one method and released in another, which <code>synchronized</code> cannot do, because its scope is a block.</p>
+      <p>Against all that, <code>synchronized</code> releases automatically when the block exits, including on an exception, which removes the most common bug with locks. So the honest answer is that the choice went back to being the ordinary one it was before virtual threads existed: use <code>synchronized</code> unless you need one of those four things.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> Which model, and why</h2>
+
+  <ul class="prompts">
+    <li>Compare virtual threads, CompletableFuture and reactive.</li>
+    <li>What do virtual threads give you that the other two do not?</li>
+    <li>When is reactive still the right answer?</li>
+  </ul>
+
+  <div class="teach">
+  <p>All three exist to solve the same problem: how do you handle many things at once without one real thread per thing. They differ in what they cost you to read and debug.</p>
+
+  <div class="dx">
+    <div class="dxq">
+      <p>Which model are you asking about?</p>
+      <div class="opts" id="modelOpts">
+        <button class="opt" data-k="pool">A plain thread pool</button>
+        <button class="opt" data-k="cf">CompletableFuture</button>
+        <button class="opt" data-k="reactive">Reactive streams</button>
+        <button class="opt" data-k="virtual">Virtual threads</button>
+      </div>
+    </div>
+    <div class="dxout" id="modelOut">
+      <span class="lbl">Model</span>
+      <p class="verdict">Pick one</p>
+      <p>Each one trades away something different. The question is which cost you are willing to pay.</p>
+    </div>
+  </div>
+
+  <h3>The same work, three ways</h3>
+  <pre><code><span class="cm">// blocking, on a virtual thread: reads top to bottom</span>
+<span class="kw">var</span> user = userService.find(id);
+<span class="kw">var</span> orders = orderService.forUser(user);
+<span class="kw">return</span> render(user, orders);
+
+<span class="cm">// CompletableFuture: the same logic, turned inside out</span>
+<span class="kw">return</span> supplyAsync(() -> userService.find(id), pool)
+    .thenCompose(user -> supplyAsync(() -> orderService.forUser(user), pool)
+        .thenApply(orders -> render(user, orders)));</code></pre>
+  <p>The first version can be stepped through in a debugger, and a stack trace from inside it shows the whole path that led there. The second version cannot, and does not: a failure inside the second call gives you a stack trace full of framework machinery rather than your own call chain.</p>
+  <p>That readability is the actual argument for virtual threads. The performance argument matters, but the cost of asynchronous code has always been paid in debugging.</p>
+
+  <div class="note">
+    <p><b>The one line answer.</b> "Virtual threads let you write blocking code that scales like asynchronous code. You keep ordinary control flow, real stack traces and working debuggers, and you give up the fine grained control over scheduling and backpressure that reactive gives you."</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"Virtual threads replace reactive entirely."</b> They replace the most common reason people reached for reactive, which was thread efficiency. They do not give you operators for streams of events, backpressure across a pipeline, or composition over time.</p>
+    <p><b>"You should rewrite your reactive code."</b> Working code that is well understood is not a problem to be solved. This is a decision for new code, or for code you are already rewriting.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>When is reactive still genuinely the right choice?</summary>
+    <div class="rvb">
+      <p>When you need the things it does that have nothing to do with thread efficiency.</p>
+      <p><strong>Backpressure across a whole pipeline.</strong> If a fast producer feeds a slow consumer through several stages, reactive lets the slow end tell the fast end to slow down, all the way up. Virtual threads give you cheap blocking, which handles it at one hop but does not propagate a rate limit through a chain of stages.</p>
+      <p><strong>Streams of events over time.</strong> Anything where the natural unit is a sequence that arrives gradually: server sent events, websockets, message streams. Operators for buffering, windowing, throttling and merging are real value that blocking code has no direct answer to.</p>
+      <p><strong>Composition over time.</strong> Combining several sources with rules like "take the first to answer, but retry this one twice, and time the whole thing out" is genuinely nicer as operators than as hand written code.</p>
+      <p>The clean way to say it: reactive is a <em>programming model for streams</em> that happened to also solve thread efficiency. Virtual threads solve the thread efficiency part far more simply. If you were using reactive only for that, you no longer need it. If you were using it for the stream operators, you still do.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> Structured concurrency</h2>
+
+  <ul class="prompts">
+    <li>What problem does structured concurrency solve?</li>
+    <li>What happens when one subtask fails?</li>
+    <li>Why is it better than submitting to an executor?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Virtual threads make it cheap to start work. Structured concurrency is about not losing track of it.</p>
+  <p>The problem: you start three calls in parallel and wait for all three. One fails. What happens to the other two? With an executor, nothing. They carry on, using resources, producing results nobody will read, and possibly failing later in a log nobody connects to the original request.</p>
+
+  <h3>The idea</h3>
+  <p>Work started inside a block must finish inside that block. If one part fails, the rest are cancelled automatically. You cannot accidentally leave something running, because the block will not exit until everything it started has finished or been cancelled.</p>
+  <pre><code><span class="kw">try</span> (<span class="kw">var</span> scope = <span class="kw">new</span> StructuredTaskScope.ShutdownOnFailure()) {
+    <span class="kw">var</span> user = scope.fork(() -> loadUser(id));      <span class="cm">// each on its own virtual thread</span>
+    <span class="kw">var</span> cart = scope.fork(() -> loadCart(id));
+
+    scope.join();                                  <span class="cm">// wait for both</span>
+    scope.throwIfFailed();                         <span class="cm">// rethrow the first failure</span>
+
+    <span class="kw">return</span> <span class="kw">new</span> Order(user.get(), cart.get());
+}</code></pre>
+
+  <h3>Measured</h3>
+  <p>Running the above with one subtask taking 100 ms, the other 300 ms:</p>
+  <pre><code>1. both succeed:
+   Order[user=user-42, cart=cart-7]
+
+2. one fails, so the other is cancelled:
+   whole scope failed: cart service is down</code></pre>
+  <p>Both calls run at the same time, so the whole thing takes as long as the slower one rather than the sum. When one fails, the other is cancelled rather than left running.</p>
+
+  <div class="note">
+    <p><b>Still a preview feature.</b> On Java 24 this needs <code>--enable-preview</code>, and the API has been changing between releases. Worth knowing about and worth saying you know it is not final. Do not put it in production code yet.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"It is just a nicer executor."</b> The difference is the guarantee. An executor lets work outlive the code that started it. A scope cannot exit while anything it started is still running.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What does it actually fix that an executor does not?</summary>
+    <div class="rvb">
+      <p>Three things, and the third is the one people feel most often.</p>
+      <p><strong>Leaked work.</strong> With an executor, submitting three tasks and returning early after one fails leaves the other two running. They consume connections and processor time producing a result nobody wants, and if they fail they do so in a log with no obvious link to the request that caused them. A scope cancels them.</p>
+      <p><strong>Cancellation that actually propagates.</strong> If the caller gives up, everything below should stop. With executors that has to be plumbed by hand through every layer, and usually is not. With scopes it is the default.</p>
+      <p><strong>Stack traces that make sense.</strong> A failure in a subtask carries the relationship back to the code that started it, so the trace shows where the work came from. Failures inside pooled tasks show the pool's thread and nothing about the request.</p>
+      <p>The framing that lands well: it does for concurrency what structured programming did for control flow. Submitting to an executor is the concurrency version of a jump: work goes somewhere and the relationship is gone. A scope keeps the shape of the code and the shape of the work the same.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> What breaks when you migrate</h2>
+
+  <ul class="prompts">
+    <li>Why should you not pool virtual threads?</li>
+    <li>What happens to ThreadLocal with millions of threads?</li>
+    <li>What becomes the new bottleneck?</li>
+    <li>What do you actually change to adopt them?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Adopting virtual threads is mostly a one line change. The problems come from things built on the old assumption that threads are scarce.</p>
+
+  <h3>Do not pool them</h3>
+  <pre><code><span class="cm">// wrong: a pool exists to ration something expensive</span>
+Executors.newFixedThreadPool(200, Thread.ofVirtual().factory());
+
+<span class="cm">// right: one per task, created and discarded freely</span>
+Executors.newVirtualThreadPerTaskExecutor();</code></pre>
+  <p>Pooling virtual threads reintroduces exactly the limit you were removing. The first line caps you at 200 concurrent tasks again, having gained nothing.</p>
+
+  <h3>The bottleneck moves</h3>
+  <div class="note">
+    <p><b>This is the most useful thing in the chapter.</b> Your thread pool was quietly limiting how much load you sent downstream. Remove it and ten thousand requests hit the database at once. The connection pool becomes the new limit, or the database falls over.</p>
+    <p>So a virtual threads migration is really a conversation about <b>where the limit should live</b>. It has to live somewhere. Previously it was an accident of pool size; now you choose it deliberately, with a connection pool size, a semaphore, or a rate limiter.</p>
+  </div>
+
+  <h3>ThreadLocal</h3>
+  <p>With two hundred pooled threads, a ThreadLocal holds two hundred values. With a virtual thread per request and ten thousand concurrent requests, it holds ten thousand.</p>
+  <p>The good news is that virtual threads are short lived, so a value dies with its thread rather than living forever on a pooled thread. That removes the leak from Episode 1. The bad news is the sheer count: anything expensive per thread, a buffer or a parser, is now allocated per request.</p>
+  <p>The replacement is a scoped value: set once for a block of work, visible to everything inside it including subtasks, and immutable. Still preview, like structured concurrency.</p>
+
+  <h3>What you actually change</h3>
+  <ol class="body">
+    <li><strong>Swap the executor.</strong> One line, and often that is genuinely all.</li>
+    <li><strong>Put a real limit on shared resources.</strong> Size the connection pool deliberately, and use a semaphore around anything a downstream service cannot take at full speed.</li>
+    <li><strong>Check timeouts exist.</strong> Blocking is cheap now, so a call with no timeout can accumulate an enormous number of waiting threads instead of being capped by pool size.</li>
+    <li><strong>Look for per thread caching.</strong> Anything held in a ThreadLocal for reuse is now per request.</li>
+    <li><strong>Measure before deciding anything else.</strong> On Java 24 you do not need the <code>synchronized</code> rewrite that older guides insist on.</li>
+  </ol>
+
+  <div class="wrong">
+    <p><b>"We switched to virtual threads and it got slower."</b> Usually the limit moved somewhere worse. The old pool was protecting the database, and removing it sent everything downstream at once.</p>
+    <p><b>"Virtual threads mean we do not need timeouts."</b> The opposite. Cheap blocking means far more things can be waiting at the same time, so a missing timeout accumulates much faster.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Walk me through adopting them in an existing Spring service.</summary>
+    <div class="rvb">
+      <p>The change itself is small, and saying that plainly is correct rather than glib.</p>
+      <p><strong>Turn it on.</strong> Modern Spring Boot has a single property that makes the web server handle each request on a virtual thread. That covers the main case, because most of a service's threads are request handling threads.</p>
+      <p><strong>Then look at what you have removed the limit from.</strong> The request thread pool was capping concurrent database work. Now it is not, so the connection pool size becomes the real limit and needs choosing deliberately rather than inheriting a default.</p>
+      <p><strong>Check every outbound call has a timeout.</strong> Connect and read timeouts on HTTP clients, query timeouts on the database. Under the old pool a missing timeout was capped by the pool size; now it is not capped by anything.</p>
+      <p><strong>Add a limit where a downstream service is fragile.</strong> A semaphore around calls to a service that cannot take a thousand at once is the honest way to express what the thread pool was doing accidentally.</p>
+      <p><strong>Then measure.</strong> Compare latency at high percentiles and throughput under real load. The expected result is that throughput stops being capped by thread count, and the slowest requests improve because they are no longer queueing for a thread.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Do virtual threads change how you debug a stuck service?</summary>
+    <div class="rvb">
+      <p>Yes, and it is worth knowing before you need it at three in the morning.</p>
+      <p>An ordinary thread dump shows platform threads. With virtual threads, the interesting ones may not appear, because there can be a million of them and they are not operating system threads. What you see is a small number of carriers, which tells you very little.</p>
+      <p>The replacement is a thread dump in a structured format that includes virtual threads, which Java can produce on demand. Because it may contain enormous numbers of entries, you read it by grouping and counting rather than scrolling: how many are waiting on the same call is the question, exactly as in Episode 2, but at a scale where you must aggregate rather than eyeball.</p>
+      <p>The good news is that the diagnosis itself gets easier. Blocking code produces real stack traces showing the whole path, so a stuck virtual thread tells you what it is waiting for and how it got there. That is a genuine improvement over debugging a stuck reactive pipeline, where the stack is mostly framework.</p>
+      <p>One habit worth keeping: name them. A virtual thread with a meaningful name is as much easier to read in a dump as a well named pool was.</p>
+    </div>
+  </details>
+</section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>platform thread</dt><dd>An ordinary Java thread, backed by a real operating system thread. Costs about a megabyte of memory outside the heap.</dd>
+        <dt>virtual thread</dt><dd>A thread managed by Java itself, living on the heap. Cheap enough to have a million of them.</dd>
+        <dt>carrier thread</dt><dd>The real platform thread a virtual thread borrows while it is actually running. One per processor by default.</dd>
+        <dt>mounting</dt><dd>Attaching a virtual thread to a carrier so it can run.</dd>
+        <dt>unmounting</dt><dd>Detaching it when it blocks, copying its stack to the heap and freeing the carrier for someone else. This is the whole trick.</dd>
+        <dt>pinning</dt><dd>When a virtual thread blocks but cannot unmount, so it keeps its carrier idle. Java 24 removed the most common cause.</dd>
+        <dt>blocking</dt><dd>Waiting for something slow, such as a network call. Expensive on a platform thread, cheap on a virtual one.</dd>
+        <dt>structured concurrency</dt><dd>Treating several parallel subtasks as one unit: if one fails the rest are cancelled, and none can outlive the block that started them. Still preview.</dd>
+        <dt>scoped value</dt><dd>The replacement for ThreadLocal with virtual threads: set once for a block of work, visible inside it, immutable. Still preview.</dd>
+        <dt>backpressure</dt><dd>Telling a fast producer to slow down when the consumer cannot keep up. Something reactive gives you and virtual threads do not.</dd>
+        <dt>preview feature</dt><dd>Finished enough to try, not yet final, and the API may change. Needs <code>--enable-preview</code> and should not go into production.</dd>
+        <dt>JEP</dt><dd>A JDK Enhancement Proposal, the document describing a change to Java. JEP 491 is the one that removed pinning from <code>synchronized</code> in Java 24.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---- model chooser ---- */
+  var MODELS={
+    pool:{lbl:"Model",v:"A plain thread pool: simple, and it rations threads",
+      n:"Ordinary blocking code on a fixed number of real threads. Easy to read, easy to debug, real stack traces. The cost is arithmetic you cannot escape: wall time is tasks divided by threads, times how long each waits. Measured with 10,000 tasks waiting 100 ms each, a 200 thread pool took 5,043 ms and a 2,000 thread pool took 572 ms. You buy throughput with memory, about a megabyte per thread, and platform threads get expensive fast: 50,000 of them took 12.6 seconds just to create.",
+      x:"Executors.newFixedThreadPool(200)"},
+    cf:{lbl:"Model",v:"CompletableFuture: no thread waits, but the code inverts",
+      n:"Instead of blocking, you say what should happen when the result arrives. Threads are never parked waiting, so a small pool handles a lot of concurrent work. The cost is paid in readability and debugging: control flow turns inside out, a debugger cannot step through it usefully, and a failure gives you a stack trace full of framework machinery instead of your own call chain. Also easy to get wrong, as Episode 5 measured: waiting on a task from the same pool deadlocks and a bigger pool does not fix it.",
+      x:"supplyAsync(...).thenCompose(...).exceptionally(...)"},
+    reactive:{lbl:"Model",v:"Reactive: a programming model for streams",
+      n:"Built for sequences of events arriving over time, with operators for buffering, throttling, merging and retrying, and backpressure that propagates through a whole pipeline. Very few threads handle very high concurrency. The cost is the highest of the four: a large API to learn, stack traces that tell you almost nothing, and difficult debugging. It also solved thread efficiency, which is why many teams adopted it. If that was your only reason, virtual threads now do it far more simply. If you use the stream operators and pipeline backpressure, you still need it.",
+      x:"Flux.from(...).flatMap(...).onErrorResume(...)"},
+    virtual:{lbl:"Model",v:"Virtual threads: blocking code that scales",
+      n:"Ordinary top to bottom blocking code, one thread per task, where blocking is cheap because the thread unmounts and frees its carrier. You keep normal control flow, working debuggers and real stack traces. Measured: 10,000 tasks waiting 100 ms each finished in 203 ms against 5,043 ms for a 200 thread pool, and a million threads started in 656 ms. What you do not get is stream operators or pipeline backpressure, and the limit you removed reappears somewhere downstream, so you have to choose deliberately where it should live.",
+      x:"Executors.newVirtualThreadPerTaskExecutor()"}
+  };
+  picker('#modelOpts .opt','k',MODELS,'#modelOut',chooserHtml);
+
+  /* ---- carrier simulator ---- */
+  var CARRIERS=3, VTS=12, RUN_TICKS=2, WAIT_TICKS=4;
+  var carriersEl=document.getElementById("carriers"), vtsEl=document.getElementById("vts"),
+      sDone=document.getElementById("sDone"), sWait=document.getElementById("sWait"),
+      sTick=document.getElementById("sTick"), foot=document.getElementById("simFoot");
+  var sim={t:null,tick:0,pinned:false,carriers:[],vts:[]};
+
+  function resetSim(){
+    if(sim.t){clearInterval(sim.t);sim.t=null;document.getElementById("simRun").textContent="Run"}
+    sim.tick=0;
+    sim.carriers=[]; for(var i=0;i<CARRIERS;i++) sim.carriers.push({vt:null});
+    sim.vts=[]; for(var j=0;j<VTS;j++) sim.vts.push({id:j+1,state:"ready",left:RUN_TICKS});
+    foot.className="simfoot";
+    foot.textContent=sim.pinned
+      ? "Pinned: a virtual thread keeps its carrier even while waiting. Watch the carriers go red and stay there."
+      : "Press Run. Green means a carrier is doing useful work.";
+    paint();
+  }
+  function paint(){
+    carriersEl.innerHTML="";
+    sim.carriers.forEach(function(c,i){
+      var d=document.createElement("div");
+      var vt=c.vt;
+      var cls="carrier";
+      var text="idle";
+      if(vt){
+        if(vt.state==="running"){cls+=" busy";text="running vt-"+vt.id}
+        else if(vt.state==="waiting"){cls+=" stuck";text="held by vt-"+vt.id+", which is waiting"}
+      }
+      d.className=cls;
+      d.innerHTML='<span class="cname">carrier '+(i+1)+'</span><span class="slot">'+text+'</span>';
+      carriersEl.appendChild(d);
+    });
+    vtsEl.innerHTML="";
+    var waiting=0, done=0;
+    sim.vts.forEach(function(v){
+      var d=document.createElement("div");
+      var cls="vt";
+      if(v.state==="waiting"){cls+=" waiting";waiting++}
+      if(v.state==="done"){cls+=" done";done++}
+      d.className=cls; d.textContent=v.id;
+      vtsEl.appendChild(d);
+    });
+    sDone.textContent=done; sWait.textContent=waiting; sTick.textContent=sim.tick;
+  }
+  function step(){
+    sim.tick++;
+    // advance anything currently on a carrier, and anything waiting
+    sim.vts.forEach(function(v){
+      if(v.state==="running"){
+        v.left--;
+        if(v.left<=0){
+          v.state="waiting"; v.left=WAIT_TICKS;
+          if(!sim.pinned){
+            // unmount: free the carrier
+            sim.carriers.forEach(function(c){ if(c.vt===v) c.vt=null; });
+          }
+        }
+      } else if(v.state==="waiting"){
+        v.left--;
+        if(v.left<=0){
+          v.state="done";
+          sim.carriers.forEach(function(c){ if(c.vt===v) c.vt=null; });
+        }
+      }
+    });
+    // mount anything ready onto a free carrier
+    sim.carriers.forEach(function(c){
+      if(c.vt) return;
+      for(var i=0;i<sim.vts.length;i++){
+        var v=sim.vts[i];
+        if(v.state==="ready"){ v.state="running"; v.left=RUN_TICKS; c.vt=v; return; }
+      }
+    });
+    paint();
+    var allDone=sim.vts.every(function(v){return v.state==="done"});
+    if(allDone){
+      clearInterval(sim.t); sim.t=null; document.getElementById("simRun").textContent="Run";
+      foot.className=sim.pinned?"simfoot crash":"simfoot ok";
+      foot.textContent=sim.pinned
+        ? "All "+VTS+" finished, but it took "+sim.tick+" ticks. Only "+CARRIERS+" could ever be in flight, because a waiting thread never let go of its carrier. This is what pinning costs: you paid for virtual threads and got a pool of "+CARRIERS+"."
+        : "All "+VTS+" finished in "+sim.tick+" ticks. Only "+CARRIERS+" carriers, yet many threads were waiting at the same time, because waiting does not need a carrier.";
+    }
+  }
+  document.getElementById("simRun").addEventListener("click",function(){
+    if(sim.t){clearInterval(sim.t);sim.t=null;this.textContent="Run";return}
+    if(sim.vts.every(function(v){return v.state==="done"})) resetSim();
+    this.textContent="Pause";
+    sim.t=setInterval(step,420);
+  });
+  document.getElementById("simMode").addEventListener("click",function(){
+    sim.pinned=!sim.pinned;
+    this.setAttribute("aria-pressed",sim.pinned?"true":"false");
+    this.textContent=sim.pinned?"Pinned to its carrier":"Unmounts normally";
+    resetSim();
+  });
+  document.getElementById("simReset").addEventListener("click",resetSim);
+  resetSim();
+
+  /* ---- quiz ---- */
+  var Q=[
+    {c:1,q:"What is the difference between a platform thread and a virtual thread?",
+     a:"A <b>platform thread</b> wraps a real operating system thread: about a megabyte of memory reserved outside the heap, and the operating system schedules it. A <b>virtual thread</b> is an ordinary Java object on the heap that Java schedules itself onto a small set of real threads. Measured: starting 50,000 platform threads took 12,605 ms and the cost grew faster than the count, while <b>1,000,000 virtual threads started in 656 ms</b>, faster than platform threads managed 20,000."},
+    {c:1,q:"Why does one virtual thread per task beat a fixed pool for waiting work?",
+     a:"Because a fixed pool rations threads, and wall time becomes tasks divided by threads times the wait. Measured with 10,000 tasks each waiting 100 ms: a 200 thread pool took 5,043 ms, 1,000 threads took 1,048 ms, 2,000 took 572 ms, and <b>one virtual thread per task took 203 ms</b>. The arithmetic matched the measurement in every row. Virtual threads remove the divisor, because all 10,000 can wait at once."},
+    {c:1,q:"When do virtual threads give you nothing?",
+     a:"When threads are busy rather than waiting. The whole mechanism is unmounting when you block, so code that never blocks never unmounts. Image processing, parsing, cryptography and heavy calculation are limited by core count no matter what kind of thread runs them, and you can do marginally worse by adding a scheduling layer for no benefit. For that work a fixed pool sized to the core count is still right. Virtual threads are for code that waits on other systems, which happens to be most backend code."},
+    {c:2,q:"What is a carrier thread, and what happens when a virtual thread blocks?",
+     a:"A carrier is the real platform thread a virtual thread borrows while actually running, and there is one per processor by default. When the virtual thread blocks, Java <b>unmounts</b> it: copies its stack to the heap, frees the carrier for someone else, and remembers where to resume. When the wait finishes it is mounted again, possibly onto a different carrier. That is the entire trick: a blocked platform thread holds a real operating system thread hostage, a blocked virtual thread holds only some heap memory."},
+    {c:2,q:"Which operations cause an unmount, and which do not?",
+     a:"Almost everything you would normally block on: <code>Thread.sleep</code>, socket reads and writes (so most network and database calls), and waiting on locks, queues, latches and futures. You write nothing special, ordinary blocking code unmounts automatically, which was the design goal. What does not unmount is code blocking below Java in native C code, because the stack cannot be moved to the heap. Ordinary file input and output is the common surprise: it is not truly non blocking underneath, so Java runs it on a separate pool rather than unmounting."},
+    {c:3,q:"Does blocking inside synchronized pin the carrier?",
+     a:"It did on Java 21, 22 and 23, and <b>it does not on Java 24</b>. Measured with 2,000 virtual threads each locking their own object then sleeping 200 ms, on a machine with 12 carriers: pinning would have meant about 33,200 ms. The actual result was <b>236 ms for synchronized and 212 ms for ReentrantLock</b>, essentially identical and near the theoretical floor. So the most repeated piece of virtual threads advice, replace synchronized with ReentrantLock, is out of date on Java 24. Know both rules and know which version you are on."},
+    {c:3,q:"What still pins, and how would you find it?",
+     a:"Code that blocks below Java, in native C code, because the virtual thread's stack is then mixed with frames Java cannot copy to the heap. In practice that means some older database drivers and libraries with native components. You find it by measuring rather than guessing: Java records an event whenever a virtual thread is pinned, so a recording under load tells you exactly where. The symptom is distinctive: throughput far below what the arithmetic predicts, processor not busy, and adding more virtual threads changes nothing."},
+    {c:4,q:"Compare virtual threads with CompletableFuture and reactive.",
+     a:"All three avoid one real thread per concurrent task and differ in what they cost to read and debug. <b>CompletableFuture</b> turns control flow inside out, so debuggers cannot step through it and stack traces are mostly framework. <b>Reactive</b> costs the most in learning and debugging but gives you stream operators and pipeline backpressure. <b>Virtual threads</b> keep ordinary top to bottom code, real stack traces and working debuggers, and give up fine grained scheduling and backpressure control. The one line answer: they let you write blocking code that scales like asynchronous code."},
+    {c:4,q:"When is reactive still the right choice?",
+     a:"When you need what it does beyond thread efficiency. <b>Backpressure across a whole pipeline</b>, so a slow consumer can slow a fast producer through several stages. <b>Streams of events over time</b>, such as server sent events or message streams, with operators for buffering, windowing and throttling. <b>Composition over time</b>, like taking the first of several sources with per source retries and an overall timeout. Reactive is a programming model for streams that also happened to solve thread efficiency. If efficiency was your only reason, virtual threads do it more simply."},
+    {c:5,q:"What problem does structured concurrency solve?",
+     a:"Losing track of work you started. With an executor, if you start three calls and one fails, the other two carry on: consuming resources, producing results nobody reads, and failing later in logs nobody connects to the request. Structured concurrency makes work started inside a block finish inside it, cancelling the rest when one fails, and the block cannot exit while anything it started is running. Measured: two subtasks at 100 ms and 300 ms both ran in parallel, and when one failed the other was cancelled. It is still a preview feature, so it needs <code>--enable-preview</code> and should not go into production yet."},
+    {c:6,q:"Why should you not pool virtual threads?",
+     a:"A pool exists to ration something expensive, and virtual threads are not expensive. Using a fixed pool with a virtual thread factory caps you at that many concurrent tasks again, reintroducing exactly the limit you were removing and gaining nothing. Create one per task with <code>newVirtualThreadPerTaskExecutor()</code> and let it end. Virtual threads being short lived also removes the ThreadLocal leak from Episode 1, because the value dies with the thread instead of living forever on a pooled one."},
+    {c:6,q:"What becomes the new bottleneck after migrating?",
+     a:"Whatever your thread pool was quietly protecting. The pool was limiting how much load reached the database and downstream services. Remove it and ten thousand requests arrive at once, so the connection pool becomes the limit or the database falls over. That is why a migration is really a decision about <b>where the limit should live</b>: it has to live somewhere, and previously it was an accident of pool size. Now you choose it deliberately with a connection pool size, a semaphore, or a rate limiter. Also check every outbound call has a timeout, because cheap blocking means far more calls can pile up waiting."}
+  ];
+  wireQuiz(Q,{1:"Two kinds of thread",2:"Mounting and unmounting",3:"Pinning",
+              4:"Which model",5:"Structured concurrency",6:"What breaks"});
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
