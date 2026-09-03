@@ -1,0 +1,76 @@
+/* Homepage styling for the study site.
+   Uses the same tokens as the episode pages so the two feel like one thing.
+   Only the index links this file. The episode pages are self-contained and
+   carry their own copy of these tokens inline, so nothing here can affect them. */
+
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  }
+}
+
+.wrap{max-width:940px;margin:0 auto;padding:0 20px}
+
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+}
+
+.sitehead{border-bottom:1px solid var(--line);background:var(--surface);padding:54px 0 40px}
+.sitehead .kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin:0 0 10px}
+.sitehead h1{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-size:clamp(32px,5vw,48px);font-weight:700;letter-spacing:-.015em;line-height:1.05;margin:0}
+.sitehead .tagline{color:var(--ink-soft);font-size:17.5px;max-width:60ch;margin:14px 0 0}
+.sitehead .count{margin:20px 0 0;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:13px;color:var(--ink-faint)}
+.sitehead .count b{color:var(--ink)}
+
+main.wrap{padding-top:14px;padding-bottom:60px}
+h2.track{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-size:24px;font-weight:700;margin:44px 0 4px;letter-spacing:-.01em}
+h3.phase{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:22px 0 10px}
+
+ul.eplist{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:8px}
+.ep .epmain{
+  display:flex;gap:16px;align-items:flex-start;text-decoration:none;color:inherit;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:15px 17px;transition:border-color .15s,background-color .15s;
+}
+.ep.live .epmain:hover{border-color:var(--held);background:var(--held-bg)}
+.ep.live .epmain:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.ep:not(.live) .epmain{background:transparent;border-style:dashed}
+
+.epnum{
+  flex:none;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;font-weight:600;
+  color:var(--ink-faint);padding-top:3px;min-width:22px;
+}
+.ep.live .epnum{color:var(--held)}
+.eptext{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.eptitle{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;font-size:18px;font-weight:600;line-height:1.25}
+.ep:not(.live) .eptitle{color:var(--ink-soft)}
+.eptopics{font-size:13px;color:var(--ink-faint);line-height:1.5}
+
+.pill{
+  flex:none;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--ink-faint);
+  background:var(--surface-2);margin-top:2px;
+}
+.pill.live{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+
+footer.wrap{border-top:1px solid var(--line);padding-top:22px;padding-bottom:60px}
+footer.wrap p{color:var(--ink-faint);font-size:14px;max-width:64ch;margin:0}
+
+@media (max-width:640px){
+  .sitehead{padding:36px 0 28px}
+  .ep .epmain{flex-wrap:wrap;gap:10px}
+  .pill{order:-1}
+  .eptopics{font-size:12.5px}
+}

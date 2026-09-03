@@ -1,0 +1,1382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Anatomy of an OOM, episode 1 of the Java interview study series">
+<title>Anatomy of an OOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  font-size:16px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+.topbar{
+  position:sticky; top:0; z-index:40; background:var(--surface);
+  border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:16px; padding:10px 20px; flex-wrap:wrap;
+}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{
+  font:inherit; font-size:13px; font-weight:500; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  padding:7px 13px; cursor:pointer; transition:background .15s,border-color .15s;
+}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+.word{border-left:3px solid var(--freed);background:var(--freed-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch;font-size:15px}
+.word p:last-child{margin-bottom:0}
+.word b{color:var(--freed)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+
+.hotspot{cursor:pointer}
+.hotspot rect{transition:fill .18s,stroke .18s}
+.hotspot:hover rect{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;padding:16px}
+.cell{aspect-ratio:1;border-radius:2px;background:var(--surface-2);border:1px solid var(--line-soft);transition:background .2s,border-color .2s}
+.cell.held{background:var(--held-bg);border-color:var(--held-line)}
+.cell.dead{background:var(--alarm-bg);border-color:var(--alarm-line)}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+  .grid{grid-template-columns:repeat(16,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="backlink" href="index.html">All episodes</a>
+  <div class="brand">
+    <b>Anatomy of an OOM</b>
+    <span>Episode 1 &middot; JVM Memory and Heap Dumps</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol id="railList">
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> Where memory goes</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Six ways it fails</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> Making a leak</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Reading the dump</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Nine leak types</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Answering it</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>Where Java memory goes, and how to prove it</h1>
+      <p class="sub">Six chapters on where Java keeps things in memory, the six different ways it runs out, how to take a memory snapshot safely, how to read that snapshot, the nine common mistakes that cause leaks, and how to say all of it out loud in an interview.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> Where memory goes</h2>
+
+  <ul class="prompts">
+    <li>Name the five places Java keeps things in memory.</li>
+    <li>Which of those five does the <code>-Xmx</code> setting control?</li>
+    <li>Where does a local <code>int</code> live? Where does a <code>String</code> object live?</li>
+    <li>Where are static variables kept?</li>
+    <li>Why can a server be killed for using too much memory when the heap looks fine?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Java does not keep everything in one big pile. It splits memory into five separate places. Each place holds different things, and each one runs out in its own way.</p>
+  <p>If you cannot name these five places, you cannot fix a memory problem. You can only guess. That is what the interviewer is checking.</p>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 760 330" role="img" aria-label="Diagram showing the five places Java keeps memory. The Xmx setting only controls the heap. Class info, thread stacks, compiled code and direct memory sit outside it.">
+        <rect x="8" y="8" width="744" height="314" rx="8" fill="none" stroke="currentColor" stroke-opacity=".28" stroke-dasharray="5 4"/>
+        <text x="20" y="27" font-size="12" fill="currentColor" opacity=".65" font-family="IBM Plex Sans,sans-serif">THE WHOLE JAVA PROGRAM. All five boxes below count towards the memory limit.</text>
+
+        <g class="hotspot" data-r="heap" tabindex="0" role="button" aria-label="Heap">
+          <rect x="22" y="44" width="352" height="248" rx="7" fill="var(--held-bg)" stroke="var(--held-line)" stroke-width="1.5"/>
+          <text x="38" y="68" font-size="15" font-weight="600" fill="currentColor" font-family="IBM Plex Sans Condensed,sans-serif">1. HEAP</text>
+          <text x="38" y="86" font-size="12" fill="currentColor" opacity=".7">Your objects live here</text>
+          <rect x="38" y="100" width="320" height="74" rx="5" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="50" y="119" font-size="12.5" font-weight="600" fill="currentColor">New objects</text>
+          <rect x="50" y="127" width="160" height="34" rx="4" fill="var(--surface-2)" stroke="var(--line)"/><text x="130" y="148" font-size="11.5" text-anchor="middle" fill="currentColor">Eden</text>
+          <rect x="218" y="127" width="60" height="34" rx="4" fill="var(--surface-2)" stroke="var(--line)"/><text x="248" y="148" font-size="11.5" text-anchor="middle" fill="currentColor">S0</text>
+          <rect x="286" y="127" width="60" height="34" rx="4" fill="var(--surface-2)" stroke="var(--line)"/><text x="316" y="148" font-size="11.5" text-anchor="middle" fill="currentColor">S1</text>
+          <rect x="38" y="186" width="320" height="54" rx="5" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="50" y="205" font-size="12.5" font-weight="600" fill="currentColor">Older objects</text>
+          <text x="50" y="224" font-size="11.5" fill="currentColor" opacity=".7">objects that survived a while move here</text>
+          <text x="38" y="264" font-size="12" fill="currentColor" opacity=".85">objects, arrays, static variables, text pool</text>
+          <text x="38" y="282" font-size="11.5" fill="currentColor" opacity=".55" font-family="IBM Plex Mono,monospace">click to read more</text>
+        </g>
+
+        <g class="hotspot" data-r="meta" tabindex="0" role="button" aria-label="Class info">
+          <rect x="392" y="44" width="172" height="112" rx="7" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="406" y="68" font-size="14" font-weight="600" fill="currentColor" font-family="IBM Plex Sans Condensed,sans-serif">2. CLASS INFO</text>
+          <text x="406" y="87" font-size="11.5" fill="currentColor" opacity=".7">the shape of your</text>
+          <text x="406" y="104" font-size="11.5" fill="currentColor" opacity=".7">classes and their code</text>
+          <text x="406" y="130" font-size="11.5" fill="currentColor" opacity=".55">Java calls this</text>
+          <text x="406" y="146" font-size="11.5" fill="currentColor" opacity=".55" font-family="IBM Plex Mono,monospace">Metaspace</text>
+        </g>
+
+        <g class="hotspot" data-r="stack" tabindex="0" role="button" aria-label="Thread stacks">
+          <rect x="580" y="44" width="160" height="112" rx="7" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="594" y="68" font-size="14" font-weight="600" fill="currentColor" font-family="IBM Plex Sans Condensed,sans-serif">3. STACKS</text>
+          <text x="594" y="87" font-size="11.5" fill="currentColor" opacity=".7">one small notepad</text>
+          <text x="594" y="104" font-size="11.5" fill="currentColor" opacity=".7">for every thread</text>
+          <text x="594" y="130" font-size="11.5" fill="currentColor" opacity=".55">about 1 MB each</text>
+        </g>
+
+        <g class="hotspot" data-r="code" tabindex="0" role="button" aria-label="Compiled code">
+          <rect x="392" y="172" width="172" height="120" rx="7" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="406" y="196" font-size="14" font-weight="600" fill="currentColor" font-family="IBM Plex Sans Condensed,sans-serif">4. FAST CODE</text>
+          <text x="406" y="215" font-size="11.5" fill="currentColor" opacity=".7">your hot methods,</text>
+          <text x="406" y="232" font-size="11.5" fill="currentColor" opacity=".7">translated to run</text>
+          <text x="406" y="249" font-size="11.5" fill="currentColor" opacity=".7">faster</text>
+        </g>
+
+        <g class="hotspot" data-r="direct" tabindex="0" role="button" aria-label="Direct memory">
+          <rect x="580" y="172" width="160" height="120" rx="7" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="594" y="196" font-size="14" font-weight="600" fill="currentColor" font-family="IBM Plex Sans Condensed,sans-serif">5. DIRECT</text>
+          <text x="594" y="215" font-size="11.5" fill="currentColor" opacity=".7">memory Java asks</text>
+          <text x="594" y="232" font-size="11.5" fill="currentColor" opacity=".7">the computer for</text>
+          <text x="594" y="249" font-size="11.5" fill="currentColor" opacity=".7">directly</text>
+        </g>
+
+        <line x1="380" y1="44" x2="380" y2="292" stroke="var(--held)" stroke-width="2"/>
+        <text x="384" y="312" font-size="12" fill="var(--held)" font-weight="600">-Xmx only sets the size of box 1. Boxes 2 to 5 are extra memory on top.</text>
+      </svg>
+    </div>
+    <div class="readout" id="mmOut">
+      <span class="tag">click a box</span>
+      <h6>Five places, one setting</h6>
+      <p>Click any box above to read what it holds and how it runs out. The orange line is the part most people miss. When you set <code>-Xmx2g</code>, you have set the size of one box out of five.</p>
+    </div>
+    <figcaption><b>The heap is not the whole program.</b> Four other places sit outside the <code>-Xmx</code> setting, and the computer counts all of them.</figcaption>
+  </figure>
+
+  <h3>A small example</h3>
+  <pre><code><span class="kw">public void</span> greet() {
+    <span class="kw">int</span> count = 5;                    <span class="cm">// stays on the stack</span>
+    String name = <span class="st">"Anupam"</span>;           <span class="cm">// the label is on the stack, the text is on the heap</span>
+    Employee e = <span class="kw">new</span> Employee(name);  <span class="cm">// the label is on the stack, the object is on the heap</span>
+}</code></pre>
+  <p>Three variables, but only one of them sits fully on the stack. <code>count</code> is a plain number declared inside a method, so it lives in the stack.</p>
+  <p><code>name</code> and <code>e</code> work differently. Think of them as labels that point at something. The label sits on the stack. The thing it points at sits on the heap.</p>
+  <p>When the method finishes, the stack part is thrown away at once. The objects on the heap are not. They stay until Java is sure nothing else is still pointing at them.</p>
+
+  <h3>How this gets asked</h3>
+  <ul class="body">
+    <li>"Explain how Java uses memory."</li>
+    <li>"What is the difference between heap and stack?"</li>
+    <li>"Where are static variables kept?"</li>
+    <li>"What is Metaspace and why did it replace PermGen?"</li>
+  </ul>
+
+  <div class="wrong">
+    <p><b>Common wrong answer: "Static variables and the text pool are in Metaspace."</b></p>
+    <p>This sounds right, which is exactly why it gets used to catch people out. Both are on the <strong>heap</strong>. The text pool moved to the heap in Java 7, and static variables sit on the heap too.</p>
+    <p>Box 2 holds a description of your classes. Their shape, their method code. It does not hold the actual data your classes point at.</p>
+  </div>
+  <div class="wrong">
+    <p><b>Common wrong answer: "Stack holds numbers, heap holds objects."</b></p>
+    <p>Nearly right, but the missing part matters. Only numbers declared <strong>inside a method</strong> go on the stack. A number that is a field of an object lives on the heap, inside that object.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>The heap has a size limit. What about thread stacks?</summary>
+    <div class="rvb">
+      <p>They are extra memory on top. Every thread gets its own stack when it starts, and each one is about 1 MB by default.</p>
+      <p>So a server running 1,000 threads is using roughly <strong>1 GB of memory that <code>-Xmx</code> knows nothing about</strong>. If you set <code>-Xmx2g</code> and expect the program to use 2 GB in total, you are wrong by however many threads you are running.</p>
+      <p>This is also why a thread leak does not show up as heap growth. The thread objects on the heap are tiny. The expensive part is the 1 MB of workspace behind each one, and that is outside the heap.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why does this matter on a real server?</summary>
+    <div class="rvb">
+      <p>Because when your server decides you have used too much memory, it looks at <strong>the whole program</strong>. Your monitoring graph usually only shows the heap. Those are two different numbers.</p>
+      <p>So this happens. The heap sits at 60 percent, your dashboard is green, and the program keeps getting shut down anyway. The memory was never in the heap. It was in thread stacks, class info, direct memory, or a library written in C.</p>
+      <p>When Linux shuts a program down for using too much memory, the program stops instantly with the number <strong>137</strong>. Java gets no warning and no chance to react, so there is no error message, no memory snapshot, and nothing useful in your logs. Just a server that restarted.</p>
+      <p>The fix is to stop staring at the heap graph and compare it against the total memory the program is using. If the total is much bigger than the heap, your problem is in boxes 2 to 5.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>So is box 2, the class info, unlimited?</summary>
+    <div class="rvb">
+      <p>By default, more or less yes. It keeps growing until the machine runs out. That is a trap, not a feature.</p>
+      <p>This box grows when classes are loaded. Most applications load their classes once at startup and then stop, so it stays flat and nobody thinks about it.</p>
+      <p>It goes wrong when something creates new classes while the program is running. Some libraries do this. Some scripting tools do this. And redeploying your app onto a server that is already running does it every single time.</p>
+      <p>So set a limit with <code>-XX:MaxMetaspaceSize</code>. Not because you want it to fail, but because you want it to fail with a clear message that names the problem, instead of Linux silently killing your server with no clues at all.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why does the stack give StackOverflowError instead of OutOfMemoryError?</summary>
+    <div class="rvb">
+      <p>Because two different things ran out.</p>
+      <p>Each thread's stack is a fixed size. Every method call adds a small block to it, and finishing the method removes that block. If your calls go too deep, there is no room to add another block, and you get <code>StackOverflowError</code>.</p>
+      <p>The heap is a shared pool that can grow up to the <code>-Xmx</code> limit. When it cannot fit a new object even after cleaning up, you get <code>OutOfMemoryError</code>.</p>
+      <p>Useful tell in real life: <code>StackOverflowError</code> is almost always a bug in your code, usually a method that calls itself forever. <code>OutOfMemoryError</code> is almost always about how much data you are holding, and for how long. Making the stack bigger to fix a StackOverflowError normally just delays the same bug.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> Six ways it fails</h2>
+
+  <ul class="prompts">
+    <li>Name the six different OutOfMemoryError messages and what each one means.</li>
+    <li>For which of them does making the heap bigger do nothing at all?</li>
+    <li>What does "GC overhead limit exceeded" mean?</li>
+    <li>What is the difference between a Java memory error and the number 137?</li>
+    <li>You gave the server 4 GB. Why did Java only use 1 GB of it?</li>
+  </ul>
+
+  <div class="teach">
+  <p><code>OutOfMemoryError</code> is not one error. It is six different errors sharing a name. The words <strong>after the colon</strong> tell you which one you have, and those words are the answer.</p>
+  <p>Most people read "OutOfMemoryError", stop reading, and give the same answer every time: make the heap bigger. For half of these, that does nothing at all.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Message</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td><code>Java heap space</code></td><td>The heap really is full. Either you are holding things you should have let go, or the heap is too small for the work.</td></tr>
+      <tr><td><code>GC overhead limit exceeded</code></td><td>Java is spending almost all its time cleaning up and getting almost nothing back. It is stuck, not full. Nearly always a leak.</td></tr>
+      <tr><td><code>Metaspace</code></td><td>Too many classes loaded, and the old ones cannot be thrown away. Usually caused by redeploying onto a running server.</td></tr>
+      <tr><td><code>unable to create new native thread</code></td><td>You hit the limit on how many threads you are allowed. <strong>Nothing to do with the heap.</strong></td></tr>
+      <tr><td><code>Direct buffer memory</code></td><td>Memory Java asked the computer for directly is not being given back.</td></tr>
+      <tr><td><code>Requested array size exceeds VM limit</code></td><td>Someone tried to create an array that is far too big to be sensible.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>Look at rows 3 and 4.</b> If you answer "increase <code>-Xmx</code>" for either of those, you have told the interviewer you have never actually fixed one. <code>-Xmx</code> sets the heap size. Neither of those problems is in the heap.</p>
+  </div>
+
+  <h3>Two programs, two very different failures</h3>
+  <pre><code><span class="cm">// Number 1: Java heap space</span>
+List&lt;<span class="kw">byte</span>[]&gt; list = <span class="kw">new</span> ArrayList&lt;&gt;();
+<span class="kw">while</span> (<span class="kw">true</span>) {
+    list.add(<span class="kw">new byte</span>[1024 * 1024]);   <span class="cm">// 1 MB each, kept forever</span>
+}
+
+<span class="cm">// Number 4: unable to create new native thread</span>
+<span class="kw">while</span> (<span class="kw">true</span>) {
+    <span class="kw">new</span> Thread(() -&gt; sleepForever()).start();   <span class="cm">// heap barely moves</span>
+}</code></pre>
+  <p>The first one fills the heap. The second barely touches it. Each <code>Thread</code> object is tiny, but each thread needs about 1 MB of workspace outside the heap, and the computer says no somewhere around a few thousand. Same error name. Completely different fix.</p>
+
+  <h3>Work out the diagnosis yourself</h3>
+  <p>Pick what you would actually see on a real server, and follow it to the answer. This is the skill being tested, not the table.</p>
+
+  <div class="dx">
+    <div class="dxq">
+      <p>What did you actually see?</p>
+      <div class="opts" id="dxOpts">
+        <button class="opt" data-k="heap"><code>OutOfMemoryError: Java heap space</code> in the logs</button>
+        <button class="opt" data-k="gc"><code>OutOfMemoryError: GC overhead limit exceeded</code></button>
+        <button class="opt" data-k="meta"><code>OutOfMemoryError: Metaspace</code></button>
+        <button class="opt" data-k="thread"><code>OutOfMemoryError: unable to create new native thread</code></button>
+        <button class="opt" data-k="direct"><code>OutOfMemoryError: Direct buffer memory</code></button>
+        <button class="opt" data-k="137">No Java error at all. The server just restarted with the number 137.</button>
+      </div>
+    </div>
+    <div class="dxq" id="dxRefineWrap" hidden>
+      <p id="dxRefineQ"></p>
+      <div class="opts" id="dxRefine"></div>
+    </div>
+    <div class="dxout" id="dxOut">
+      <span class="lbl">Diagnosis</span>
+      <p class="verdict">Pick what you saw</p>
+      <p>Each one leads somewhere different. Two of the six are not heap problems at all.</p>
+    </div>
+  </div>
+
+  <h3>The number 137, and why it is different</h3>
+  <p>This one catches almost everybody, because most companies now run Java inside containers.</p>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 720 250" role="img" aria-label="Comparison. When Java runs out of memory it throws an error and leaves a snapshot behind. When Linux shuts the program down for using too much memory it leaves only the number 137 and no evidence.">
+        <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <text x="14" y="18" font-size="12.5" font-weight="600" fill="currentColor">WHEN JAVA NOTICES</text>
+        <rect x="14" y="30" width="120" height="44" rx="6" fill="var(--surface-2)" stroke="var(--line)"/><text x="74" y="49" font-size="11.5" text-anchor="middle" fill="currentColor">no room for</text><text x="74" y="64" font-size="11.5" text-anchor="middle" fill="currentColor">a new object</text>
+        <line x1="138" y1="52" x2="176" y2="52" stroke="currentColor" marker-end="url(#ah2)"/>
+        <rect x="180" y="30" width="130" height="44" rx="6" fill="var(--held-bg)" stroke="var(--held-line)"/><text x="245" y="49" font-size="11.5" text-anchor="middle" fill="currentColor">Java raises</text><text x="245" y="64" font-size="11.5" text-anchor="middle" fill="currentColor" font-weight="600">OutOfMemoryError</text>
+        <line x1="314" y1="52" x2="352" y2="52" stroke="currentColor" marker-end="url(#ah2)"/>
+        <rect x="356" y="18" width="200" height="68" rx="6" fill="var(--freed-bg)" stroke="var(--freed-line)"/>
+        <text x="370" y="37" font-size="11.5" fill="currentColor">you get an error message</text>
+        <text x="370" y="55" font-size="11.5" fill="currentColor">you get a memory snapshot</text>
+        <text x="370" y="73" font-size="11.5" fill="currentColor">you can work out the cause</text>
+
+        <line x1="14" y1="112" x2="706" y2="112" stroke="currentColor" stroke-opacity=".2"/>
+
+        <text x="14" y="140" font-size="12.5" font-weight="600" fill="currentColor">WHEN LINUX NOTICES FIRST</text>
+        <rect x="14" y="152" width="120" height="44" rx="6" fill="var(--surface-2)" stroke="var(--line)"/><text x="74" y="171" font-size="11.5" text-anchor="middle" fill="currentColor">whole program</text><text x="74" y="186" font-size="11.5" text-anchor="middle" fill="currentColor">goes over limit</text>
+        <line x1="138" y1="174" x2="176" y2="174" stroke="currentColor" marker-end="url(#ah2)"/>
+        <rect x="180" y="152" width="130" height="44" rx="6" fill="var(--alarm-bg)" stroke="var(--alarm-line)"/><text x="245" y="171" font-size="11.5" text-anchor="middle" fill="currentColor">Linux stops it</text><text x="245" y="186" font-size="11.5" text-anchor="middle" fill="currentColor" font-weight="600">instantly</text>
+        <line x1="314" y1="174" x2="352" y2="174" stroke="currentColor" marker-end="url(#ah2)"/>
+        <rect x="356" y="140" width="200" height="68" rx="6" fill="var(--alarm-bg)" stroke="var(--alarm-line)"/>
+        <text x="370" y="159" font-size="11.5" fill="currentColor">no error message</text>
+        <text x="370" y="177" font-size="11.5" fill="currentColor">no memory snapshot</text>
+        <text x="370" y="195" font-size="11.5" fill="currentColor">only the number 137</text>
+
+        <rect x="576" y="140" width="130" height="68" rx="6" fill="none" stroke="var(--held)" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="641" y="166" font-size="11.5" text-anchor="middle" fill="var(--held)" font-weight="600">137 means</text>
+        <text x="641" y="184" font-size="11.5" text-anchor="middle" fill="currentColor" opacity=".75">force stopped</text>
+
+        <text x="14" y="236" font-size="12" fill="currentColor" opacity=".75">The top path leaves evidence. The bottom path leaves nothing, so you have to work it out from memory graphs instead.</text>
+      </svg>
+    </div>
+    <figcaption><b>Two ways to die, and one of them leaves no evidence.</b> If there is no error message and no snapshot, stop looking at the heap.</figcaption>
+  </figure>
+
+  <p>One more thing worth knowing. Modern Java looks at the container limit and, by default, only takes <strong>25 percent of it</strong> for the heap. So people give a server 4 GB, assume Java will use it, and quietly get a 1 GB heap.</p>
+
+  <div class="wrong">
+    <p><b>"Increase the heap size."</b> Right for one case out of six, and even then it only buys time.</p>
+    <p><b>"Restart the service."</b> A fine first move, but call it what it is. If you stop there, you have described a workaround, not a fix.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Heap is at 60 percent but the server died. Where do you look?</summary>
+    <div class="rvb">
+      <p>Outside the heap. The heap is not your problem, so stop looking at it.</p>
+      <p>First compare the heap size against the total memory the whole program is using. That gap is what you are hunting. Then check the other four places, most likely first:</p>
+      <ul class="body">
+        <li><strong>Thread stacks.</strong> Count your threads. A few thousand threads at about 1 MB each is gigabytes.</li>
+        <li><strong>Class info.</strong> Is it growing? Steady growth means classes keep being loaded and never released.</li>
+        <li><strong>Direct memory.</strong> Common with networking libraries. Check whether buffers are being given back.</li>
+        <li><strong>Libraries written in C.</strong> Compression, encryption and image libraries can allocate memory outside Java entirely.</li>
+      </ul>
+      <p>This command prints a breakdown of all of them at once, if you started the program with memory tracking turned on:</p>
+      <pre><code>jcmd &lt;pid&gt; VM.native_memory summary</code></pre>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How would you spot a thread leak?</summary>
+    <div class="rvb">
+      <p>Three ways, easiest first.</p>
+      <p><strong>1. Watch the thread count.</strong> The simplest, and you should already be graphing it. A healthy service starts up, reaches a number, and stays there. A leak climbs slowly and never comes back down.</p>
+      <p><strong>2. Take a thread snapshot.</strong> Run <code>jstack &lt;pid&gt;</code> and count. A leak is obvious, because you see hundreds or thousands of threads with the same name and the same list of method calls, all sitting idle. That repeated list tells you exactly which code created them.</p>
+      <p><strong>3. Know the usual cause.</strong> Someone created a thread pool or an HTTP client inside a method instead of once at startup. So every request builds a new pool and nothing ever shuts it down. Look for pools or clients being built anywhere other than startup or configuration.</p>
+      <p>It ends as <code>unable to create new native thread</code>, or as the server being killed for total memory. Either way, the heap graph looks perfectly healthy the whole time, because that memory is not in the heap.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>You gave the server 4 GB. Why is the heap only 1 GB?</summary>
+    <div class="rvb">
+      <p>Because Java takes 25 percent of the container limit by default, and 25 percent of 4 GB is 1 GB. Java read the limit correctly and then deliberately took a quarter of it.</p>
+      <p>That default exists because Java knows it needs room for the other four boxes: thread stacks, class info, fast code and direct memory. It is just far more cautious than most services need.</p>
+      <p>So set it yourself. For a container running nothing but Java, 65 to 75 percent is normal, leaving the rest for everything else:</p>
+      <pre><code>-XX:MaxRAMPercentage=70.0</code></pre>
+      <p>Use the percentage setting rather than a fixed <code>-Xmx</code>. Then the same build still behaves correctly when someone changes the server's memory limit later. Hard coding <code>-Xmx3g</code> into an image that later runs on a 2 GB server is how you get killed on startup.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What does "GC overhead limit exceeded" actually mean?</summary>
+    <div class="rvb">
+      <p>It is a safety net. Java gives up and throws this when it has spent <strong>more than 98 percent of its time cleaning up memory while getting back less than 2 percent of the heap</strong>, several times in a row.</p>
+      <p>The useful part is what that tells you. The heap is not quite full, so Java can technically still create objects. But almost everything in there is still being pointed at, so cleaning up returns nothing. Your application is doing basically no real work, and everything has gone slow.</p>
+      <p>This is a <em>better</em> error than plain "Java heap space", because it appears earlier and it is much stronger evidence of a real leak. A heap that is simply too small fills up and fails cleanly. A heap where you keep holding more and more produces this stuck pattern first.</p>
+      <p>You can switch the safety net off, which is almost always the wrong move. It turns a clear early warning into a slow silent death.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> Making a leak, taking a snapshot</h2>
+
+  <ul class="prompts">
+    <li>What is a memory leak in Java, in one sentence?</li>
+    <li>What are the starting points Java uses to decide what to keep?</li>
+    <li>Three ways to take a memory snapshot, and when you would use each.</li>
+    <li>What do you do <em>before</em> taking a snapshot on a live server, and why?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Start with the idea that makes everything else make sense.</p>
+  <div class="note"><p><b>A memory leak in Java means you are still holding on to something you no longer need.</b></p></div>
+  <p>Nothing is lost. The object is easy to find, and that is exactly the problem. Java looks at it, sees that your code is still pointing at it, and correctly refuses to throw it away. Java is not broken. You are holding the reference.</p>
+
+  <p>Java decides what to keep by starting from a few fixed <strong>starting points</strong> and following every link. Those starting points are static variables, the methods currently running, and the threads that are alive. Anything it can reach from there is kept. Anything it cannot reach is thrown away.</p>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 700 260" role="img" aria-label="Diagram showing objects reachable from a static variable are kept forever, while objects only reachable from a finished method are thrown away.">
+        <defs><marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <text x="12" y="16" font-size="11.5" fill="currentColor" opacity=".65">STARTING POINTS</text>
+        <rect x="12" y="26" width="128" height="40" rx="6" fill="var(--held-bg)" stroke="var(--held)" stroke-width="1.5"/>
+        <text x="76" y="43" font-size="11.5" text-anchor="middle" fill="currentColor" font-weight="600">static CACHE</text>
+        <text x="76" y="58" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">never goes away</text>
+
+        <rect x="12" y="150" width="128" height="40" rx="6" fill="var(--surface-2)" stroke="var(--line)" stroke-dasharray="4 3"/>
+        <text x="76" y="167" font-size="11.5" text-anchor="middle" fill="currentColor">greet() method</text>
+        <text x="76" y="182" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">already finished</text>
+
+        <line x1="144" y1="46" x2="196" y2="46" stroke="var(--held)" stroke-width="1.6" marker-end="url(#ah3)"/>
+        <text x="170" y="38" font-size="10" text-anchor="middle" fill="var(--held)">holds</text>
+        <rect x="200" y="26" width="112" height="40" rx="6" fill="var(--held-bg)" stroke="var(--held-line)"/>
+        <text x="256" y="50" font-size="11.5" text-anchor="middle" fill="currentColor">a Map</text>
+
+        <line x1="316" y1="46" x2="368" y2="46" stroke="var(--held)" stroke-width="1.6" marker-end="url(#ah3)"/>
+        <rect x="372" y="14" width="96" height="30" rx="5" fill="var(--held-bg)" stroke="var(--held-line)"/><text x="420" y="34" font-size="11" text-anchor="middle" fill="currentColor">order 1</text>
+        <rect x="372" y="50" width="96" height="30" rx="5" fill="var(--held-bg)" stroke="var(--held-line)"/><text x="420" y="70" font-size="11" text-anchor="middle" fill="currentColor">order 2</text>
+        <line x1="316" y1="46" x2="368" y2="64" stroke="var(--held)" stroke-width="1.6" marker-end="url(#ah3)"/>
+        <text x="492" y="40" font-size="12.5" fill="var(--held)" font-weight="600">KEPT</text>
+        <text x="492" y="58" font-size="11.5" fill="currentColor" opacity=".75">Java can still reach these</text>
+
+        <line x1="144" y1="170" x2="196" y2="170" stroke="currentColor" stroke-opacity=".35" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah3)"/>
+        <rect x="200" y="150" width="112" height="40" rx="6" fill="var(--freed-bg)" stroke="var(--freed-line)" stroke-dasharray="4 3"/>
+        <text x="256" y="174" font-size="11.5" text-anchor="middle" fill="currentColor">Employee</text>
+        <line x1="316" y1="170" x2="368" y2="170" stroke="currentColor" stroke-opacity=".35" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah3)"/>
+        <rect x="372" y="150" width="96" height="40" rx="5" fill="var(--freed-bg)" stroke="var(--freed-line)" stroke-dasharray="4 3"/><text x="420" y="174" font-size="11" text-anchor="middle" fill="currentColor">Address</text>
+        <text x="492" y="164" font-size="12.5" fill="var(--freed)" font-weight="600">THROWN AWAY</text>
+        <text x="492" y="182" font-size="11.5" fill="currentColor" opacity=".75">nothing points at these</text>
+
+        <line x1="12" y1="112" x2="688" y2="112" stroke="currentColor" stroke-opacity=".18"/>
+        <text x="12" y="232" font-size="12" fill="currentColor" opacity=".75">Same kind of objects either way. The only difference is whether something still points at them.</text>
+      </svg>
+    </div>
+    <figcaption><b>Being reachable decides everything.</b> A static variable never goes away, so nothing it points at can ever be cleaned up.</figcaption>
+  </figure>
+
+  <h3>The most common leak in real systems</h3>
+  <pre><code><span class="kw">public class</span> LeakDemo {
+    <span class="cm">// static, so it is a starting point. Everything inside is kept forever.</span>
+    <span class="kw">private static final</span> Map&lt;String, <span class="kw">byte</span>[]&gt; CACHE = <span class="kw">new</span> HashMap&lt;&gt;();
+
+    <span class="kw">public static void</span> main(String[] args) {
+        <span class="kw">int</span> i = 0;
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            CACHE.put(<span class="st">"order-"</span> + i, <span class="kw">new byte</span>[64 * 1024]);
+            i++;
+        }
+    }
+}</code></pre>
+  <p>Someone needed a cache, used a <code>HashMap</code>, made it static so it was easy to reach from anywhere, and never wrote the code that removes anything. Run it with a small heap and it dies in about 30 seconds:</p>
+  <pre><code>java -Xmx128m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./dumps LeakDemo.java</code></pre>
+  <p>The heap climbs from 38 MB to 123 MB, then fails with <code>OutOfMemoryError: Java heap space</code> and leaves a 131 MB snapshot file behind.</p>
+
+  <h3>Watch it happen</h3>
+  <p>The first version keeps every object forever. The second removes the oldest one whenever it goes over its limit. Same speed, same heap size. The only difference is how long things are kept.</p>
+
+  <div class="sim">
+    <div class="simhead">
+      <button class="btn" id="simRun">Run</button>
+      <button class="btn" id="simMode" aria-pressed="false">Keeping everything</button>
+      <button class="btn" id="simReset">Reset</button>
+      <div class="sp">
+        <div class="stat">created<b id="sCreated">0</b></div>
+        <div class="stat">still held<b id="sHeld">0</b></div>
+        <div class="stat">heap<b id="sHeap">0%</b></div>
+      </div>
+    </div>
+    <div class="grid" id="simGrid" aria-hidden="true"></div>
+    <div class="simfoot" id="simFoot">Press Run. Orange squares are objects the cache is still holding on to.</div>
+  </div>
+
+  <h3>Taking the snapshot</h3>
+  <p>A memory snapshot, usually called a heap dump, is a photo of every object in memory at one moment. There are three ways to get one.</p>
+  <pre><code><span class="cm"># 1. Leave this on in production. It costs nothing until it is needed.</span>
+-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dumps
+
+<span class="cm"># 2. On demand, from a running program. This is the modern tool.</span>
+jcmd &lt;pid&gt; GC.heap_dump /dumps/app.hprof
+
+<span class="cm"># 3. The older tool. Some interviewers still name it, so know it too.</span>
+jmap -dump:live,format=b,file=/dumps/app.hprof &lt;pid&gt;</code></pre>
+
+  <div class="note">
+    <p><b>The safety rule.</b> While the snapshot is being taken, your whole application freezes. The bigger the heap, the longer the freeze. In the demo above, a 131 MB snapshot took less than a tenth of a second, but only because the heap was tiny. On a real server with an 8 GB heap, this can freeze everything for ten to thirty seconds.</p>
+    <p>So <b>never take a snapshot on a server that is handling live traffic</b>. Take that server out of the pool first, then take the snapshot. Saying this without being asked is worth more than any definition on this page.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"I would run jmap on the production server."</b> Right tool, dangerous habit. Without taking it out of the pool first, you just caused an outage while investigating an outage.</p>
+    <p><b>"I would look for large objects."</b> Too vague. Large objects are usually not the problem. What is <em>holding</em> them is.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What does the "live" option change, and what does it cost?</summary>
+    <div class="rvb">
+      <p>It tells Java to include only objects that are still being pointed at. To work that out, Java has to do a full cleanup first.</p>
+      <p>The benefit is a much clearer snapshot. Without it, you also capture every dead object that has not been cleaned up yet, and on a busy server that can be most of the file. Your list then fills up with rubbish that is not your problem. With it, everything in the file is genuinely being held by something, which is exactly what you are looking for.</p>
+      <p>The cost is that the full cleanup freezes the application too, on top of the freeze for the snapshot itself. So you pay twice.</p>
+      <p>Simple rule: use it when you are hunting a leak, which is nearly always.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you get a snapshot if the server already crashed?</summary>
+    <div class="rvb">
+      <p>You have to plan for it in advance. Afterwards there is nothing left to collect.</p>
+      <p><strong>Write the file somewhere that outlives the server.</strong> Pointing <code>-XX:HeapDumpPath</code> at the container's own disk is useless, because the file disappears with the container. Point it at attached storage instead.</p>
+      <p><strong>Give it time to finish.</strong> Writing a multi gigabyte file takes a while. If your health check fails during the write and something restarts the container, you get half a file that no tool can open.</p>
+      <p><strong>Check there is enough disk space.</strong> The file is roughly as big as the memory in use. An 8 GB heap needs 8 GB free.</p>
+      <p>And the important case. <strong>If the server was stopped with the number 137, there is no snapshot and there never will be.</strong> Linux shut the program down instantly, so Java had no chance to write anything. Your only evidence is the memory graphs from before it died, which is why this kind of problem needs monitoring set up in advance.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How would you catch this before it crashes?</summary>
+    <div class="rvb">
+      <p>Four things, cheapest first.</p>
+      <p><strong>Watch memory after cleanup, not raw memory.</strong> Raw heap usage is noisy, because it always looks nearly full just before a cleanup. The number that means something is how much is still in use <em>after</em> a full cleanup. If that climbs day after day, you have a leak. If it goes up and down around the same level, you are fine.</p>
+      <p><strong>Watch how much time goes into cleanup.</strong> A healthy service spends well under 5 percent of its time on it. A leak pushes this up long before anything crashes, and it explains why things feel slow.</p>
+      <p><strong>Compare two snapshots.</strong> Take one, wait a day of normal traffic, take another, and compare. If the same thing is holding more memory than yesterday, that is a leak with no argument.</p>
+      <p><strong>Catch it in code review.</strong> Every cache needs a maximum size and an expiry time. Every queue needs a limit. Every <code>ThreadLocal</code> needs a matching cleanup. Those three checks catch most real leaks before they ship.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Does calling System.gc() help?</summary>
+    <div class="rvb">
+      <p>No, and being clear about why is a good sign in an interview.</p>
+      <p>First, it is only a suggestion. Java is allowed to ignore it completely, and sometimes does.</p>
+      <p>Second, and more importantly, it cannot possibly fix a leak. A leak means something is <strong>still pointing at</strong> the object. Cleanup only removes things nothing points at. You could run cleanup a thousand times and Java would look at that object every single time and correctly decide to keep it.</p>
+      <p>The one fair use is for measuring. You force a cleanup first so that what you measure afterwards is real data rather than rubbish waiting to be removed.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> Reading the snapshot</h2>
+
+  <ul class="prompts">
+    <li>Explain shallow size and retained size, with an example.</li>
+    <li>Why is the main view sorted by retained size instead of shallow size?</li>
+    <li>Name the four views in order and what each one tells you.</li>
+    <li>The file is 8 GB and the tool will not open it. What now?</li>
+  </ul>
+
+  <div class="teach">
+  <p>The snapshot is a photo of every object in memory. Eclipse MAT is a free tool that opens it.</p>
+  <p>Your goal is never "which object is big". Your goal is <strong>what is holding it</strong>. Big objects are the symptom. Whatever is holding them is the bug.</p>
+
+  <h3>Two sizes, and why they are different</h3>
+  <p>These two get asked directly, and most people mix them up.</p>
+  <ul class="body">
+    <li><strong>Shallow size</strong> is how big the object is by itself. Just its own fields.</li>
+    <li><strong>Retained size</strong> is how much memory you would get back if you deleted it.</li>
+  </ul>
+  <p>Click any object below to see both numbers.</p>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 700 240" role="img" aria-label="Interactive object diagram. A manager holds a list of three employees. One employee is also held by a static list, so deleting the manager would not free that one.">
+        <defs><marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <g class="hotspot" data-o="mgr" tabindex="0" role="button" aria-label="Manager object">
+          <rect x="16" y="92" width="104" height="46" rx="6" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="68" y="112" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">Manager</text>
+          <text x="68" y="128" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="IBM Plex Mono,monospace">16 B</text>
+        </g>
+        <line x1="124" y1="115" x2="166" y2="115" stroke="currentColor" marker-end="url(#ah4)"/>
+        <g class="hotspot" data-o="list" tabindex="0" role="button" aria-label="The list">
+          <rect x="170" y="92" width="104" height="46" rx="6" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="222" y="112" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">the list</text>
+          <text x="222" y="128" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="IBM Plex Mono,monospace">40 B</text>
+        </g>
+        <line x1="278" y1="106" x2="326" y2="52" stroke="currentColor" marker-end="url(#ah4)"/>
+        <line x1="278" y1="115" x2="326" y2="115" stroke="currentColor" marker-end="url(#ah4)"/>
+        <line x1="278" y1="124" x2="326" y2="178" stroke="currentColor" marker-end="url(#ah4)"/>
+        <g class="hotspot" data-o="e1" tabindex="0" role="button" aria-label="Employee A"><rect x="330" y="28" width="112" height="46" rx="6" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/><text x="386" y="48" font-size="12.5" text-anchor="middle" fill="currentColor">Employee A</text><text x="386" y="64" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="IBM Plex Mono,monospace">120 B</text></g>
+        <g class="hotspot" data-o="e2" tabindex="0" role="button" aria-label="Employee B"><rect x="330" y="92" width="112" height="46" rx="6" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/><text x="386" y="112" font-size="12.5" text-anchor="middle" fill="currentColor">Employee B</text><text x="386" y="128" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="IBM Plex Mono,monospace">120 B</text></g>
+        <g class="hotspot" data-o="e3" tabindex="0" role="button" aria-label="Employee C, also held by the static list"><rect x="330" y="156" width="112" height="46" rx="6" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/><text x="386" y="176" font-size="12.5" text-anchor="middle" fill="currentColor">Employee C</text><text x="386" y="192" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".7" font-family="IBM Plex Mono,monospace">120 B</text></g>
+
+        <g class="hotspot" data-o="reg" tabindex="0" role="button" aria-label="A static list, a second holder">
+          <rect x="540" y="156" width="144" height="46" rx="6" fill="var(--held-bg)" stroke="var(--held)" stroke-width="1.5"/>
+          <text x="612" y="176" font-size="12" text-anchor="middle" fill="currentColor" font-weight="600">a static list</text>
+          <text x="612" y="192" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">holds C as well</text>
+        </g>
+        <line x1="536" y1="179" x2="448" y2="179" stroke="var(--held)" stroke-width="1.6" marker-end="url(#ah4)"/>
+        <text x="16" y="228" font-size="12" fill="currentColor" opacity=".75">Employee C has two holders, so deleting the Manager would not free it.</text>
+      </svg>
+    </div>
+    <div class="readout" id="objOut">
+      <span class="tag">click an object</span>
+      <h6>Shallow is what it is. Retained is what dies with it.</h6>
+      <p>Click <strong>Manager</strong> first, then <strong>Employee C</strong>. Notice that C is not counted in the Manager's retained size, because the static list would still be holding it.</p>
+    </div>
+    <figcaption><b>Retained size is not "everything underneath".</b> Anything with a second holder belongs to that holder too.</figcaption>
+  </figure>
+
+  <h3>The four views, in order</h3>
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 700 130" role="img" aria-label="Four step workflow. The list shows what is in memory, the tree shows what is holding it, the path shows where the link comes from, ending at the name of the culprit.">
+        <defs><marker id="ah5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <rect x="8" y="30" width="150" height="52" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text x="83" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">Histogram</text>
+        <text x="83" y="69" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">what is in memory</text>
+        <line x1="162" y1="56" x2="190" y2="56" stroke="currentColor" marker-end="url(#ah5)"/>
+        <rect x="194" y="30" width="150" height="52" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text x="269" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">Dominator Tree</text>
+        <text x="269" y="69" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">what is holding it</text>
+        <line x1="348" y1="56" x2="376" y2="56" stroke="currentColor" marker-end="url(#ah5)"/>
+        <rect x="380" y="30" width="160" height="52" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text x="460" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">Path to GC Roots</text>
+        <text x="460" y="69" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">where the link starts</text>
+        <line x1="544" y1="56" x2="572" y2="56" stroke="var(--held)" stroke-width="1.8" marker-end="url(#ah5)"/>
+        <rect x="576" y="30" width="116" height="52" rx="7" fill="var(--held-bg)" stroke="var(--held)" stroke-width="1.5"/>
+        <text x="634" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">the culprit</text>
+        <text x="634" y="69" font-size="10" text-anchor="middle" fill="var(--held)" font-family="IBM Plex Mono,monospace">LeakDemo.CACHE</text>
+        <text x="8" y="110" font-size="12" fill="currentColor" opacity=".75">In an interview, this order is the answer. Not the definition of a snapshot.</text>
+      </svg>
+    </div>
+    <figcaption><b>Three clicks to a name.</b> Each view answers a different question, and the order matters.</figcaption>
+  </figure>
+
+  <ol class="body">
+    <li><strong>Histogram.</strong> A list of every type, how many there are, and how much space they take. In our demo: byte arrays, about 1,850 of them, about 118 MB.</li>
+    <li><strong>Dominator Tree.</strong> Sorted by retained size, so it shows what is actually holding all that memory. This is the view you spend your time in. In our demo it points at the <code>CACHE</code> map, holding about 118 MB.</li>
+    <li><strong>Path to GC Roots.</strong> Right click the suspect and choose this, then pick the option that excludes weak and soft links. It shows the chain from a starting point down to the object. In our demo it lands on the static variable <code>LeakDemo.CACHE</code>.</li>
+    <li><strong>Leak Suspects.</strong> The tool's own automatic guess. A useful place to start, but do not trust it blindly.</li>
+  </ol>
+
+  <div class="wrong">
+    <p><b>"Retained size is the object and its fields."</b> That is shallow size. Retained is about what <em>dies with it</em>.</p>
+    <p><b>"I look at the histogram and find the biggest type."</b> The biggest type is nearly always byte arrays, character arrays or text. That tells you nothing. You need to know what is holding them.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why sort by retained size instead of shallow size?</summary>
+    <div class="rvb">
+      <p>Because shallow size tells you nothing about impact. Deleting something only helps if the things it points at go away too.</p>
+      <p>Here is the clearest example. A map holding two gigabytes of orders has a shallow size of about 48 bytes. Sorted by shallow size, it does not appear anywhere near the top of the list. Sorted by retained size, it is the first row, and it is your bug.</p>
+      <p>The word "dominator" is just a precise way of saying: everything that reaches this object has to come through here first. If that is true, deleting it definitely frees everything below it. So the tree answers exactly the question you care about, which is "if I could remove one thing, how much would I actually get back".</p>
+      <p>That is also why shared objects behave the way they do in the diagram above. The Manager does not fully control Employee C, because there is a second way to reach C through the static list. So C's 120 bytes are not counted in the Manager's retained size.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why exclude weak and soft links?</summary>
+    <div class="rvb">
+      <p>Because those kinds of links do not stop Java from cleaning something up, so a chain made of them is not a leak at all.</p>
+      <p>Java has four strengths of link. A <strong>normal</strong> link always keeps the object. A <strong>soft</strong> link is dropped when memory gets tight, which is exactly what you want for a cache. A <strong>weak</strong> link is dropped at the next cleanup no matter what. A <strong>phantom</strong> link never keeps anything at all.</p>
+      <p>So if the tool shows you a chain and every link in it is weak or soft, you have found something that will clean itself up. Chasing it wastes your afternoon. Excluding them leaves only the chains that genuinely pin things in memory.</p>
+      <p>Useful consequence: if excluding them makes the chain disappear completely, that object is not your leak. Go back to the tree and pick the next one down.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>The file is 8 GB and the tool will not open it. What now?</summary>
+    <div class="rvb">
+      <p>Eclipse MAT is itself a Java program, so it needs enough memory to hold an index of your file. By default it ships with a small limit and simply gives up.</p>
+      <p><strong>First, give the tool more memory.</strong> Edit its <code>MemoryAnalyzer.ini</code> file and raise <code>-Xmx</code> to comfortably more than the file size. For an 8 GB file, try 12 GB. This fixes it most of the time.</p>
+      <p><strong>If your laptop cannot do that, process it on a bigger machine.</strong> MAT includes a script that builds the index and produces the reports without opening any windows. Run it on a server and copy the results back.</p>
+      <p><strong>Better, make the file smaller.</strong> Taking the snapshot with the "live" option does a full cleanup first and only includes what is still being held, which on a busy server can shrink the file a lot.</p>
+      <p>And the option people forget. You do not always need the full file. This command prints the list of what is in memory instantly, with no file at all, and it is often enough to spot the runaway type:</p>
+      <pre><code>jcmd &lt;pid&gt; GC.class_histogram</code></pre>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you tell a leak from a heap that is just too small?</summary>
+    <div class="rvb">
+      <p>Look at the shape over time, not at one moment. This is the real question behind the "ran fine for 30 days" scenario.</p>
+      <p><strong>A heap that is too small</strong> fills up quickly and always under the same conditions, like a big overnight job or a traffic peak. After each cleanup, memory in use drops back to roughly the same level every time. It fails early and repeatably, usually within hours of the load going up.</p>
+      <p><strong>A leak</strong> shows memory in use after cleanup creeping upwards day after day. Each cleanup gets back slightly less than the last. That baseline moving upwards is the signature, and no amount of tuning fixes it.</p>
+      <p>The test that settles it is comparing two snapshots taken 24 hours apart under normal traffic. If the same thing is holding much more memory in the second one while traffic stayed flat, it is a leak. If the top items are the same size in both, your heap is simply too small.</p>
+      <p>This matters in an interview because the fix is completely different. One is a setting. The other is code.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> Nine leak types</h2>
+
+  <ul class="prompts">
+    <li>List as many leak types as you can, with the fix for each.</li>
+    <li>Why does a ThreadLocal value stay alive long after the request ended?</li>
+    <li>What happens to a map entry if you change a field used by <code>hashCode()</code>?</li>
+    <li>Can Java leak memory at all, if it cleans up automatically?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Almost every real Java leak is one of nine shapes. Knowing the shapes lets you name the likely cause before you even open the snapshot, and that is what makes you sound experienced.</p>
+
+  <ol class="body">
+    <li><strong>A static cache with nothing ever removed.</strong> Static things live as long as the application, so everything inside stays too. <em>Fix: a cache with a maximum size and an expiry time.</em></li>
+    <li><strong>Web sessions piling up.</strong> Sessions stay in memory for 30 minutes by default. Users close the browser without logging out, so under steady traffic they build up faster than they expire. <em>Fix: shorter timeout, and never put big objects in a session.</em></li>
+    <li><strong>ThreadLocal never cleared on a reused thread.</strong> Explained below.</li>
+    <li><strong>Redeploying onto a running server.</strong> Each redeploy loads a fresh copy of every class. If anything from the old version is still being pointed at, the old copy cannot be thrown away. This shows up as a <code>Metaspace</code> error, not a heap error.</li>
+    <li><strong>A queue with no size limit.</strong> If work arrives faster than it is processed, the queue grows until memory runs out. It looks like it is coping. It is not. <em>Fix: always set a size limit, and decide what happens when it is full.</em></li>
+    <li><strong>Listeners added but never removed.</strong> Whatever you registered with keeps pointing at your object long after you are done with it. <em>Fix: remove them when you are finished.</em></li>
+    <li><strong>Changing a key after putting it in a map.</strong> Explained below.</li>
+    <li><strong>Files and connections never closed.</strong> Each one holds resources and usually a buffer. <em>Fix: use try-with-resources every time.</em></li>
+    <li><strong>A cache keyed on something that is never the same twice.</strong> Caching by request id, session id or timestamp. It looks bounded. In practice the key never repeats, so you never get a hit and it only ever grows.</li>
+  </ol>
+
+  <h3>Number 3 in detail, the answer nobody gives</h3>
+  <pre><code><span class="kw">private static final</span> ThreadLocal&lt;UserContext&gt; CONTEXT = <span class="kw">new</span> ThreadLocal&lt;&gt;();
+
+<span class="kw">public void</span> handleRequest(Request req) {
+    CONTEXT.set(<span class="kw">new</span> UserContext(req.getUser()));
+    process();
+    <span class="cm">// nothing clears it. This is the bug.</span>
+}</code></pre>
+  <p>You store a value. The request finishes. You assume the value is gone. It is not.</p>
+  <p>The <strong>thread</strong> went back into the pool. It did not stop. That thread will still be alive next week. Every thread carries its own little box of ThreadLocal values, and while the thread is alive, that box is alive, and so is whatever you put in it.</p>
+  <p>Now multiply by 200 threads in a web server pool, each holding a user object, which holds their orders, which hold more things again.</p>
+  <pre><code><span class="kw">try</span> {
+    CONTEXT.set(<span class="kw">new</span> UserContext(req.getUser()));
+    process();
+} <span class="kw">finally</span> {
+    CONTEXT.remove();     <span class="cm">// this one line is the whole fix</span>
+}</code></pre>
+  <div class="note">
+    <p><b>Measured, not guessed.</b> A test program with 200 threads, holding 1 MB each, lets every task finish, forces a full cleanup, then measures what is left. <b>403 MB is still held without the cleanup line. 3 MB with it.</b> Same tasks, same threads, same work. One line in a <code>finally</code> block.</p>
+  </div>
+
+  <h3>Number 7 in detail, the entry you cannot see</h3>
+  <pre><code>Map&lt;Customer, Order&gt; orders = <span class="kw">new</span> HashMap&lt;&gt;();
+Customer c = <span class="kw">new</span> Customer(<span class="st">"anupam@x.com"</span>);
+orders.put(c, order);
+
+c.setEmail(<span class="st">"new@x.com"</span>);     <span class="cm">// hashCode() uses the email, and it just changed</span></code></pre>
+  <p>A map decides where to file an entry using the key's <code>hashCode()</code>. Here the entry was filed using the old email. Now lookups use the new email, so they look in the wrong place.</p>
+  <p>So <code>orders.get(c)</code> returns nothing, and <code>orders.remove(c)</code> does nothing. Your code can no longer see the entry, but the map is still holding it, so Java will never clean it up. You cannot find it and you cannot delete it. It is stuck there forever. <em>Fix: never use a field in <code>hashCode()</code> that can change. Best of all, use keys that cannot change at all.</em></p>
+
+  <div class="wrong">
+    <p><b>"Java cleans up automatically, so leaks are impossible."</b> Java only removes things that nothing is pointing at. A leak is something you are still pointing at but no longer need.</p>
+    <p><b>"Call System.gc()."</b> It is only a suggestion, and it cannot remove something you are still holding.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Which of these is hardest to spot?</summary>
+    <div class="rvb">
+      <p>Two stand out, for opposite reasons.</p>
+      <p><strong>The redeploy one</strong>, because it does not appear where you are looking. Your heap graph stays flat and healthy while the class info area grows, and most dashboards do not show that area at all. It also only happens after several redeploys, so it never shows up in testing where the app starts once. You catch it by graphing that area and watching whether it steps up with every deployment.</p>
+      <p><strong>The changed key one</strong>, because your own code cannot see the entry. You cannot write anything to count it, because looking it up and removing it both fail. The only way to see it is in a snapshot, where the map is far bigger than any code path can explain. The clue is a map whose size keeps growing while the number of real business objects does not.</p>
+      <p>The static cache and web session ones are easy by comparison. They sit right at the top of the tree.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you prevent these instead of fixing them?</summary>
+    <div class="rvb">
+      <p>Five rules that cover most of the nine, and all of them are cheap to check in review.</p>
+      <p><strong>1. Every cache has a maximum size and an expiry time.</strong> No exceptions, and no hand built map caches. Use a proper cache library so the limit is visible in the code.</p>
+      <p><strong>2. Every queue has a size limit</strong>, and a decision about what happens when it fills up. Wait, drop, or reject. A queue with no limit is just an outage you have not had yet.</p>
+      <p><strong>3. Every ThreadLocal that is set is cleared in a <code>finally</code> block.</strong> This one is mechanical and easy to search for.</p>
+      <p><strong>4. Every file and connection is opened with try-with-resources.</strong> Tools can check this automatically, so it never needs a human to remember.</p>
+      <p><strong>5. Keys in maps and sets cannot change.</strong> Using simple value objects with final fields makes this the default rather than something to remember.</p>
+      <p>Then add the four graphs that catch whatever slips through: memory in use after cleanup, class info size, thread count, and time spent on cleanup.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why does the ThreadLocal box not clean itself up?</summary>
+    <div class="rvb">
+      <p>It half tries, and the half that fails is the half that matters.</p>
+      <p>Inside that box, the labels are held weakly but the values are held normally. The idea was that once your ThreadLocal object is no longer used anywhere, its label disappears and the entry can be tidied away later.</p>
+      <p>The problem is how everyone actually writes them: <code>private static final ThreadLocal</code>. Static means it never goes away. So the label is always in use, the entry never looks unused, and the value sits there for the entire life of the thread.</p>
+      <p>So the automatic tidying protects against a situation that almost never happens in real code, and does nothing about the situation that happens every time. That is why calling <code>remove()</code> is not optional. It is the only thing that actually clears the value.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> Answering it in the interview</h2>
+
+  <ul class="prompts">
+    <li>Give the five steps of a production incident answer, in order.</li>
+    <li>Why is "what built up?" a better first question than "what broke?"</li>
+    <li>Which step do most people skip, and what does skipping it cost?</li>
+    <li>Give the full 90 second answer to the 30 day question, out loud.</li>
+  </ul>
+
+  <div class="teach">
+  <p>You can know everything above and still lose the round by telling the story badly. This chapter is about structure.</p>
+
+  <h3>The one idea that is the whole answer</h3>
+  <div class="note">
+    <p>"Your Spring Boot application ran perfectly for 30 days. Today it crashed with OutOfMemoryError. You did not change a single line of code. What happened?"</p>
+  </div>
+  <p>Most people start by asking <strong>"what broke?"</strong> Nothing broke. Today's code is the same as it was 30 days ago.</p>
+  <p>The right question is <strong class="hl">"what built up?"</strong></p>
+  <p>That is the answer. Everything after it is just steps: take a snapshot, open it, find what is holding memory, find the static map that never removes anything. The interviewer is listening for whether you <em>work it out</em> or whether you are <em>repeating a story you memorised</em>.</p>
+
+  <h3>The five steps</h3>
+  <ol class="body">
+    <li><strong>How you found out.</strong> What alerted you, and how quickly. "A memory alert at 90 percent, and the restart woke the on call engineer."</li>
+    <li><strong>Get it running again.</strong> Raise the memory, restart, roll back. <strong>Say clearly that this buys time and fixes nothing.</strong> Skip this step and you sound like you have only read about it. Stop at this step and you sound junior.</li>
+    <li><strong>Work out the cause.</strong> The evidence trail. Take a server out of the pool, take a snapshot, open it, look at what is in memory, then at what is holding it, then at where the link starts.</li>
+    <li><strong>Fix it properly.</strong> Not "we gave it more memory". Something like "we replaced the static map with a proper cache with a maximum size and a 10 minute expiry".</li>
+    <li><strong>Make sure it cannot come back quietly.</strong> "We added a memory alert at 75 percent, and unlimited caches are now something we check in code review."</li>
+  </ol>
+
+  <div class="note">
+    <p><b>Why step 5 matters most.</b> Almost everyone stops after step 4. Step 4 says: I solved a problem. Step 5 says: I made sure this kind of problem cannot happen again without us noticing. The second one sounds like ownership. The first sounds like firefighting.</p>
+  </div>
+
+  <h3>What a good answer sounds like</h3>
+  <p style="border-left:3px solid var(--line);padding-left:16px;color:var(--ink-soft)">"Nothing changed, so nothing broke. Something built up. I would start there.<br><br>
+  First, get it running again. Raise the memory and restart so users are unblocked. That buys time, it does not fix anything.<br><br>
+  Then work out the cause. We would already have the setting that writes a snapshot when memory runs out, so there should be a file. If not, I would take one, but from a server taken out of the pool first, because taking a snapshot freezes the whole application and the bigger the heap the longer that takes.<br><br>
+  Then open it in MAT. See what is in memory, see what is holding it, then follow the chain back to find what is pointing at it.<br><br>
+  In the case I have seen, it was two things. Web sessions that were never cleared, and a static map used as a cache that never removed anything.<br><br>
+  The fix was a shorter session timeout and replacing that map with a proper cache with a size limit and an expiry. To stop it coming back, we added a memory alert at 75 percent so we would see it building up, and we started checking for unlimited caches in code review."</p>
+  <p>That is about ninety seconds. It has the reframe, getting the service back, the steps you took, a real cause, and how you stopped it recurring.</p>
+
+  <div class="wrong">
+    <p><b>Going straight to the tool.</b> Opening with "I would take a heap dump" skips the thinking, which is the part being tested.</p>
+    <p><b>Not mentioning getting the service back.</b> Sounds like you have never been on call.</p>
+    <p><b>A vague cause.</b> "There was a memory leak" is not a cause. Name the thing and what was holding it.</p>
+    <p><b>Stopping after the fix.</b> Costs you the senior signal.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What if the snapshot shows nothing unusual?</summary>
+    <div class="rvb">
+      <p>Then believe the snapshot and change your theory. It is probably not a heap problem.</p>
+      <p>First check whether there was a Java error at all. If the server stopped with the number <strong>137</strong>, Linux shut it down for total memory and Java never got to raise anything, so no snapshot would exist in the first place. That immediately points you outside the heap.</p>
+      <p>Then compare the heap size against the total memory the whole program is using. If the total is much bigger, the memory is in one of the other four places: thread stacks (count your threads), class info (does it grow with each deploy), direct memory, or a library written in C.</p>
+      <p>Also consider that it might not be memory at all. A service that looks frozen can be out of threads or out of database connections while memory stays perfectly flat. In that case you want a thread snapshot, not a memory snapshot.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How would you prove the fix actually worked?</summary>
+    <div class="rvb">
+      <p>Three pieces of evidence. Giving all three is what makes the answer sound confident rather than hopeful.</p>
+      <p><strong>1. The shape of the memory graph changes.</strong> Memory in use after a full cleanup should now be flat across days instead of climbing. That is the specific number to quote. Raw memory usage is too noisy to prove anything.</p>
+      <p><strong>2. Two snapshots, 24 hours apart.</strong> Take one after the fix goes out and another a day later under similar traffic, then compare how much the suspect is holding. If it is the same, the leak is closed.</p>
+      <p><strong>3. Time.</strong> The original problem took 30 days to appear, so a green dashboard on day one proves very little. Say that out loud. It shows you understand your own failure. Keep the alert in place through at least one full cycle of however long it took the first time.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What if you cannot reproduce it in the test environment?</summary>
+    <div class="rvb">
+      <p>Expect not to. That is normal for this kind of bug, not a failure on your part. It needed 30 days of real traffic and real user behaviour to show up.</p>
+      <p>So stop trying to force a crash and <strong>compare production against itself over time</strong> instead. Two snapshots a day apart from the live system tell you more than any amount of fake load, because the growth itself is the evidence.</p>
+      <p>If you do want to reproduce it, squeeze the time rather than copying the traffic. Run the test environment with a deliberately tiny heap, so the same build up hits the ceiling in hours instead of weeks. Something that takes 30 days with a 4 GB heap can take under a day with a 256 MB one.</p>
+      <p>And say the honest thing, because interviewers respect it. Some problems are diagnosed in production, using snapshots and graphs, not in a test environment. Pretending otherwise is how people waste a week.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ QUIZ ============ -->
+<section class="ch" id="quiz">
+  <h2><em>Q</em> Quiz</h2>
+  <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. The value is entirely in trying first. Mark yourself honestly, and at the end you get your weakest chapters.</p>
+  <div class="quiz">
+    <div class="qhead">
+      <span class="qn" id="qNum">1 / 12</span>
+      <span id="qChap">Chapter 1</span>
+      <span class="sc" id="qScore">0 correct</span>
+    </div>
+    <div class="qbody" id="qBody"></div>
+    <div class="qacts" id="qActs"></div>
+  </div>
+</section>
+
+<!-- ============ ALL Q&A ============ -->
+<section class="ch" id="allq">
+  <h2><em>R</em> Every question, with answers</h2>
+  <p>The same twelve questions as a plain list, for revising quickly.</p>
+  <div id="allqList"></div>
+</section>
+
+<!-- ============ GLOSSARY ============ -->
+<section class="ch" id="gloss" style="border-bottom:none">
+  <h2><em>G</em> Word list</h2>
+  <p>Every term on this page that you might not already know, in one place.</p>
+  <dl class="gloss">
+    <dt>heap</dt><dd>The area where all your objects live. Shared by the whole program. This is what <code>-Xmx</code> sets the size of.</dd>
+    <dt>stack</dt><dd>A small private workspace for one thread. Holds the chain of method calls it is currently inside, and any plain numbers declared in them.</dd>
+    <dt>Metaspace</dt><dd>The area holding a description of your classes: their shape and their method code. Not your data. It replaced an older area called PermGen in Java 8.</dd>
+    <dt>garbage collection</dt><dd>Java automatically removing objects that nothing points at any more. Often shortened to GC.</dd>
+    <dt>heap dump</dt><dd>A photo of every object in memory at one moment, saved to a file so you can inspect it later.</dd>
+    <dt>thread dump</dt><dd>A photo of every thread and what each one is currently doing. Useful for freezes and slowness, not for memory.</dd>
+    <dt>Eclipse MAT</dt><dd>A free tool that opens a heap dump and shows you what is using memory and what is holding it.</dd>
+    <dt>shallow size</dt><dd>How big one object is on its own, counting only its own fields.</dd>
+    <dt>retained size</dt><dd>How much memory you would get back in total if you deleted that object.</dd>
+    <dt>GC roots</dt><dd>The fixed starting points Java traces from when deciding what to keep: static variables, running methods, and live threads.</dd>
+    <dt>exit code 137</dt><dd>The number left behind when Linux force stops a program for using too much memory. Java gets no warning, so there is no error message and no heap dump.</dd>
+    <dt>ThreadLocal</dt><dd>A way to give each thread its own private copy of a value. Safe on its own, but a common cause of leaks when threads are reused and the value is never cleared.</dd>
+    <dt>jcmd / jstack / jmap</dt><dd>Command line tools that ship with Java. <code>jcmd</code> is the modern all rounder, <code>jstack</code> takes thread dumps, <code>jmap</code> is the older heap dump tool.</dd>
+    <dt>pid</dt><dd>Process id. The number the operating system uses to identify your running program. You pass it to the tools above.</dd>
+  </dl>
+</section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+          set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("oom.ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("oom.ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  var secs=[].slice.call(document.querySelectorAll("section.ch"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    secs.forEach(function(s){io.observe(s)});
+  }
+
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("oom.rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("oom.rev")==="1") setRev(true);
+
+  var MM={
+    heap:{t:"1. Heap",tag:"this is what -Xmx sets",h:"Every object you create",
+      p:"Shared by the whole program, and the only area Java cleans up automatically. New objects start in one part and move to another part if they survive a while. Static variables and the text pool live here too, which is the detail most people get wrong. When this fills up you get OutOfMemoryError: Java heap space."},
+    meta:{t:"2. Class info",tag:"extra, on top of -Xmx",h:"A description of your classes",
+      p:"Holds the shape of each class and its method code, but not the data your classes point at. Java calls this area Metaspace. It grows when classes are loaded, and by default it keeps growing until the machine runs out. That normally only goes wrong when something creates new classes while the program runs, or when you redeploy onto a server that is already running."},
+    stack:{t:"3. Thread stacks",tag:"extra, on top of -Xmx",h:"One workspace per thread, about 1 MB each",
+      p:"Created when a thread starts. It holds the chain of methods that thread is currently inside, along with any plain numbers declared in them. References live here too, but the objects they point at do not. When you go too deep you get StackOverflowError, usually from a method calling itself forever. A thousand threads is about a gigabyte of memory sitting outside your heap."},
+    code:{t:"4. Fast code",tag:"extra, on top of -Xmx",h:"Your hot methods, translated",
+      p:"Java watches which methods run most often and translates them into instructions the processor runs directly, which is much faster. Those translations are stored here. This area can fill up, and when it does Java quietly stops translating and everything gets slower. Rare in practice, but knowing it exists is a good sign in an interview."},
+    direct:{t:"5. Direct memory",tag:"extra, on top of -Xmx",h:"Memory requested straight from the computer",
+      p:"Some libraries, especially networking ones, ask the computer for memory directly instead of using the heap. It is faster for sending and receiving data because nothing has to be copied. When it is not given back you get OutOfMemoryError: Direct buffer memory. Because it is outside the heap, a leak here does not show up in a heap dump at all, which is what makes it hard to find."}
+  };
+  var mmOut=document.getElementById("mmOut");
+  [].slice.call(document.querySelectorAll("[data-r]")).forEach(function(g){
+    function pick(){
+      var d=MM[g.dataset.r]; if(!d) return;
+      document.querySelectorAll("[data-r]").forEach(function(x){x.classList.remove("sel")});
+      g.classList.add("sel");
+      mmOut.innerHTML='<span class="tag">'+d.tag+'</span><h6>'+d.t+'. '+d.h+'</h6><p>'+d.p+'</p>';
+    }
+    g.addEventListener("click",pick);
+    g.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}});
+  });
+
+  var OBJ={
+    mgr:{t:"Manager",s:"16 B",r:"176 B",set:["mgr","list","e1","e2"],
+      p:"On its own it is 16 bytes, just one field pointing at the list. But deleting it would also free the list and Employees A and B, so its retained size is 176 bytes. Employee C is <b>not</b> counted, because the static list would still be holding it."},
+    list:{t:"the list",s:"40 B",r:"280 B",set:["list","e1","e2"],
+      p:"40 bytes on its own. Deleting it frees Employees A and B as well, but again not C, because something else is holding C too."},
+    e1:{t:"Employee A",s:"120 B",r:"120 B",set:["e1"],
+      p:"Nothing hangs off it, and only one thing points at it. So both numbers are the same. That is normal for objects at the edge."},
+    e2:{t:"Employee B",s:"120 B",r:"120 B",set:["e2"],
+      p:"Same as A. Nothing extra dies with it."},
+    e3:{t:"Employee C",s:"120 B",r:"120 B",set:["e3"],
+      p:"This is the interesting one. Two different things point at C: the list and the static list. So deleting either one on its own frees nothing, and C never counts towards their retained sizes."},
+    reg:{t:"the static list",s:"16 B",r:"136 B",set:["reg","e3"],
+      p:"Static, so it lives as long as the application, and Employee C lives with it. This is exactly the shape of leak type 1: a static thing keeping hold of objects nobody needs any more."}
+  };
+  var objOut=document.getElementById("objOut");
+  [].slice.call(document.querySelectorAll("[data-o]")).forEach(function(g){
+    function pick(){
+      var d=OBJ[g.dataset.o]; if(!d) return;
+      document.querySelectorAll("[data-o]").forEach(function(x){
+        x.classList.remove("sel");
+        var box=x.querySelector("rect");
+        if(box) box.setAttribute("fill",d.set.indexOf(x.dataset.o)>-1?"var(--held-bg)":(x.dataset.o==="reg"?"var(--held-bg)":"var(--surface-2)"));
+      });
+      g.classList.add("sel");
+      objOut.innerHTML='<span class="tag">on its own '+d.s+', frees in total '+d.r+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+    }
+    g.addEventListener("click",pick);
+    g.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}});
+  });
+
+  var GRID=document.getElementById("simGrid"),CELLS=120,cells=[];
+  for(var i=0;i<CELLS;i++){var c=document.createElement("div");c.className="cell";GRID.appendChild(c);cells.push(c)}
+  var sim={t:null,created:0,held:0,bounded:false,dead:false,cap:56};
+  var elC=document.getElementById("sCreated"),elH=document.getElementById("sHeld"),elP=document.getElementById("sHeap"),foot=document.getElementById("simFoot");
+  var runBtn=document.getElementById("simRun"),modeBtn=document.getElementById("simMode");
+
+  function paintSim(){
+    elC.textContent=sim.created; elH.textContent=sim.held;
+    elP.textContent=Math.min(100,Math.round(sim.held/CELLS*100))+"%";
+    for(var i=0;i<CELLS;i++){cells[i].className="cell"+(sim.dead?" dead":(i<sim.held?" held":""))}
+  }
+  function stopSim(){if(sim.t){clearInterval(sim.t);sim.t=null}runBtn.textContent="Run"}
+  function resetSim(){
+    stopSim(); sim.created=0; sim.held=0; sim.dead=false;
+    foot.className="simfoot";
+    foot.textContent=sim.bounded?"This version removes the oldest entry once it reaches its limit.":"Press Run. Orange squares are objects the cache is still holding on to.";
+    paintSim();
+  }
+  function tick(){
+    sim.created+=2;
+    if(sim.bounded){sim.held=Math.min(sim.cap,sim.held+2)}else{sim.held+=2}
+    if(!sim.bounded&&sim.held>=CELLS){
+      sim.held=CELLS; sim.dead=true; stopSim(); paintSim();
+      foot.className="simfoot crash";
+      foot.textContent="OutOfMemoryError: Java heap space, after "+sim.created+" objects. Nothing was ever released, because the static map was still pointing at every one of them.";
+      return;
+    }
+    if(sim.bounded&&sim.created>=260){
+      stopSim(); paintSim();
+      foot.className="simfoot ok";
+      foot.textContent="Still running after "+sim.created+" objects, holding only "+sim.held+". Same speed, same heap size. The difference is how long things are kept, not how big they are.";
+      return;
+    }
+    paintSim();
+  }
+  runBtn.addEventListener("click",function(){
+    if(sim.t){stopSim();return}
+    if(sim.dead||(sim.bounded&&sim.created>=260)) resetSim();
+    runBtn.textContent="Pause";
+    foot.className="simfoot";
+    foot.textContent=sim.bounded?"Filling up to the limit, then removing the oldest entry for every new one.":"Filling up. The static map still points at every object, so none of them can be cleaned up.";
+    sim.t=setInterval(tick,70);
+  });
+  modeBtn.addEventListener("click",function(){
+    sim.bounded=!sim.bounded;
+    modeBtn.setAttribute("aria-pressed",sim.bounded?"true":"false");
+    modeBtn.textContent=sim.bounded?"Removing old entries (max 56)":"Keeping everything";
+    resetSim();
+  });
+  document.getElementById("simReset").addEventListener("click",resetSim);
+  resetSim();
+
+  var DX={
+    heap:{v:"The heap really is full",
+      w:"Was memory climbing steadily over days, or does it jump under a particular load?",
+      o:[{k:"climb",l:"Climbing steadily over days, never coming back down"},{k:"spike",l:"Jumps during a big job or a traffic peak, then recovers"}],
+      r:{climb:{v:"A real leak",n:"Memory in use after cleanup is rising, so you are holding more and more. Take a snapshot, look at what is holding memory, then follow the chain back to whatever is pointing at it. Adding more memory only buys time.",x:"jcmd &lt;pid&gt; GC.heap_dump, from a server taken out of the pool first"},
+          spike:{v:"The heap is just too small",n:"Memory returns to the same level after each cleanup, so nothing is building up. The heap simply is not big enough for the work. Raise the limit, and check whether one job is loading far more into memory than it needs to.",x:"-XX:MaxRAMPercentage=70.0"}}},
+    gc:{v:"Java is stuck cleaning up. Almost certainly a leak",
+      n:"Java spent over 98 percent of its time cleaning up and got back under 2 percent of the heap. It can still create objects, but nearly everything is still being pointed at, so cleaning up returns nothing. This appears earlier than a plain heap error and is stronger evidence of a leak. Treat it as one and take a snapshot.",
+      x:"Do not switch this warning off. It turns an early warning into a slow silent death."},
+    meta:{v:"Too many classes loaded. Not a heap problem",
+      n:"Classes keep being loaded and the old ones cannot be thrown away. Making the heap bigger does nothing here. The usual causes are redeploying onto a server that is already running, or a library that creates new classes while the program runs. Graph this area and see whether it steps up with every deployment.",
+      x:"-XX:MaxMetaspaceSize=512m so it fails clearly instead of silently"},
+    thread:{v:"Too many threads. Not a heap problem",
+      n:"You hit the limit on how many threads you can have. Each thread needs about 1 MB of workspace outside the heap, so the heap graph looks perfectly healthy the whole time. Take a thread snapshot and count. A leak shows thousands of threads with the same name and the same list of calls. The usual cause is a thread pool or HTTP client being created per request instead of once at startup.",
+      x:"jstack &lt;pid&gt; and count the threads"},
+    direct:{v:"Memory requested directly is not being returned",
+      n:"Common with networking libraries. This memory sits outside the heap, so it never appears in a heap dump. That is what makes it hard: the small object inside Java looks tiny while the real memory behind it is not. Check whether buffers are being released properly rather than left to be cleaned up automatically.",
+      x:"-XX:MaxDirectMemorySize=1g, plus memory tracking to confirm"},
+    "137":{v:"Linux shut it down. Java never raised anything",
+      n:"137 is the number left behind when Linux force stops a program for using too much memory. Because it is a force stop, there is no error message and no snapshot, and there never will be. Stop looking at the heap. Compare the heap size against the total memory the whole program is using, then work through the other four areas: thread stacks, class info, direct memory, and libraries written in C. Also check the percentage setting, because the 25 percent default means a 4 GB server only gets a 1 GB heap.",
+      x:"jcmd &lt;pid&gt; VM.native_memory summary"}
+  };
+  var dxOut=document.getElementById("dxOut"),refWrap=document.getElementById("dxRefineWrap"),
+      refQ=document.getElementById("dxRefineQ"),refOpts=document.getElementById("dxRefine");
+  function render(v,n,x){
+    dxOut.innerHTML='<span class="lbl">Diagnosis</span><p class="verdict">'+v+'</p><p>'+n+'</p>'+(x?'<p><span class="lbl">What to run next</span><code>'+x+'</code></p>':'');
+  }
+  [].slice.call(document.querySelectorAll("#dxOpts .opt")).forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("#dxOpts .opt").forEach(function(x){x.setAttribute("aria-pressed","false")});
+      b.setAttribute("aria-pressed","true");
+      var d=DX[b.dataset.k];
+      if(d.w){
+        refWrap.hidden=false; refQ.textContent=d.w; refOpts.innerHTML="";
+        d.o.forEach(function(o){
+          var btn=document.createElement("button");
+          btn.className="opt"; btn.textContent=o.l;
+          btn.addEventListener("click",function(){
+            refOpts.querySelectorAll(".opt").forEach(function(x){x.setAttribute("aria-pressed","false")});
+            btn.setAttribute("aria-pressed","true");
+            var rr=d.r[o.k]; render(rr.v,rr.n,rr.x);
+          });
+          refOpts.appendChild(btn);
+        });
+        render(d.v,"Answer the question above. A leak and a heap that is simply too small look identical if you only look once.","");
+      }else{refWrap.hidden=true;render(d.v,d.n,d.x)}
+    });
+  });
+
+  var Q=[
+    {c:1,q:"Where are static variables kept, and where is the text pool kept?",
+     a:"Both on the <b>heap</b>. The text pool moved to the heap in Java 7, and static variables sit on the heap as well. The class info area only holds a description of your classes: their shape and their method code. It does not hold the data those classes point at. Saying that area is the most common way people get caught out here."},
+    {c:1,q:"Why can a server be killed for memory when the heap graph looks healthy?",
+     a:"Because the server looks at <b>the whole program</b>, while your graph usually only shows the heap. Four other areas sit outside the <code>-Xmx</code> setting: thread stacks at about 1 MB each, class info, translated fast code, and memory requested directly from the computer. A thousand threads alone is a gigabyte your heap graph never shows. So compare the heap against the total memory in use instead of staring at the heap."},
+    {c:2,q:"A server dies with the number 137 but the heap only reached 60 percent. What do you check?",
+     a:"137 means Linux force stopped the program for using too much memory in total. It was not Java. Because it is a force stop there is no error message and no snapshot. So check outside the heap: compare heap against total memory, then thread count, then whether the class info area is growing, then direct memory. Also check the percentage setting, because the 25 percent default quietly gives a 4 GB server a 1 GB heap."},
+    {c:2,q:"What does 'GC overhead limit exceeded' mean?",
+     a:"Java spent <b>more than 98 percent of its time cleaning up while getting back less than 2 percent of the heap</b>, several times in a row. The heap is not quite full, so Java can still create objects, but almost everything is still being pointed at, so cleaning up returns nothing and the application does almost no real work. It shows up earlier than a plain heap error and is stronger evidence of a genuine leak."},
+    {c:3,q:"What is a memory leak in Java, in one sentence?",
+     a:"You are still holding on to something you no longer need. Nothing is lost the way it can be in other languages. The object is easy to find, which is exactly the problem: Java sees something still pointing at it and correctly keeps it. Java decides what to keep by starting from static variables, running methods and live threads, then following every link."},
+    {c:3,q:"What do you do before taking a memory snapshot on a live server, and why?",
+     a:"<b>Take that server out of the pool first.</b> While the snapshot is being written the whole application freezes, and the bigger the heap the longer that lasts. A 131 MB snapshot takes a fraction of a second, but an 8 GB heap on a real server can freeze everything for ten to thirty seconds. Taking one from a server handling live traffic means causing an outage while investigating one. Saying this without being asked is worth more than any definition."},
+    {c:3,q:"What does the 'live' option change, and what does it cost?",
+     a:"It includes only objects that are still being pointed at, which means Java has to do a <b>full cleanup first</b>. The benefit is a much clearer file. Without it you also capture every dead object not yet removed, which on a busy server can be most of the file and buries the real problem. The cost is that the cleanup freezes the application too, on top of the snapshot's own freeze. Use it when hunting a leak, which is nearly always."},
+    {c:4,q:"Explain shallow size and retained size.",
+     a:"<b>Shallow size</b> is how big the object is on its own, counting only its own fields. <b>Retained size</b> is how much you would get back in total if you deleted it. A manager holding a list of 1,000 employees might be 16 bytes on its own but 500 KB in total. Importantly, retained size is not simply everything underneath: anything that something else is also pointing at does not count, because deleting this one would not free it."},
+    {c:4,q:"Name the four views in order and what each one tells you.",
+     a:"<b>Histogram</b> shows what is in memory, by count and size. <b>Dominator tree</b> shows what is holding it, sorted by how much would be freed. This is the view you spend your time in. <b>Path to GC roots</b>, with weak and soft links excluded, shows where the link starts, which is the real answer. <b>Leak Suspects</b> is the tool's own automatic guess: a useful start, not the truth. In an interview, this order is the answer."},
+    {c:4,q:"Why exclude weak and soft links when following the chain?",
+     a:"Because those kinds of links do not stop Java from cleaning something up, so a chain made of them is not a leak. A soft link is dropped when memory gets tight, which is what you want for a cache. A weak link is dropped at the next cleanup regardless. A phantom link never keeps anything at all. If excluding them makes the chain vanish completely, that object is not your leak, so go back to the tree and pick the next one."},
+    {c:5,q:"Why does a ThreadLocal value stay alive after the request finished?",
+     a:"Because the <b>thread</b> went back into the pool instead of stopping. Each thread carries its own box of ThreadLocal values, and while the thread is alive that box and everything in it is alive. In a 200 thread web server pool, that is 200 values held. Inside the box the labels are held weakly but the values are held normally, and since these are almost always declared static, the label never goes away either. Measured: 403 MB still held without the cleanup line, 3 MB with it."},
+    {c:6,q:"Give the five steps of a production incident answer.",
+     a:"<b>How you found out</b> (what alerted you, how fast), <b>get it running again</b> (and say clearly this buys time rather than fixing anything), <b>work out the cause</b> (the evidence trail: snapshot, tool, what you found), <b>fix it properly</b> (name the actual cause, not 'we added memory'), and <b>make sure it cannot come back quietly</b> (the alert or check you added). Most people stop after the fix, and that last step is the biggest scoring opportunity, because it sounds like ownership rather than firefighting."}
+  ];
+  var qi=0,score=0,answered=[];
+  var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+      qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),qScore=document.getElementById("qScore");
+
+  function drawQ(){
+    if(qi>=Q.length){drawResult();return}
+    var q=Q[qi];
+    qNum.textContent=(qi+1)+" / "+Q.length;
+    qChap.textContent="Chapter "+q.c;
+    qScore.textContent=score+" correct";
+    qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+    qActs.innerHTML='';
+    var reveal=document.createElement("button");
+    reveal.className="btn"; reveal.textContent="Reveal answer";
+    reveal.addEventListener("click",function(){
+      qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+      qActs.innerHTML='';
+      var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+      var b=document.createElement("button");b.className="btn bad";b.textContent="I missed it";
+      g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;drawQ()});
+      b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;drawQ()});
+      qActs.appendChild(g);qActs.appendChild(b);
+    });
+    qActs.appendChild(reveal);
+  }
+  function drawResult(){
+    qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+    var weak={};
+    answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+    var names={1:"Where memory goes",2:"Six ways it fails",3:"Making a leak",4:"Reading the snapshot",5:"Nine leak types",6:"Answering it"};
+    var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+    var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+    if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+    else{
+      html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+      ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+names[k]+'</a>, '+weak[k]+' missed</li>'});
+      html+='</ul>';
+    }
+    html+='</div>';
+    qBody.innerHTML=html; qActs.innerHTML='';
+    var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+    again.addEventListener("click",function(){qi=0;score=0;answered=[];drawQ()});
+    qActs.appendChild(again);
+  }
+  drawQ();
+  document.getElementById("quizBtn").addEventListener("click",function(){
+    qi=0;score=0;answered=[];drawQ();
+    document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+  });
+
+  var list=document.getElementById("allqList");
+  Q.forEach(function(q,i){
+    var d=document.createElement("details");d.className="rv";
+    d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a+'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+    list.appendChild(d);
+  });
+})();
+</script>
+</body>
+</html>

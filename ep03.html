@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Where the Pauses Come From, episode 3 of the Java interview study series">
+<title>Where the Pauses Come From</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+
+.hotspot{cursor:pointer}
+.hotspot rect{transition:fill .18s,stroke .18s}
+.hotspot:hover rect{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.gens{padding:16px;display:flex;flex-direction:column;gap:14px}
+.gen{}
+.genlabel{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between}
+.bar{display:flex;gap:2px;flex-wrap:wrap;min-height:24px;padding:5px;border:1px solid var(--line-soft);border-radius:6px;background:var(--surface-2)}
+.obj{width:14px;height:14px;border-radius:3px;background:var(--held-bg);border:1px solid var(--held-line)}
+.obj.old{background:var(--alarm-bg);border-color:var(--alarm-line)}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+
+.calc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.calcrow{padding:14px 17px;border-bottom:1px solid var(--line-soft)}
+.calcrow>span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:9px}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{font:inherit;font-size:13.5px;font-family:"IBM Plex Mono",monospace;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.chip:hover{background:var(--surface-2)}
+.chip[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:600}
+.calcout{padding:17px;background:var(--surface-2);display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.calcbig{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.calcbig small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-top:5px;font-family:"IBM Plex Sans",sans-serif}
+.calcnote{flex:1;min-width:230px;font-size:14px;color:var(--ink-soft)}
+
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="backlink" href="index.html">All episodes</a>
+  <div class="brand">
+    <b>Where the Pauses Come From</b>
+    <span>Episode 3 &middot; Garbage Collection and Container Memory</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> How cleanup works</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> The four collectors</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> Reading the log</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Settings that matter</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Inside a container</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> When cleanup gives up</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>Why your service freezes for 20 milliseconds, over and over</h1>
+      <p class="sub">Java cleans up memory for you. The cost is that sometimes it stops your program to do it. This episode is about where those stops come from, how to see them, how to choose between collectors, and why a 4 GB server can quietly give Java only 1 GB. Every number here came from running the code.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> How cleanup works</h2>
+
+  <ul class="prompts">
+    <li>What are the young and old areas, and why are there two?</li>
+    <li>What is Eden and what are the survivor spaces?</li>
+    <li>What does promotion mean?</li>
+    <li>Why is a young collection cheap and an old collection expensive?</li>
+    <li>What is a stop-the-world pause?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Java frees memory for you. You never write code to delete an object. Something runs in the background, works out which objects nobody is pointing at any more, and reclaims that space.</p>
+  <p>The price is that sometimes it has to <strong>stop your program to do it</strong>. Every thread freezes, the cleanup happens, then everything resumes. That freeze is called a stop-the-world pause, and understanding where those pauses come from is the whole topic.</p>
+
+  <h3>The one observation everything is built on</h3>
+  <div class="note">
+    <p><b>Most objects die almost immediately.</b> In a typical program the overwhelming majority of objects become garbage within moments of being created. A temporary string, a list built inside a method, an object created to answer one request. A small minority live a long time: caches, configuration, connection pools.</p>
+  </div>
+  <p>Java takes advantage of this by splitting the heap into two areas and treating them completely differently.</p>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 740 250" role="img" aria-label="Diagram of the heap split into a young area containing Eden and two survivor spaces, and an old area. New objects start in Eden, survivors move to a survivor space, and long lived objects are promoted to the old area.">
+        <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <text x="16" y="20" font-size="12" fill="currentColor" opacity=".7">THE HEAP, split into two areas that are cleaned in completely different ways</text>
+
+        <rect x="16" y="34" width="420" height="152" rx="8" fill="var(--freed-bg)" stroke="var(--freed-line)" stroke-width="1.5"/>
+        <text x="30" y="56" font-size="14" font-weight="600" fill="currentColor" font-family="IBM Plex Sans Condensed,sans-serif">YOUNG AREA</text>
+        <text x="30" y="74" font-size="11.5" fill="currentColor" opacity=".75">cleaned often, very cheaply</text>
+
+        <g class="hotspot" data-r="eden" tabindex="0" role="button" aria-label="Eden">
+          <rect x="30" y="86" width="220" height="86" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="140" y="112" font-size="13" text-anchor="middle" fill="currentColor" font-weight="600">Eden</text>
+          <text x="140" y="131" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">every new object</text>
+          <text x="140" y="148" font-size="11" text-anchor="middle" fill="currentColor" opacity=".75">starts here</text>
+          <text x="140" y="164" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".5" font-family="IBM Plex Mono,monospace">click to read more</text>
+        </g>
+        <g class="hotspot" data-r="surv" tabindex="0" role="button" aria-label="Survivor spaces">
+          <rect x="262" y="86" width="76" height="86" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="300" y="112" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">S0</text>
+          <text x="300" y="132" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">survivors</text>
+          <rect x="346" y="86" width="76" height="86" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="384" y="112" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">S1</text>
+          <text x="384" y="132" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">survivors</text>
+        </g>
+
+        <g class="hotspot" data-r="old" tabindex="0" role="button" aria-label="Old area">
+          <rect x="472" y="34" width="252" height="152" rx="8" fill="var(--alarm-bg)" stroke="var(--alarm-line)" stroke-width="1.5"/>
+          <text x="486" y="56" font-size="14" font-weight="600" fill="currentColor" font-family="IBM Plex Sans Condensed,sans-serif">OLD AREA</text>
+          <text x="486" y="74" font-size="11.5" fill="currentColor" opacity=".75">cleaned rarely, expensively</text>
+          <rect x="486" y="90" width="224" height="80" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="598" y="116" font-size="11.5" text-anchor="middle" fill="currentColor">objects that survived</text>
+          <text x="598" y="134" font-size="11.5" text-anchor="middle" fill="currentColor">several young collections</text>
+          <text x="598" y="156" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".5" font-family="IBM Plex Mono,monospace">click to read more</text>
+        </g>
+
+        <line x1="440" y1="110" x2="468" y2="110" stroke="var(--held)" stroke-width="1.8" marker-end="url(#a1)"/>
+        <text x="454" y="100" font-size="10" text-anchor="middle" fill="var(--held)" font-weight="600">promotion</text>
+
+        <text x="16" y="212" font-size="11.5" fill="currentColor" opacity=".8">Nearly everything created in Eden is garbage by the next collection, so cleaning it is fast.</text>
+        <text x="16" y="230" font-size="11.5" fill="currentColor" opacity=".8">Anything that keeps surviving is moved right, into the area that is slow and awkward to clean.</text>
+      </svg>
+    </div>
+    <div class="readout" id="genOut">
+      <span class="tag">click an area</span>
+      <h6>Two areas, two completely different costs</h6>
+      <p>Click Eden, the survivor spaces, or the old area to see what each one holds and how it gets cleaned.</p>
+    </div>
+    <figcaption><b>Objects move rightwards, never back.</b> The further right an object gets, the more expensive it is to deal with.</figcaption>
+  </figure>
+
+  <h3>What actually happens in a young collection</h3>
+  <p>Eden fills up. Java stops your program and looks at everything in Eden. Almost all of it is garbage, so it does something clever: <strong>instead of deleting the garbage, it copies out the few survivors</strong> and then treats the entire Eden space as empty.</p>
+  <p>That is why it is so cheap. The work is proportional to how many objects <em>survived</em>, not how many were created. If you created a million objects and two survived, the cleanup handles two objects and then wipes the slate.</p>
+  <p>The survivors go into one of the two survivor spaces. Each time an object survives another collection, its age counter goes up. Once it has survived enough times, it gets <strong>promoted</strong> into the old area.</p>
+
+  <h3>What happens in an old collection</h3>
+  <p>The old area is full of objects that have already proven they survive. So the trick above does not work. You cannot assume everything is garbage, because most of it is not.</p>
+  <p>Cleaning it means walking through everything to find what is still reachable, then usually shuffling the survivors together to close up the gaps left behind. That is far more work, over far more data, and it is why old collections cause the long pauses.</p>
+
+  <h3>Watch it happen</h3>
+  <p>Objects arrive in Eden. When Eden fills, a young collection runs and most of them vanish. The few survivors move right. Once the old area fills, a full collection runs, and you can see what that costs.</p>
+
+  <div class="sim">
+    <div class="simhead">
+      <button class="btn" id="simRun">Run</button>
+      <button class="btn" id="simMode" aria-pressed="false">Most objects die young</button>
+      <button class="btn" id="simReset">Reset</button>
+      <div class="sp">
+        <div class="stat">young collections<b id="sYoung">0</b></div>
+        <div class="stat">full collections<b id="sFull">0</b></div>
+        <div class="stat">total pause<b id="sPause">0 ms</b></div>
+      </div>
+    </div>
+    <div class="gens">
+      <div class="gen">
+        <div class="genlabel"><span>Eden</span><span id="edenCount">0</span></div>
+        <div class="bar" id="eden" aria-hidden="true"></div>
+      </div>
+      <div class="gen">
+        <div class="genlabel"><span>Survivors</span><span id="survCount">0</span></div>
+        <div class="bar" id="surv" aria-hidden="true"></div>
+      </div>
+      <div class="gen">
+        <div class="genlabel"><span>Old area</span><span id="oldCount">0</span></div>
+        <div class="bar" id="old" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="simfoot" id="simFoot">Press Run. Each square is an object.</div>
+  </div>
+
+  <div class="wrong">
+    <p><b>"Garbage collection frees objects that are no longer used."</b> Close, but the wrong word. It frees objects that are no longer <strong>reachable</strong>, meaning nothing points at them any more. An object you have finished with but are still holding a reference to will never be freed, no matter how unused it is. That is the whole subject of Episode 1.</p>
+    <p><b>"You can force cleanup with System.gc()."</b> It is a suggestion that Java is free to ignore, and it cannot free anything you are still pointing at.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why are there two survivor spaces instead of one?</summary>
+    <div class="rvb">
+      <p>Because of how the copying works. At any moment one survivor space is in use and the other is completely empty.</p>
+      <p>When a young collection runs, Java copies the survivors from Eden <em>and</em> from the currently used survivor space into the empty one. Then Eden and the space it just emptied are both considered free. Next time, the two survivor spaces swap roles.</p>
+      <p>The reason for copying into a fresh space rather than tidying in place is that it removes gaps automatically. Objects land packed together with no holes between them, so allocating the next object is just moving a pointer forward. There is no searching for a gap big enough.</p>
+      <p>That is also why allocation in Java is so fast, and it is a good detail to mention: creating an object is usually little more than incrementing a pointer, because the collector keeps the free space contiguous.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What decides when an object gets promoted?</summary>
+    <div class="rvb">
+      <p>Mainly an age counter. Every object carries a small count of how many collections it has survived. When that count crosses a threshold, the object is moved into the old area on the next collection.</p>
+      <p>There are two other ways an object gets there faster. If it is <strong>too big to fit</strong> in the young area at all, it is placed directly in the old area, because copying it around repeatedly would be wasteful. And if the <strong>survivor space is full</strong>, objects get promoted early regardless of age, simply because there is nowhere else to put them.</p>
+      <p>That second case matters in practice. If your survivor spaces are too small for your workload, objects are promoted before they have had a chance to die, so the old area fills with things that were about to become garbage anyway. That produces more old collections than you should be having, and the fix is giving the young area more room, not less.</p>
+      <p>This is called premature promotion, and it is a good thing to name in an interview because it shows you understand that a bigger old area is not always the answer.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Does everything stop during a collection, always?</summary>
+    <div class="rvb">
+      <p>Not always, and this is exactly what separates the collectors from one another.</p>
+      <p>Some work genuinely has to happen with the program stopped. Anything that moves objects in memory has to be sure no thread is reading them mid-move. So there is always <em>some</em> stop, even in the most advanced collectors.</p>
+      <p>But a large part of the work is just finding out what is still reachable, and modern collectors do most of that <strong>while your program keeps running</strong>. They track changes your program makes during the scan and account for them, rather than freezing everything for the whole job.</p>
+      <p>That is the difference between an older collector that stops the world for the entire collection and a newer one that stops it only for a few short moments. The measurements in the next chapter show exactly how big that difference is: on the same workload, the longest single freeze went from about 22 milliseconds down to 0.02 milliseconds.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> The four collectors, measured</h2>
+
+  <ul class="prompts">
+    <li>Name the four collectors and what each is built for.</li>
+    <li>Which is the default, and why?</li>
+    <li>What is the trade-off between total work done and worst freeze?</li>
+    <li>When would you actually choose each one?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Java ships with several collectors. They all do the same job and they make different trade-offs doing it. Rather than describe them, here is the same program run under each one.</p>
+
+  <div class="note">
+    <p><b>The test.</b> One program that creates a lot of short-lived objects and keeps about 135 MB of longer-lived ones, running in a 512 MB heap. Same code, same machine, same workload. The only thing changed is the collector.</p>
+  </div>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Collector</th><th>Stops</th><th>Full collections</th><th>Total freeze</th><th>Worst single freeze</th><th>Wall time</th></tr></thead>
+    <tbody>
+      <tr><td>Serial</td><td class="num">50</td><td class="num">2</td><td class="num">214.4 ms</td><td class="num">22.62 ms</td><td class="num">487 ms</td></tr>
+      <tr><td>Parallel</td><td class="num">28</td><td class="num">1</td><td class="num">124.9 ms</td><td class="num">23.45 ms</td><td class="num">386 ms</td></tr>
+      <tr class="win"><td>G1 (the default)</td><td class="num">34</td><td class="num">0</td><td class="num">97.6 ms</td><td class="num">15.54 ms</td><td class="num">378 ms</td></tr>
+      <tr><td>ZGC</td><td class="num">109</td><td class="num">0</td><td class="num">0.64 ms</td><td class="num">0.020 ms</td><td class="num">438 ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 700 220" role="img" aria-label="Bar chart of the worst single freeze for each collector. Parallel 23.45 milliseconds, Serial 22.62, G1 15.54, and ZGC 0.020 milliseconds, which is too small to draw at this scale.">
+        <text x="8" y="16" font-size="12" fill="currentColor" opacity=".7">WORST SINGLE FREEZE, same workload, same machine. Shorter is better.</text>
+
+        <text x="8" y="48" font-size="12.5" fill="currentColor" font-weight="600">Parallel</text>
+        <rect x="88" y="36" width="500" height="17" rx="3" fill="var(--alarm-bg)" stroke="var(--alarm-line)"/>
+        <text x="596" y="49" font-size="12" fill="currentColor" font-family="IBM Plex Mono,monospace">23.45 ms</text>
+
+        <text x="8" y="80" font-size="12.5" fill="currentColor" font-weight="600">Serial</text>
+        <rect x="88" y="68" width="482" height="17" rx="3" fill="var(--alarm-bg)" stroke="var(--alarm-line)"/>
+        <text x="596" y="81" font-size="12" fill="currentColor" font-family="IBM Plex Mono,monospace">22.62 ms</text>
+
+        <text x="8" y="112" font-size="12.5" fill="currentColor" font-weight="600">G1</text>
+        <rect x="88" y="100" width="331" height="17" rx="3" fill="var(--held-bg)" stroke="var(--held-line)"/>
+        <text x="596" y="113" font-size="12" fill="currentColor" font-family="IBM Plex Mono,monospace">15.54 ms</text>
+
+        <text x="8" y="144" font-size="12.5" fill="currentColor" font-weight="600">ZGC</text>
+        <rect x="88" y="132" width="2" height="17" rx="1" fill="var(--freed)" stroke="var(--freed)"/>
+        <text x="596" y="145" font-size="12" fill="var(--freed)" font-weight="600" font-family="IBM Plex Mono,monospace">0.020 ms</text>
+        <line x1="92" y1="140" x2="180" y2="140" stroke="var(--freed)" stroke-width="1" stroke-dasharray="3 3"/>
+        <text x="186" y="144" font-size="11.5" fill="var(--freed)">this bar is drawn 2 pixels wide and is still too big</text>
+
+        <line x1="88" y1="164" x2="588" y2="164" stroke="currentColor" stroke-opacity=".25"/>
+        <text x="88" y="180" font-size="11" fill="currentColor" opacity=".6" font-family="IBM Plex Mono,monospace">0</text>
+        <text x="588" y="180" font-size="11" text-anchor="end" fill="currentColor" opacity=".6" font-family="IBM Plex Mono,monospace">24 ms</text>
+        <text x="8" y="206" font-size="11.5" fill="currentColor" opacity=".8">To scale, ZGC's bar would be less than half a pixel. That gap is the entire argument for it.</text>
+      </svg>
+    </div>
+    <figcaption><b>ZGC's worst freeze is about 775 times shorter than G1's.</b> It pays for that with roughly 16 percent less throughput.</figcaption>
+  </figure>
+
+  <p>Read that last row twice, because it looks like a mistake and is not.</p>
+  <p>ZGC stopped the program <strong>more often</strong> than any of the others, 109 times against G1's 34. But its total freeze time across the entire run was <strong>0.64 milliseconds</strong>, and its worst single freeze was <strong>0.020 milliseconds</strong>. G1's worst single freeze was 15.54 milliseconds, which is about <strong>775 times longer</strong>.</p>
+  <p>How? ZGC does nearly all its work while your program keeps running. It stops everything only for a few tiny moments per cycle, to start and finish a phase. Everything in between happens alongside your code.</p>
+  <p>And the cost is in the last column. ZGC took 438 ms to finish the same work that G1 did in 378 ms. Doing cleanup alongside a running program is more expensive overall than doing it in one focused burst. <strong>ZGC bought a 775 times shorter worst pause by giving up about 16 percent of throughput.</strong></p>
+
+  <h3>Which one to pick</h3>
+  <p>Click a collector for what it is built for and when it is the right answer.</p>
+
+  <div class="dx">
+    <div class="dxq">
+      <p>Which collector are you asking about?</p>
+      <div class="opts" id="colOpts">
+        <button class="opt" data-k="serial">Serial</button>
+        <button class="opt" data-k="parallel">Parallel</button>
+        <button class="opt" data-k="g1">G1, the default since Java 9</button>
+        <button class="opt" data-k="zgc">ZGC</button>
+      </div>
+    </div>
+    <div class="dxout" id="colOut">
+      <span class="lbl">Collector</span>
+      <p class="verdict">Pick one</p>
+      <p>Each row in the table above becomes obvious once you know what the collector was designed to optimise for.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><b>The sentence that answers the interview question.</b> "They trade total work against worst freeze. Parallel does the least total work but stops everything for the whole collection. ZGC does most of its work alongside the running program, so its worst pause is a fraction of a millisecond, but it costs some throughput. G1 sits between them and is the default because it is a reasonable answer for most services without tuning."</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"ZGC is the best, it is the newest."</b> It has the shortest pauses, which is not the same as best. It uses more memory and gives up throughput. For a batch job that nobody is waiting on, Parallel finishing sooner is genuinely the better outcome.</p>
+    <p><b>"Serial is obsolete."</b> It is still the sensible choice for a small container with one processor. With only one core available there is nothing to run in parallel, and the coordination that the other collectors do is pure overhead.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why did G1 have zero full collections when Serial had two?</summary>
+    <div class="rvb">
+      <p>Because G1 does work in advance to avoid ever reaching that point, and this is the clearest thing the measurements show.</p>
+      <p>Serial and Parallel wait until the old area is full and then deal with it, which means stopping the program and working through the whole old area at once. That is the 22 millisecond pause in the table.</p>
+      <p>G1 instead tracks which parts of the heap contain the most garbage, and cleans those parts a little at a time during ordinary collections, while the program is running. It aims to keep the old area from ever filling completely.</p>
+      <p>So G1 did not have shorter full collections than Serial. It had <strong>none at all</strong>, because it kept up. A full collection in G1 is a sign something went wrong, usually that the heap is too small or that objects are being created faster than it can keep pace with.</p>
+      <p>That is a genuinely useful production signal to mention: if you see full collections in G1 logs, do not treat them as normal. G1 is telling you it could not keep up.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What does "concurrent" actually mean here?</summary>
+    <div class="rvb">
+      <p>It means the collector is doing its work <strong>at the same time as your application threads are running</strong>, rather than while they are frozen.</p>
+      <p>That sounds straightforward and is genuinely difficult, because the program keeps changing the very thing the collector is examining. While the collector is deciding what is still reachable, your code is creating objects and changing references, potentially making something reachable that the collector already decided was garbage.</p>
+      <p>Collectors solve this by recording the changes the program makes during the scan and then accounting for them at the end. That bookkeeping is not free, and it is exactly where the throughput cost comes from. In the measurements, ZGC took 16 percent longer overall than G1, and this is where that went.</p>
+      <p>So the short freezes are not magic. They are bought by doing more total work, spread out, instead of less total work concentrated into a stop. Being able to say that trade-off out loud is what the question is really testing.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>When would you actually change the collector?</summary>
+    <div class="rvb">
+      <p>Honest answer, and worth saying plainly: <strong>usually you would not</strong>. G1 is the default because it is a sensible choice for most services, and changing it without measuring first is guessing.</p>
+      <p>The cases where changing is genuinely justified:</p>
+      <ul class="body">
+        <li><strong>Your pause times break a promise you have made.</strong> If you have a latency target and the logs show G1 pauses exceeding it, that is a real reason to try ZGC, and you should be able to point at the numbers.</li>
+        <li><strong>It is a batch job nobody waits on.</strong> Overnight processing, report generation, data migration. Nobody experiences the pause, so optimise for finishing sooner: Parallel.</li>
+        <li><strong>It is a tiny container with one processor.</strong> Serial, because there is no second core for anything else to use.</li>
+        <li><strong>Your heap is very large.</strong> Beyond a few tens of gigabytes, the pause from walking the whole heap becomes hard for G1 to hide, and ZGC was designed for exactly that size.</li>
+      </ul>
+      <p>The strongest thing to add: measure before and after on your own workload. The table on this page is one program on one machine, and a different allocation pattern can reorder those rows.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> Reading the log</h2>
+
+  <ul class="prompts">
+    <li>How do you turn on garbage collection logging?</li>
+    <li>Read out every part of a log line and say what it means.</li>
+    <li>What does it mean if the number after the arrow keeps climbing?</li>
+    <li>What is allocation rate and how do you work it out from the log?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Turning it on is one setting, and it is cheap enough to leave on permanently in production.</p>
+  <pre><code><span class="cm"># the useful minimum</span>
+-Xlog:gc
+
+<span class="cm"># with timestamps, rotating files, safe to leave on in production</span>
+-Xlog:gc*:file=/logs/gc.log:time,uptime:filecount=5,filesize=20M</code></pre>
+
+  <h3>One line, taken apart</h3>
+  <p>This is a real line from running the demo under G1. Click any highlighted part.</p>
+
+  <div class="dump">
+    <div class="dumpcode" id="dumpCode"><button class="fld" data-f="time" aria-pressed="false">[0.441s]</button>[info][gc] <button class="fld" data-f="id" aria-pressed="false">GC(0)</button> <button class="fld" data-f="kind" aria-pressed="false">Pause Young (Normal)</button> <button class="fld" data-f="cause" aria-pressed="false">(G1 Evacuation Pause)</button> <button class="fld" data-f="before" aria-pressed="false">48M</button>-><button class="fld" data-f="after" aria-pressed="false">3M</button><button class="fld" data-f="total" aria-pressed="false">(256M)</button> <button class="fld" data-f="dur" aria-pressed="false">1.737ms</button></div>
+    <div class="readout" id="fldOut">
+      <span class="tag">click a highlighted part</span>
+      <h6>Six numbers, and only two of them matter most days</h6>
+      <p>The important pair is the number after the arrow, and the duration. Everything else is context. Click through to see why.</p>
+    </div>
+  </div>
+
+  <h3>The pattern to look for</h3>
+  <p>A single line tells you very little. The signal is in how the numbers change across many lines.</p>
+  <p>Here are the first three young collections from the same real run:</p>
+  <pre><code>GC(0) Pause Young  48M-><span class="st">3M</span>(256M)   1.737ms
+GC(1) Pause Young 114M-><span class="st">7M</span>(256M)   2.292ms
+GC(2) Pause Young 132M-><span class="st">11M</span>(256M)  2.733ms</code></pre>
+  <p>Look only at the number <strong>after</strong> the arrow. That is how much was still in use once cleanup finished, and it is the single most useful number in the whole log.</p>
+  <ul class="body">
+    <li>Going up and down around a steady level: healthy. Objects are being created and cleaned up at a matching rate.</li>
+    <li><strong>Climbing steadily and never coming back down: you are accumulating something.</strong> That is the shape of a memory leak, and the garbage collection log will show it days before anything crashes.</li>
+  </ul>
+  <p>In the extract above it climbs from 3M to 7M to 11M, which looks alarming until you know the program deliberately builds up a set of long-lived objects at the start. That is why you compare after a <em>full</em> collection, when everything that can be cleaned has been.</p>
+
+  <div class="note">
+    <p><b>The one number to alert on.</b> Not heap usage, which always looks nearly full just before a collection. Alert on <b>how much is still in use after a full collection</b>. If that number climbs across days while your traffic stays flat, you have a leak, and you have found it before it became an outage.</p>
+  </div>
+
+  <h3>Working out how fast you create objects</h3>
+  <p>Two consecutive lines are enough. Take the amount in use after one collection, and the amount before the next one, and divide by the time between them.</p>
+  <pre><code>GC(0) ... 48M-><span class="st">3M</span>(256M) at <span class="kw">0.441s</span>
+GC(1) ... <span class="st">114M</span>->7M(256M) at <span class="kw">0.457s</span>
+
+created:  114M - 3M   = 111 MB
+in time:  0.457 - 0.441 = 0.016 seconds
+rate:     about 6.9 GB per second</code></pre>
+  <p>That number is worth knowing because <strong>almost every pause problem is really an allocation problem</strong>. If you are producing garbage faster than the collector can keep up, no amount of collector tuning fixes it. You have to create less.</p>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Is it safe to leave garbage collection logging on in production?</summary>
+    <div class="rvb">
+      <p>Yes, and you should. This is one of the few things in performance work that is close to free.</p>
+      <p>The collector already knows every number in those lines, because it just did the work. Writing them out is a handful of lines of text per collection, which is nothing next to the collection itself. There is no extra measurement being done to produce the log.</p>
+      <p>Two practical points. Write it to its own file rather than mixing it into application logs, so it stays readable and does not get filtered by log levels. And use rotation, so a long running service does not slowly fill the disk.</p>
+      <p>The reason this matters more than it sounds: memory problems are usually diagnosed <em>after</em> they happen. If logging was off, you have nothing, and you have to wait for it to happen again. Having it already on turns a week of waiting into a five minute investigation, which is exactly the point made about recording in Episode 2.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What does it mean if pauses are short but there are lots of them?</summary>
+    <div class="rvb">
+      <p>Usually that you are creating objects very fast, and it is a different problem from long pauses even though it hurts the same.</p>
+      <p>Each young collection may only take two milliseconds, but if one runs every thirty milliseconds, you are losing a noticeable share of your processing time to cleanup, plus the disruption of constantly stopping and restarting.</p>
+      <p>The number to work out is what share of wall clock time is going into collection. Under about 5 percent is generally fine. Much above that and it is worth attention.</p>
+      <p>The fixes, in the order worth trying:</p>
+      <ul class="body">
+        <li><strong>Create less garbage.</strong> Look at what is being allocated in the hot path. Very often it is something avoidable, like building strings in a loop, or copying a collection that did not need copying.</li>
+        <li><strong>Give the young area more room.</strong> More space means fewer collections, and because the cost depends on survivors rather than on space, bigger is often genuinely cheaper.</li>
+        <li><strong>Only then consider the collector.</strong> Changing it does not reduce how much garbage you make.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What causes appear in the log, and which ones worry you?</summary>
+    <div class="rvb">
+      <p>The bracketed reason at the end of the line tells you why the collection happened, and some causes are routine while others are a warning.</p>
+      <p><strong>Routine.</strong> An ordinary young collection because the young area filled up is the normal rhythm of a healthy program. Seeing thousands of these is expected.</p>
+      <p><strong>Worth noticing.</strong> A collection caused by allocation failing means the program asked for memory and there was none, so cleanup had to happen right then rather than at a convenient moment. Occasional ones are normal. Frequent ones mean you are running close to the edge.</p>
+      <p><strong>A real warning.</strong> A full collection under G1, for the reason in the earlier chapter: G1 is designed to avoid these, so one appearing means it could not keep up.</p>
+      <p><strong>Suspicious.</strong> A collection triggered by code explicitly asking for one. That means something in your application, or a library you depend on, is calling for cleanup by hand. It is almost always wrong, and it can cause a full stop at an unpredictable moment. If you see this, find the caller.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> The settings that matter</h2>
+
+  <ul class="prompts">
+    <li>Which settings would you actually change, and in what order?</li>
+    <li>Why is setting the starting and maximum heap to the same value common?</li>
+    <li>What is wrong with copying tuning settings from a blog post?</li>
+  </ul>
+
+  <div class="teach">
+  <p>There are hundreds of settings. Almost all of them are traps for people who have not measured anything. Here is the short list that earns its place.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Setting</th><th>What it does</th><th>When to touch it</th></tr></thead>
+    <tbody>
+      <tr><td><code>-Xmx</code></td><td>Largest the heap may grow</td><td>Almost always worth setting deliberately. The single most important one.</td></tr>
+      <tr><td><code>-Xms</code></td><td>Size the heap starts at</td><td>Set it equal to the maximum on a server. See below.</td></tr>
+      <tr><td><code>-XX:MaxRAMPercentage</code></td><td>Heap as a share of the container limit</td><td>In a container, use this instead of a fixed maximum.</td></tr>
+      <tr><td><code>-XX:+HeapDumpOnOutOfMemoryError</code></td><td>Write a snapshot when memory runs out</td><td>Always on. Free until it is needed.</td></tr>
+      <tr><td><code>-Xlog:gc</code></td><td>Log collections</td><td>Always on.</td></tr>
+      <tr><td><code>-XX:MaxGCPauseMillis</code></td><td>Asks G1 to aim for pauses under a target</td><td>Only with a real latency requirement, and only after measuring.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Why the starting size and the maximum are usually the same</h3>
+  <p>By default Java starts with a small heap and grows it as needed. On a desktop application that is polite, because it does not claim memory it may never use.</p>
+  <p>On a server it is just a slow start. The heap grows in steps, and every growth is work. Worse, the collector tunes itself based on the heap size it is working with, so while the heap is still growing it is tuning for a size that keeps changing.</p>
+  <pre><code>-Xms2g -Xmx2g</code></pre>
+  <p>Setting them equal means the heap is its final size immediately, and the collector settles into steady behaviour from the first request. On a container this is even clearer: the memory is reserved for your program anyway, so there is nothing to be gained by claiming it gradually.</p>
+
+  <div class="note">
+    <p><b>The order to work in.</b> Measure first, using the log. Then reduce how much garbage you create. Then size the heap correctly. Only then consider changing the collector. Almost everybody does this in reverse, starting with the collector, which is the step least likely to help.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>Copying a list of settings from a blog post.</b> Tuning is a response to a measurement on your workload. Settings that helped somebody else's service can easily make yours worse, and you will have no idea which one did it because they were applied together.</p>
+    <p><b>Setting a pause target and treating it as a promise.</b> It is a goal, not a guarantee. Ask for something unrealistic and the collector will collect more often trying to reach it, which can leave you with worse throughput and still miss the target.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Is a bigger heap always better?</summary>
+    <div class="rvb">
+      <p>No, and the reason is a good answer because most people assume yes.</p>
+      <p>A bigger heap does give you <strong>fewer collections</strong>, because it takes longer to fill. That part is real and is often the right fix.</p>
+      <p>But it can also give you <strong>longer collections</strong>. Work in the old area depends on how much live data there is to walk through. A heap twice the size holding twice the live data takes longer to clean, so you have traded frequent short pauses for rare long ones. If your problem was the length of individual pauses, you just made it worse.</p>
+      <p>There is a second cost that catches people out in containers. The heap is not the whole memory your program uses. Thread stacks, class information and off-heap buffers all sit outside it. Give the heap almost everything and the total can exceed the container limit, at which point the system stops your program with no warning and no snapshot, which is the exit code 137 situation.</p>
+      <p>So the honest answer: bigger heap for collections that are too frequent, not for collections that are too long, and never so big that nothing is left for everything outside it.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How would you approach a service with pauses that are too long?</summary>
+    <div class="rvb">
+      <p>A specific order, and the order itself is the answer.</p>
+      <p><strong>1. Measure what is actually happening.</strong> Turn on the log and find the real numbers: how long, how often, and which kind of collection. Very often the pauses turn out to be fine and the latency complaint is coming from somewhere else entirely, like a slow query.</p>
+      <p><strong>2. Work out the share of time.</strong> If cleanup accounts for a small percentage of wall clock time, tuning it has very little headroom to give you, no matter what you do.</p>
+      <p><strong>3. Look at what is being created.</strong> High allocation drives everything else. Finding one hot path making unnecessary objects usually beats every setting change combined.</p>
+      <p><strong>4. Size the heap for the pattern.</strong> Frequent short pauses suggest the young area is too small. Long pauses suggest a lot of live data, which is a different problem and may be a leak.</p>
+      <p><strong>5. Only now consider the collector,</strong> and only against a stated target: "requests must stay under 50 milliseconds, and pauses of 80 are breaking that".</p>
+      <p>What makes this a strong answer is that four of the five steps happen before you change anything. That is what separates someone who has tuned a real system from someone who has read a list of settings.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> Java inside a container</h2>
+
+  <ul class="prompts">
+    <li>You give a container 4 GB. How much heap does Java take by default?</li>
+    <li>Why use a percentage rather than a fixed heap size?</li>
+    <li>What has to fit in the memory the heap does not use?</li>
+  </ul>
+
+  <div class="teach">
+  <p>This is where most real production surprises live, and it is asked constantly now because nearly everything runs in a container.</p>
+
+  <div class="note">
+    <p><b>Measured on a real Java 24 installation:</b> <code>MaxRAMPercentage</code> defaults to <b>25.0</b>. Give your container 4 GB and Java will take about 1 GB of it for the heap, all by itself, without telling you.</p>
+  </div>
+
+  <p>Java reads the container's memory limit correctly. It then deliberately takes a quarter of it, because it knows the heap is not the only thing it needs memory for. That default is safe and far more cautious than most services need.</p>
+
+  <h3>Work out your own numbers</h3>
+  <p>Pick a container size and a percentage and see what the heap actually becomes, and what is left for everything else.</p>
+
+  <div class="calc">
+    <div class="calcrow">
+      <span>Container memory limit</span>
+      <div class="chips" id="memChips">
+        <button class="chip" data-v="512" aria-pressed="false">512 MB</button>
+        <button class="chip" data-v="1024" aria-pressed="false">1 GB</button>
+        <button class="chip" data-v="2048" aria-pressed="false">2 GB</button>
+        <button class="chip" data-v="4096" aria-pressed="true">4 GB</button>
+        <button class="chip" data-v="8192" aria-pressed="false">8 GB</button>
+      </div>
+    </div>
+    <div class="calcrow">
+      <span>MaxRAMPercentage</span>
+      <div class="chips" id="pctChips">
+        <button class="chip" data-v="25" aria-pressed="true">25 (default)</button>
+        <button class="chip" data-v="50" aria-pressed="false">50</button>
+        <button class="chip" data-v="65" aria-pressed="false">65</button>
+        <button class="chip" data-v="75" aria-pressed="false">75</button>
+        <button class="chip" data-v="90" aria-pressed="false">90</button>
+      </div>
+    </div>
+    <div class="calcout">
+      <div><div class="calcbig" id="calcHeap">1024 MB</div><small>heap</small></div>
+      <div><div class="calcbig" id="calcRest">3072 MB</div><small>left for everything else</small></div>
+      <div class="calcnote" id="calcNote"></div>
+    </div>
+  </div>
+
+  <p>The numbers in that calculator match a real measurement. On a machine with about 16 GB, asking Java for these percentages produced heaps of 4054 MB at 25 percent, 8108 MB at 50 percent and 11352 MB at 70 percent. The arithmetic is exactly what you would expect, which is the point: there is nothing mysterious happening, people simply do not know the default is a quarter.</p>
+
+  <h3>What lives in the memory the heap does not use</h3>
+  <p>The leftover is not spare. It has to cover everything Java needs that is not the heap.</p>
+  <ul class="body">
+    <li><strong>Thread stacks</strong>, roughly 1 MB per thread. Two hundred threads is 200 MB.</li>
+    <li><strong>Class information</strong>, which grows with how many classes you load, and frameworks load a lot.</li>
+    <li><strong>Translated code</strong>, the compiled versions of your hot methods.</li>
+    <li><strong>Off-heap buffers</strong>, used heavily by networking libraries.</li>
+    <li><strong>The collector's own bookkeeping</strong>, which for some collectors is a meaningful share.</li>
+  </ul>
+  <p>That is why 90 percent is in the calculator and why choosing it warns you. Give the heap 90 percent of a small container and the remaining tenth cannot cover the rest, so the system stops your program for exceeding its total limit.</p>
+
+  <h3>Why a percentage and not a fixed size</h3>
+  <pre><code><span class="cm"># fragile: breaks silently if the container limit is ever reduced</span>
+-Xmx3g
+
+<span class="cm"># adapts: same image works at any container size</span>
+-XX:MaxRAMPercentage=70.0</code></pre>
+  <p>A fixed size is baked into the image. Someone reduces the container limit to 2 GB for cost reasons, your image still asks for a 3 GB heap, and it dies on startup or shortly after. Nobody connects the two changes because they were made by different people weeks apart.</p>
+
+  <div class="wrong">
+    <p><b>"We gave the pod 4 GB so Java has 4 GB."</b> It has about 1 GB unless you said otherwise, and the other 3 GB sits unused while your service struggles.</p>
+    <p><b>"Set the heap to the container limit."</b> Then there is nothing left for threads, classes and buffers, and the system kills the container with no error message and no snapshot.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>How do you know how much to leave for everything else?</summary>
+    <div class="rvb">
+      <p>Estimate first, then measure, and be willing to say you would check rather than quoting a number confidently.</p>
+      <p>A rough starting estimate: about 1 MB per thread you expect to run, a couple of hundred megabytes for class information on a typical framework application, and more if you use networking libraries that allocate outside the heap. For an ordinary service that tends to land somewhere around a quarter to a third of the container.</p>
+      <p>Then measure rather than trusting the estimate. Java can report a breakdown of where its memory is going, covering the heap, class information, thread stacks and internal structures. Run it under realistic load and you get real numbers instead of guesses.</p>
+      <p>The practical rule most teams settle on is 65 to 75 percent for the heap on a container running only Java. Below that you are wasting memory you paid for. Above it you are gambling that nothing outside the heap grows.</p>
+      <p>Worth adding: if the answer matters enough to argue about, it matters enough to measure, and it takes one run under load to find out.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Does the collector choice change how much memory you need?</summary>
+    <div class="rvb">
+      <p>Yes, and it is a good detail because it connects the two topics.</p>
+      <p>Collectors keep their own bookkeeping structures, and how much they need varies. The simpler ones need relatively little. The ones that do work alongside your running program need more, because tracking what changed during a scan takes space, and they need spare room to move objects into while the program is still using the originals.</p>
+      <p>That spare room is the part people miss. A collector that works alongside your program cannot wait for a convenient moment to compact memory, so it needs headroom to work in. Run it in a heap that is nearly full of live data and it cannot keep ahead of the program.</p>
+      <p>This showed up while producing the measurements on this page. Running ZGC in a 256 MB heap holding about 135 MB of live data caused it to stall and abort, because it had nowhere near enough working room. The same collector in a 512 MB heap ran comfortably.</p>
+      <p>So the rule: shorter pauses cost memory as well as throughput. If you switch to a collector for its pause behaviour, give it more heap at the same time, not less.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> When cleanup gives up</h2>
+
+  <ul class="prompts">
+    <li>What exactly does "GC overhead limit exceeded" mean?</li>
+    <li>Why is it better news than a plain out of memory error?</li>
+    <li>What would you do first when you see it?</li>
+  </ul>
+
+  <div class="teach">
+  <p>This message is a safety net, and it is the most informative failure in this whole area because of what it tells you about the shape of the problem.</p>
+  <div class="note">
+    <p><b>What it means precisely.</b> Java spent <b>more than 98 percent of its time collecting</b> while <b>recovering less than 2 percent of the heap</b>, several times in a row. So it gave up and threw an error rather than continue.</p>
+  </div>
+
+  <h3>Why this is different from simply running out</h3>
+  <p>The heap is not quite full. Java could still create objects. Technically nothing has failed.</p>
+  <p>But almost everything in the heap is still being pointed at, so each collection walks through all of it and frees almost nothing. Then the program creates a little more, and it happens again. Your application is spending nearly all its time cleaning up and getting nothing back, which means it is doing essentially no real work.</p>
+  <p>Without this safety net you would not get an error at all. You would get a service that responds so slowly it looks frozen, with a processor pinned at 100 percent and no obvious cause, which is a much harder thing to diagnose.</p>
+
+  <h3>Watch the difference</h3>
+  <p>Go back to the simulator in Chapter 1 and switch it to "objects keep surviving". Same rate of creation, but nothing dies. Watch what happens to the total pause time as the old area fills up: collections become more frequent and recover less each time, until nearly all the time is spent collecting.</p>
+
+  <h3>What it tells you to do</h3>
+  <p>This is nearly always a leak, so treat it as one. That means the diagnosis from Episode 1 applies directly: take a memory snapshot, open it, find what is holding the most memory, and follow the chain back to what is pointing at it.</p>
+  <p>The tempting wrong move is to raise the heap. Occasionally that is right, when the application genuinely needs more room than it was given. Usually it just delays the same failure, because if live data grows without limit then no heap size is enough. A bigger heap turns a daily crash into a weekly one.</p>
+
+  <div class="wrong">
+    <p><b>"Turn the safety net off."</b> There is a setting to disable it and it is almost always the wrong move. It converts a clear early error that names the problem into a service that quietly grinds to a halt. You have removed the warning, not the fault.</p>
+    <p><b>"Increase the heap."</b> Sometimes right, usually a delay. Confirm from the log whether live data is growing before deciding.</p>
+  </div>
+
+  <h3>Telling the two apart from the log</h3>
+  <pre><code><span class="cm"># heap simply too small: recovers to the same level each time</span>
+Pause Full 480M-><span class="st">120M</span>(512M)
+Pause Full 490M-><span class="st">122M</span>(512M)
+Pause Full 485M-><span class="st">121M</span>(512M)
+
+<span class="cm"># a leak: recovers less every time, and the baseline climbs</span>
+Pause Full 480M-><span class="bad">300M</span>(512M)
+Pause Full 495M-><span class="bad">380M</span>(512M)
+Pause Full 502M-><span class="bad">450M</span>(512M)</code></pre>
+  <p>Look only at the number after the arrow across several full collections. Steady means the heap is undersized. Climbing means something is accumulating, and more memory will not save you.</p>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Could you get this error without having a leak?</summary>
+    <div class="rvb">
+      <p>Yes, and being able to name the cases shows you are not just pattern matching.</p>
+      <p><strong>The heap is genuinely too small for the work.</strong> An application legitimately holding 900 MB of live data in a 1 GB heap has almost no room to work in, so every collection walks nearly the whole heap and frees very little. Nothing is leaking, the sizing is simply wrong.</p>
+      <p><strong>A large temporary workload.</strong> A report that loads a million rows at once might genuinely need that memory briefly. Nothing is leaked, it is released afterwards, but during the job the heap is full of live data.</p>
+      <p><strong>A cache that is doing its job.</strong> A cache configured to hold far more than the heap can accommodate is not leaking, because it will evict eventually. It is just sized wrongly relative to the heap.</p>
+      <p>The way to tell them apart is what the log does over time. A leak shows the amount in use after each full collection climbing without limit. The cases above show a high but <em>stable</em> level, or a spike that returns to normal when the job finishes.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How is this connected to a service being slow rather than crashing?</summary>
+    <div class="rvb">
+      <p>They are usually the same problem seen at different stages, and joining them up is what makes an answer sound experienced.</p>
+      <p>A leak does not begin with a crash. It begins with the amount of live data creeping up. More live data means each collection has more to walk through, so pauses get longer. More live data also means less free space, so collections happen more often. Longer and more frequent at the same time.</p>
+      <p>Long before anything runs out, users start noticing. Response times get worse, especially the slowest requests, because those are the ones that happened to land during a pause. Someone reports the service is slow. Nobody suspects memory, because there is plenty free.</p>
+      <p>Then it reaches the point where nearly all the time is going into cleanup, and you get this error. So the error is the <em>end</em> of a story that started as a performance complaint days or weeks earlier.</p>
+      <p>The practical consequence, and the useful thing to say: when someone reports gradually worsening latency, check the garbage collection log early. Rising live data after full collections tells you it is a memory problem before it becomes a memory failure.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ QUIZ ============ -->
+<section class="ch" id="quiz">
+  <h2><em>Q</em> Quiz</h2>
+  <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+  <div class="quiz">
+    <div class="qhead">
+      <span class="qn" id="qNum">1 / 12</span>
+      <span id="qChap">Chapter 1</span>
+      <span class="sc" id="qScore">0 correct</span>
+    </div>
+    <div class="qbody" id="qBody"></div>
+    <div class="qacts" id="qActs"></div>
+  </div>
+</section>
+
+<section class="ch" id="allq">
+  <h2><em>R</em> Every question, with answers</h2>
+  <p>The same twelve questions as a plain list, for revising quickly.</p>
+  <div id="allqList"></div>
+</section>
+
+<section class="ch" id="gloss" style="border-bottom:none">
+  <h2><em>G</em> Word list</h2>
+  <p>Every term on this page that you might not already know.</p>
+  <dl class="gloss">
+    <dt>garbage collection</dt><dd>Java automatically reclaiming memory used by objects that nothing points at any more. Often shortened to GC.</dd>
+    <dt>stop-the-world pause</dt><dd>A moment when Java freezes every application thread so it can do collection work safely. The thing all this is trying to keep short.</dd>
+    <dt>young area</dt><dd>Where new objects are created. Cleaned often and cheaply, because almost everything in it is garbage. Also called the young generation.</dd>
+    <dt>old area</dt><dd>Where objects go once they have survived several collections. Cleaned rarely and expensively. Also called the old generation or tenured space.</dd>
+    <dt>Eden</dt><dd>The part of the young area where every new object is first placed.</dd>
+    <dt>survivor space</dt><dd>Two small areas next to Eden. Objects that survive a collection are copied into one of them, and the two swap roles each time.</dd>
+    <dt>promotion</dt><dd>Moving an object from the young area into the old area, once it has survived enough collections.</dd>
+    <dt>premature promotion</dt><dd>Objects being moved to the old area too early, usually because the survivor space is full, so things that were about to become garbage end up in the expensive area.</dd>
+    <dt>concurrent</dt><dd>Collector work that happens at the same time as your program runs, rather than while it is frozen. Costs some overall speed, buys much shorter freezes.</dd>
+    <dt>throughput</dt><dd>How much real work your program gets done. A collector that maximises this finishes sooner but stops you for longer at a time.</dd>
+    <dt>latency</dt><dd>How long a single operation takes. A collector that optimises this keeps every freeze short, at some cost to overall speed.</dd>
+    <dt>allocation rate</dt><dd>How fast your program creates new objects, for example 6.9 GB per second. High rates drive everything else about collection behaviour.</dd>
+    <dt>G1</dt><dd>The default collector since Java 9. Splits the heap into many small parts and cleans the ones with the most garbage first, aiming to avoid ever needing a full collection.</dd>
+    <dt>ZGC</dt><dd>A collector built for very short pauses. Does nearly all its work alongside your running program. Measured here at a worst pause of 0.020 milliseconds.</dd>
+    <dt>evacuation</dt><dd>G1's word for copying the surviving objects out of a part of the heap so that whole part can be reused. When a real log line says "G1 Evacuation Pause", it just means an ordinary young collection.</dd>
+    <dt>full collection</dt><dd>A collection that covers the entire heap including the old area. The expensive kind. Under G1 it is a sign something is wrong.</dd>
+    <dt>MaxRAMPercentage</dt><dd>The share of the container's memory limit Java will use for the heap. Defaults to 25, which surprises almost everyone.</dd>
+  </dl>
+</section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+          set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("gc.ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("gc.ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("gc.rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("gc.rev")==="1") setRev(true);
+
+  /* generations */
+  var GEN={
+    eden:{t:"Eden",tag:"cleaned constantly",h:"Where every new object is born",
+      p:"When you write new, the object lands here. Eden fills up quickly and then a young collection runs. Because almost everything in Eden is already garbage by that point, the collector does not delete the garbage: it copies out the handful of survivors and then treats the whole space as empty. That is why the cost depends on how many objects survived, not on how many you created. Create a million objects, have two survive, and the collector deals with two."},
+    surv:{t:"The two survivor spaces",tag:"the waiting room",h:"Where objects prove they are not garbage",
+      p:"Objects that survive a collection are copied here rather than going straight to the old area, because most of them will still die shortly and it would be wasteful to promote them. There are two spaces and only one is in use at a time. Each collection copies survivors into the empty one, then the two swap. Copying into a fresh space packs objects together with no gaps, which is why allocating a new object afterwards is little more than moving a pointer along."},
+    old:{t:"The old area",tag:"the expensive one",h:"Objects that have survived several collections",
+      p:"Caches, connection pools, configuration, and anything else with a long life ends up here. The young area trick does not work, because most of what is here is genuinely still in use, so the collector cannot assume it is all garbage. It has to walk through everything to find what is still reachable and then usually shuffle survivors together to close the gaps. Far more work over far more data, which is where the long pauses come from. This is also where a memory leak accumulates."}
+  };
+  var genOut=document.getElementById("genOut");
+  [].slice.call(document.querySelectorAll("[data-r]")).forEach(function(g){
+    function pick(){
+      var d=GEN[g.dataset.r]; if(!d) return;
+      document.querySelectorAll("[data-r]").forEach(function(x){x.classList.remove("sel")});
+      g.classList.add("sel");
+      genOut.innerHTML='<span class="tag">'+d.tag+'</span><h6>'+d.t+'. '+d.h+'</h6><p>'+d.p+'</p>';
+    }
+    g.addEventListener("click",pick);
+    g.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}});
+  });
+
+  /* generational simulator */
+  var EDEN_MAX=40, OLD_MAX=44;
+  var edenEl=document.getElementById("eden"), survEl=document.getElementById("surv"), oldEl=document.getElementById("old");
+  var sim={t:null,eden:0,surv:0,old:0,young:0,full:0,pause:0,leak:false,dead:false,ticks:0};
+  var elY=document.getElementById("sYoung"),elF=document.getElementById("sFull"),elP=document.getElementById("sPause"),
+      elE=document.getElementById("edenCount"),elS=document.getElementById("survCount"),elO=document.getElementById("oldCount"),
+      foot=document.getElementById("simFoot"),runBtn=document.getElementById("simRun"),modeBtn=document.getElementById("simMode");
+
+  function fill(el,n,cls){
+    el.innerHTML="";
+    for(var i=0;i<n;i++){var d=document.createElement("div");d.className="obj"+(cls?" "+cls:"");el.appendChild(d)}
+  }
+  function paintSim(){
+    fill(edenEl,sim.eden); fill(survEl,sim.surv); fill(oldEl,sim.old,"old");
+    elE.textContent=sim.eden; elS.textContent=sim.surv; elO.textContent=sim.old+" / "+OLD_MAX;
+    elY.textContent=sim.young; elF.textContent=sim.full; elP.textContent=sim.pause.toFixed(1)+" ms";
+  }
+  function stopSim(){if(sim.t){clearInterval(sim.t);sim.t=null}runBtn.textContent="Run"}
+  function resetSim(){
+    stopSim(); sim.eden=0;sim.surv=0;sim.old=0;sim.young=0;sim.full=0;sim.pause=0;sim.dead=false;sim.ticks=0;
+    foot.className="simfoot";
+    foot.textContent=sim.leak?"Nothing dies now. Watch the old area fill and the total pause time climb.":"Press Run. Each square is an object.";
+    paintSim();
+  }
+  function tick(){
+    sim.ticks++;
+    sim.eden+=6;
+    if(sim.eden>=EDEN_MAX){
+      sim.young++;
+      // survivors: a few normally, nearly all when leaking
+      var survivors=sim.leak?Math.round(sim.eden*0.8):Math.max(1,Math.round(sim.eden*0.06));
+      sim.pause+=0.8+survivors*0.12;              // cost scales with survivors
+      sim.eden=0;
+      sim.old+=Math.min(survivors,OLD_MAX-sim.old);
+      sim.surv=sim.leak?2:1;
+      foot.className="simfoot gc";
+      foot.textContent="Young collection: "+survivors+" survived out of "+EDEN_MAX+". Eden cleared.";
+      if(sim.old>=OLD_MAX){
+        sim.full++;
+        var recovered=sim.leak?Math.round(OLD_MAX*0.04):Math.round(OLD_MAX*0.55);
+        sim.pause+=14+ (sim.leak?sim.full*3:0);   // full collections are expensive, worse when leaking
+        sim.old-=recovered;
+        if(sim.leak&&sim.full>=5){
+          stopSim(); sim.dead=true; paintSim();
+          foot.className="simfoot crash";
+          foot.textContent="GC overhead limit exceeded. "+sim.full+" full collections recovered almost nothing, and "+sim.pause.toFixed(0)+" ms of the run went into cleanup. Java gave up rather than keep trying.";
+          return;
+        }
+        foot.className="simfoot crash";
+        foot.textContent="Full collection: recovered "+recovered+" objects. This is the expensive one.";
+      }
+    }
+    if(!sim.leak&&sim.ticks>=45){
+      stopSim(); paintSim();
+      foot.className="simfoot ok";
+      foot.textContent="Healthy: "+sim.young+" young collections, "+sim.full+" full, "+sim.pause.toFixed(1)+" ms total. The old area stayed under control because almost everything died young.";
+      return;
+    }
+    paintSim();
+  }
+  runBtn.addEventListener("click",function(){
+    if(sim.t){stopSim();return}
+    if(sim.dead||(!sim.leak&&sim.ticks>=45)) resetSim();
+    runBtn.textContent="Pause"; sim.t=setInterval(tick,260);
+  });
+  modeBtn.addEventListener("click",function(){
+    sim.leak=!sim.leak;
+    modeBtn.setAttribute("aria-pressed",sim.leak?"true":"false");
+    modeBtn.textContent=sim.leak?"Objects keep surviving":"Most objects die young";
+    resetSim();
+  });
+  document.getElementById("simReset").addEventListener("click",resetSim);
+  resetSim();
+
+  /* collectors */
+  var COL={
+    serial:{v:"Serial: one thread, simplest possible",
+      n:"Does everything with a single thread while your program is stopped. That sounds bad and is exactly right in one situation: a small container with a single processor. With one core there is nothing to run in parallel, so the coordination the other collectors do is pure overhead. In the measurements it was the slowest overall at 487 ms and had the most stops, but it is also the least complicated thing that can possibly work.",
+      x:"-XX:+UseSerialGC"},
+    parallel:{v:"Parallel: finish the work as fast as possible",
+      n:"Uses many threads to do the collection, but still stops your program for the whole of it. Built for getting the most total work done rather than keeping any individual freeze short. In the measurements it had the fewest stops, 28, and the second best wall time at 386 ms, but its worst single freeze was the longest of all at 23.45 ms. Right for batch jobs where nobody is waiting on a response.",
+      x:"-XX:+UseParallelGC"},
+    g1:{v:"G1: a sensible default for almost everything",
+      n:"Splits the heap into many small parts and tracks which hold the most garbage, then cleans those first, spreading the work out so the old area rarely fills. In the measurements it had zero full collections where Serial had two, the shortest total freeze of the three stop-the-world collectors at 97.6 ms, and the fastest wall time at 378 ms. It is the default since Java 9 because it is a reasonable answer without tuning. If you see full collections under G1, take it as a warning that it could not keep up.",
+      x:"-XX:+UseG1GC   (already the default)"},
+    zgc:{v:"ZGC: keep every freeze tiny",
+      n:"Does nearly all its work alongside your running program, stopping everything only for a few very short moments per cycle. In the measurements it stopped the program more often than anything else, 109 times, yet its total freeze was 0.64 ms and its worst single freeze was 0.020 ms, about 775 times shorter than G1's worst. The cost is throughput and memory: it took 438 ms against G1's 378 ms, and in a 256 MB heap it stalled outright because it had no room to work in. Choose it when you have a real latency target, and give it more heap when you do.",
+      x:"-XX:+UseZGC"}
+  };
+  var colOut=document.getElementById("colOut");
+  [].slice.call(document.querySelectorAll("#colOpts .opt")).forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("#colOpts .opt").forEach(function(x){x.setAttribute("aria-pressed","false")});
+      b.setAttribute("aria-pressed","true");
+      var d=COL[b.dataset.k];
+      colOut.innerHTML='<span class="lbl">Collector</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p><p><span class="lbl">Setting</span><code>'+d.x+'</code></p>';
+    });
+  });
+
+  /* log line anatomy */
+  var FLD={
+    time:{t:"Time since the program started",p:"How far into the run this collection happened. Its real use is comparing two consecutive lines: the gap between them tells you how often collections are happening, and combined with the memory numbers it gives you how fast your program creates objects."},
+    id:{t:"A counter for collections",p:"Just a sequence number, starting at zero. Useful for referring to a specific collection when reading a long log, and for spotting gaps if the log was rotated mid run."},
+    kind:{t:"Which kind of collection",p:"Young means only the young area was cleaned, which is the cheap common case. Full means the entire heap including the old area, which is the expensive one. Under G1 a full collection is a warning sign, because G1 is specifically designed to avoid needing them."},
+    cause:{t:"Why it happened",p:"An ordinary young collection because the young area filled is normal. Allocation failure means the program asked for memory and none was available, so cleanup had to happen immediately rather than at a convenient moment. A collection caused by code explicitly asking for one is worth investigating, because something in your application or a library is calling for cleanup by hand, which is nearly always wrong."},
+    before:{t:"Heap in use before",p:"How much of the heap was occupied when the collection started. On its own it means little, because it naturally rises to near the limit before every collection. It becomes useful paired with the previous line's after number, which together tell you how much was created in between."},
+    after:{t:"Heap in use after",p:"The single most useful number in the whole log. This is what was still being pointed at once cleanup finished. Going up and down around a steady level is healthy. Climbing steadily across many collections and never returning means you are accumulating something, which is the shape of a memory leak and shows up here days before anything crashes."},
+    total:{t:"Current heap size",p:"How big the heap is right now, which is not the same as the maximum it may grow to. If this number keeps changing, the heap is still growing towards its limit, which is why setting the starting size equal to the maximum is common on servers: it removes that growth phase entirely."},
+    dur:{t:"How long everything was frozen",p:"The pause itself, and the number people quote. Worth pairing with how often it happens: a 2 ms pause every 30 ms costs more of your time than a 20 ms pause every 10 seconds. Also worth knowing that for collectors that work alongside your program, this figure covers only the short stops, not the concurrent work happening around them."}
+  };
+  var fldOut=document.getElementById("fldOut");
+  [].slice.call(document.querySelectorAll(".fld")).forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll(".fld").forEach(function(x){x.setAttribute("aria-pressed","false")});
+      b.setAttribute("aria-pressed","true");
+      var d=FLD[b.dataset.f]; if(!d) return;
+      fldOut.innerHTML='<span class="tag">'+b.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+    });
+  });
+
+  /* container heap calculator */
+  var mem=4096, pct=25;
+  var calcHeap=document.getElementById("calcHeap"),calcRest=document.getElementById("calcRest"),calcNote=document.getElementById("calcNote");
+  function fmt(mb){return mb>=1024&&mb%1024===0?(mb/1024)+" GB":Math.round(mb)+" MB"}
+  function paintCalc(){
+    var heap=Math.round(mem*pct/100), rest=mem-heap;
+    calcHeap.textContent=fmt(heap); calcRest.textContent=fmt(rest);
+    var msg;
+    if(pct===25){
+      msg="This is the default. Java takes a quarter of the limit unless you tell it otherwise, so "+fmt(rest)+" of the "+fmt(mem)+" you paid for sits unused by the heap. This is the single most common container surprise.";
+    }else if(pct>=90){
+      msg="Dangerous. Only "+fmt(rest)+" is left for thread stacks, class information, translated code and off-heap buffers. On a real service that is not enough, and the system will stop your program for exceeding its total limit, with no error message and no snapshot.";
+    }else if(pct>=65&&pct<=75){
+      msg="This is the usual sensible range for a container running only Java. "+fmt(rest)+" left over covers threads, class information and buffers with a reasonable margin.";
+    }else{
+      msg="Workable, but conservative. "+fmt(rest)+" is more than most services need outside the heap, so you are likely leaving usable memory on the table.";
+    }
+    if(rest<256&&pct<90) msg+=" Be careful: under about 256 MB of headroom is tight for anything using a framework.";
+    calcNote.textContent=msg;
+  }
+  function wire(id,setter){
+    [].slice.call(document.querySelectorAll("#"+id+" .chip")).forEach(function(c){
+      c.addEventListener("click",function(){
+        document.querySelectorAll("#"+id+" .chip").forEach(function(x){x.setAttribute("aria-pressed","false")});
+        c.setAttribute("aria-pressed","true");
+        setter(parseInt(c.dataset.v,10)); paintCalc();
+      });
+    });
+  }
+  wire("memChips",function(v){mem=v}); wire("pctChips",function(v){pct=v});
+  paintCalc();
+
+  /* quiz */
+  var Q=[
+    {c:1,q:"Why is a young collection cheap and an old collection expensive?",
+     a:"Because of what each one has to do. In the young area almost everything is already garbage, so the collector copies out the few survivors and treats the whole space as empty. The cost depends on how many objects <b>survived</b>, not how many were created: a million created with two surviving costs the work of two. The old area is full of objects that have already proven they survive, so that trick does not work. The collector has to walk everything to find what is still reachable and then shuffle survivors together to close the gaps. Far more work over far more data."},
+    {c:1,q:"What is promotion, and what is premature promotion?",
+     a:"<b>Promotion</b> is moving an object from the young area into the old area once it has survived enough collections. Objects also go there early if they are too big for the young area at all. <b>Premature promotion</b> is when objects get moved to the old area too soon, usually because the survivor space is full and there is nowhere else to put them. That means things which were about to become garbage end up in the expensive area, causing more old collections than you should have. The fix is giving the young area more room, not less, which is why a bigger old area is not always the answer."},
+    {c:2,q:"ZGC stopped the program 109 times and G1 only 34. Why is ZGC still the low pause choice?",
+     a:"Because the number of stops does not matter, the length does. Across the same run, ZGC's total freeze was <b>0.64 ms</b> and its worst single freeze was <b>0.020 ms</b>. G1's worst single freeze was 15.54 ms, about 775 times longer. ZGC does nearly all its work alongside the running program and stops everything only for a few tiny moments per cycle. The cost shows in wall time: 438 ms against G1's 378 ms, so it bought a much shorter worst pause by giving up roughly 16 percent of throughput."},
+    {c:2,q:"G1 had zero full collections where Serial had two. What does that tell you?",
+     a:"That G1 does work in advance to avoid ever reaching that point. Serial and Parallel wait until the old area is full and then stop the program to work through all of it, which is where their 22 ms pauses came from. G1 tracks which parts of the heap hold the most garbage and cleans those a little at a time, aiming to stop the old area ever filling. So G1 did not have shorter full collections, it had none. The production consequence: a full collection appearing in G1 logs is a warning that it could not keep up, usually because the heap is too small or objects are being created faster than it can handle."},
+    {c:2,q:"When would you choose Parallel over G1?",
+     a:"When nobody is waiting on a response. Batch jobs, overnight processing, report generation, data migration. Parallel stops your program for the whole collection but is built to get the most total work done, so the job finishes sooner. Nobody experiences the pause, so trading a longer freeze for faster completion is the right call. The mirror image is a latency sensitive service, where the freeze is exactly what users feel and the trade goes the other way."},
+    {c:3,q:"In the log line 48M->3M(256M) 1.737ms, what does each number mean?",
+     a:"48M is heap in use before the collection, 3M is heap in use after, 256M is the current heap size (not the maximum it may grow to), and 1.737ms is how long everything was frozen. The one that matters most is <b>the number after the arrow</b>. Going up and down around a steady level is healthy. Climbing steadily across many collections and never coming back down means you are accumulating something, which is a leak showing itself in the log days before anything crashes."},
+    {c:3,q:"How do you work out how fast your program creates objects?",
+     a:"Take two consecutive log lines. Subtract the heap in use after the first collection from the heap in use before the second, then divide by the time between them. From the real capture: 114M before the second minus 3M after the first is 111 MB, over 0.016 seconds, which is about <b>6.9 GB per second</b>. Worth knowing because almost every pause problem is really an allocation problem. If you produce garbage faster than the collector can keep up, no collector setting fixes it, you have to create less."},
+    {c:4,q:"Why do people set the starting heap size equal to the maximum on a server?",
+     a:"Because by default Java starts small and grows the heap in steps, and each growth is work. Worse, the collector tunes its behaviour to the heap size it is working with, so while the heap is still growing it is tuning for a target that keeps moving. Setting <code>-Xms</code> equal to <code>-Xmx</code> means the heap is its final size immediately and the collector settles into steady behaviour from the first request. On a container it is clearer still, because the memory is reserved for your program anyway, so there is nothing gained by claiming it gradually."},
+    {c:4,q:"Is a bigger heap always better?",
+     a:"No. A bigger heap gives you <b>fewer</b> collections because it takes longer to fill, which is often the right fix. But it can also give you <b>longer</b> collections, because work in the old area depends on how much live data there is to walk through. So you may have traded frequent short pauses for rare long ones, which is worse if pause length was the problem. There is also a container cost: the heap is not the whole program, and giving it almost everything leaves nothing for thread stacks, class information and off-heap buffers, so the system kills you for exceeding the total limit."},
+    {c:5,q:"You give a container 4 GB. How much heap does Java take?",
+     a:"About <b>1 GB</b>, because <code>MaxRAMPercentage</code> defaults to <b>25</b>. Java reads the container limit correctly and then deliberately takes a quarter of it, because it knows the heap is not the only thing needing memory. That default is far more cautious than most services need. For a container running only Java, 65 to 75 percent is the usual sensible range. Use the percentage setting rather than a fixed size, so the same image still behaves correctly if someone changes the container limit later."},
+    {c:5,q:"What has to fit in the memory the heap does not use?",
+     a:"Thread stacks at roughly 1 MB each, so 200 threads is 200 MB. Class information, which grows with how many classes you load and frameworks load a lot. Translated code, the compiled versions of hot methods. Off-heap buffers, used heavily by networking libraries. And the collector's own bookkeeping, which for some collectors is a meaningful share. This is why setting the heap to the whole container limit kills you: none of that has anywhere to live, and the system stops the program with no error and no snapshot."},
+    {c:6,q:"What does 'GC overhead limit exceeded' actually mean, and what do you do?",
+     a:"Java spent <b>more than 98 percent of its time collecting while recovering less than 2 percent of the heap</b>, several times in a row, so it gave up. The heap is not quite full and objects can still be created, but almost everything is still being pointed at, so each collection frees nearly nothing and the application does no real work. It is better news than a plain out of memory error because it fires earlier and is strong evidence of a leak. Treat it as one: take a memory snapshot and find what is holding memory. Raising the heap usually just turns a daily crash into a weekly one. Check the log first: if the amount in use after each full collection is climbing, it is a leak; if it returns to the same level each time, the heap is simply undersized."}
+  ];
+  var qi=0,score=0,answered=[];
+  var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+      qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),qScore=document.getElementById("qScore");
+  function drawQ(){
+    if(qi>=Q.length){drawResult();return}
+    var q=Q[qi];
+    qNum.textContent=(qi+1)+" / "+Q.length;
+    qChap.textContent="Chapter "+q.c;
+    qScore.textContent=score+" correct";
+    qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+    qActs.innerHTML='';
+    var reveal=document.createElement("button");
+    reveal.className="btn"; reveal.textContent="Reveal answer";
+    reveal.addEventListener("click",function(){
+      qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+      qActs.innerHTML='';
+      var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+      var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+      g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;drawQ()});
+      b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;drawQ()});
+      qActs.appendChild(g);qActs.appendChild(b);
+    });
+    qActs.appendChild(reveal);
+  }
+  function drawResult(){
+    qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+    var weak={};
+    answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+    var names={1:"How cleanup works",2:"The four collectors",3:"Reading the log",4:"Settings that matter",5:"Inside a container",6:"When cleanup gives up"};
+    var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+    var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+    if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+    else{
+      html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+      ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+names[k]+'</a>, '+weak[k]+' missed</li>'});
+      html+='</ul>';
+    }
+    html+='</div>';
+    qBody.innerHTML=html; qActs.innerHTML='';
+    var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+    again.addEventListener("click",function(){qi=0;score=0;answered=[];drawQ()});
+    qActs.appendChild(again);
+  }
+  drawQ();
+  document.getElementById("quizBtn").addEventListener("click",function(){
+    qi=0;score=0;answered=[];drawQ();
+    document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+  });
+
+  var list=document.getElementById("allqList");
+  Q.forEach(function(q,i){
+    var d=document.createElement("details");d.className="rv";
+    d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a+'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+    list.appendChild(d);
+  });
+})();
+</script>
+</body>
+</html>

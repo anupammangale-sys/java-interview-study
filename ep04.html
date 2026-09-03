@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Inside a HashMap, episode 4 of the Java interview study series">
+<title>Inside a HashMap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* bucket simulator */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.buckets{padding:16px;display:grid;grid-template-columns:repeat(16,1fr);gap:4px}
+.bk{aspect-ratio:1;border-radius:4px;background:var(--surface-2);border:1px solid var(--line-soft);display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);transition:background-color .2s,border-color .2s}
+.bk.n1{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.bk.n2{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+.bk.n3{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.bk.tree{background:var(--alarm-bg);border-color:var(--alarm);color:var(--alarm);font-weight:700;box-shadow:inset 0 0 0 1px var(--alarm)}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="backlink" href="index.html">All episodes</a>
+  <div class="brand">
+    <b>Inside a HashMap</b>
+    <span>Episode 4 &middot; Collections Internals</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> Inside a HashMap</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> equals and hashCode</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> ConcurrentHashMap</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Which map to use</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Changing while walking</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> ArrayList vs LinkedList</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>The collection questions, answered by looking inside</h1>
+      <p class="sub">Everything on this page was produced by running code: reflecting into a real HashMap to watch it resize and change shape, timing lists against each other, and writing to a shared map from eight threads to see what actually breaks. The surprising results are the ones worth remembering.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> Inside a HashMap</h2>
+
+  <ul class="prompts">
+    <li>What happens, step by step, when you call put?</li>
+    <li>What is the default capacity and load factor, and when does it resize?</li>
+    <li>What happens when two keys land in the same bucket?</li>
+    <li>When does a bucket become a tree? Both conditions.</li>
+    <li>Why is resizing expensive?</li>
+  </ul>
+
+  <div class="teach">
+  <p>A HashMap is an array of buckets. Each bucket holds entries whose keys landed there. That is the whole idea, and everything else is detail about what happens when the array fills up or too many keys land in one place.</p>
+
+  <h3>What put actually does</h3>
+  <ol class="body">
+    <li>Call <code>hashCode()</code> on the key.</li>
+    <li>Mix that number a little, so that keys whose hash codes differ only in the high bits still land in different buckets.</li>
+    <li>Turn it into an index into the array.</li>
+    <li>If that bucket is empty, put the entry there.</li>
+    <li>If it is not empty, walk what is already there. If a key <code>equals()</code> yours, replace its value. Otherwise add yours to the end.</li>
+    <li>If the map is now too full, double the array and move everything.</li>
+  </ol>
+
+  <h3>Measured: when does it resize?</h3>
+  <p>Adding entries one at a time to a real HashMap and reading its internal array after each one:</p>
+  <pre><code>size   1 -> capacity became  16  (resizes when size passes 12)
+size  13 -> capacity became  32  (resizes when size passes 24)
+size  25 -> capacity became  64  (resizes when size passes 48)
+size  49 -> capacity became 128  (resizes when size passes 96)
+size  97 -> capacity became 256  (resizes when size passes 192)</code></pre>
+  <p>So: <strong>capacity starts at 16, and doubles once size passes capacity times 0.75</strong>. That 0.75 is the load factor. Those are the two numbers the question is asking for.</p>
+
+  <h3>Measured: do keys spread out evenly?</h3>
+  <p>Not as evenly as people assume. A thousand keys in a real map:</p>
+  <pre><code>1000 keys in a table of 2048 buckets
+  buckets used   : 602
+  buckets empty  : 1446
+  longest chain  : 4 entries</code></pre>
+  <p>Only 602 buckets held anything, and the busiest held 4 entries. That is normal. Hashing spreads keys out well enough, not perfectly, and a HashMap is designed to cope with some clustering rather than to prevent it.</p>
+
+  <h3>Try it</h3>
+  <p>Add keys and watch the buckets fill, the capacity double, and the colour change as chains get longer. Then switch to keys that all collide and watch something different happen.</p>
+
+  <div class="sim">
+    <div class="simhead">
+      <button class="btn" id="simRun">Add 10 keys</button>
+      <button class="btn" id="simAuto">Run</button>
+      <button class="btn" id="simMode" aria-pressed="false">Normal keys</button>
+      <button class="btn" id="simReset">Reset</button>
+      <div class="sp">
+        <div class="stat">size<b id="sSize">0</b></div>
+        <div class="stat">capacity<b id="sCap">16</b></div>
+        <div class="stat">resizes at<b id="sThr">12</b></div>
+        <div class="stat">longest chain<b id="sMax">0</b></div>
+      </div>
+    </div>
+    <div class="buckets" id="buckets" aria-hidden="true"></div>
+    <div class="simfoot" id="simFoot">Each square is a bucket. The number is how many entries landed in it.</div>
+  </div>
+
+  <h3>Measured: when does a bucket become a tree?</h3>
+  <p>This is the part almost everyone states incorrectly. The usual answer is "at 8 entries in a bucket". Here is what actually happens, using keys deliberately built so that every single one collides:</p>
+  <pre><code>after  8 puts: table= 16  chain= 8  bucket type = Node
+after  9 puts: table= 32  chain= 9  bucket type = Node      <span class="cm">&lt;-- resized instead</span>
+after 10 puts: table= 64  chain=10  bucket type = Node      <span class="cm">&lt;-- resized again</span>
+after 11 puts: table= 64  chain= 1  bucket type = <span class="bad">TreeNode</span>   <span class="cm">&lt;-- now it treeified</span></code></pre>
+  <p>The chain reached <strong>ten</strong> entries and still had not become a tree. Instead the map resized, twice.</p>
+  <div class="note">
+    <p><b>There are two conditions, not one.</b> A bucket becomes a tree only when it holds at least 8 entries <b>and</b> the array is at least 64 long. Below 64, HashMap resizes instead, because with a small array the collisions are more likely caused by a cramped array than by genuinely bad keys, and doubling it is the cheaper fix.</p>
+  </div>
+  <p>Why turn a chain into a tree at all? A chain has to be walked one entry at a time, so a bucket with a thousand entries takes a thousand steps. A tree can be searched far more efficiently, so even a badly clustered bucket stays fast. It is a defence against bad hashing, not something you should ever be relying on.</p>
+
+  <div class="wrong">
+    <p><b>"A bucket becomes a tree at 8 entries."</b> Only if the array is also at least 64 long. Otherwise the map resizes instead, which the measurement above shows happening twice while the chain sat at 9 and 10 entries.</p>
+    <p><b>"HashMap is O(1)."</b> On average, yes. In the worst case, where every key collides, it used to become O(n). Since the tree change it is O(log n) in that worst case, which is the actual reason trees were added.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why is resizing expensive?</summary>
+    <div class="rvb">
+      <p>Because it is not just allocating a bigger array. Every existing entry has to be looked at again and placed into the new array, since the bucket index depends on the array length, and the length just changed.</p>
+      <p>So a resize is proportional to how many entries you already have. Growing a map to a million entries means resizing repeatedly along the way, and each resize moves everything currently in there.</p>
+      <p>The practical consequence is worth stating: <strong>if you know roughly how many entries you will have, say so when you create the map</strong>. Passing an expected size lets it allocate a big enough array once instead of growing into it.</p>
+      <p>One catch worth knowing. The number you pass is the capacity, not the number of entries it can hold, so it still resizes once you pass capacity times 0.75. If you want room for 1000 entries without a resize, you need a capacity above 1333, not 1000.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why does HashMap mix the hash code instead of using it directly?</summary>
+    <div class="rvb">
+      <p>Because of how the bucket index is worked out. The array length is always a power of two, which lets the map find the index with a fast bitwise operation instead of a division. That operation keeps only the lowest bits of the hash code.</p>
+      <p>So with an array of 16, only the bottom 4 bits matter. Any two keys whose hash codes differ only in higher bits would land in the same bucket, even though their hash codes are completely different numbers.</p>
+      <p>That is not hypothetical. Plenty of real hashCode implementations produce values that vary mostly in the upper bits, for example anything derived from a memory address or a large identifier.</p>
+      <p>So before using the hash code, HashMap folds the high bits down into the low ones. It is one cheap operation that mixes the whole value into the part that actually gets used, and it turns a class of pathological cases back into ordinary ones.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why is the capacity always a power of two?</summary>
+    <div class="rvb">
+      <p>For speed, and it explains the previous answer.</p>
+      <p>To turn a hash code into a bucket index you need a number in range. The obvious way is a remainder operation, which is relatively slow. When the length is a power of two, you can get the same result with a single bitwise operation that simply keeps the lowest bits, which is far faster and happens on every single get and put.</p>
+      <p>It also makes resizing cheaper. When the array doubles, an entry either stays at its current index or moves to that index plus the old length. Nothing else is possible. That means the map can split each bucket into two without recomputing anything from scratch.</p>
+      <p>The cost is the one from the previous answer: keeping only the lowest bits throws away the high bits entirely, which is why the hash has to be mixed first. The two design decisions exist together.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> equals and hashCode</h2>
+
+  <ul class="prompts">
+    <li>What is the contract between equals and hashCode?</li>
+    <li>What breaks if you override equals but not hashCode?</li>
+    <li>What happens if you change a key after putting it in a map?</li>
+    <li>Why must map keys be immutable?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Everything in the previous chapter depends on two methods being consistent with each other. The rules are short.</p>
+  <div class="note">
+    <p><b>1.</b> If two objects are equal, they must have the same hash code.<br>
+       <b>2.</b> If two objects have the same hash code, they do not have to be equal.<br>
+       <b>3.</b> The hash code must not change while the object is in a map.</p>
+  </div>
+  <p>Rule 1 is the one people break by overriding <code>equals</code> and forgetting <code>hashCode</code>. Two objects you consider equal then get different hash codes, so they land in different buckets, so the map never even compares them. You put something in and cannot find it again.</p>
+  <p>Rule 3 is the one people break without realising, and it is worth seeing rather than being told.</p>
+
+  <h3>Measured: changing a key after putting it in</h3>
+  <p>A Customer whose <code>hashCode()</code> is based on its email. Put it in a map, then change the email:</p>
+  <pre><code>before changing the email:
+  get(c)      = order-1
+  size        = 1
+
+after changing the email:
+  get(c)      = <span class="bad">null</span>        <span class="cm">&lt;-- gone</span>
+  containsKey = <span class="bad">false</span>
+  remove(c)   = <span class="bad">null</span>        <span class="cm">&lt;-- cannot delete it either</span>
+  size        = <span class="bad">1</span>           <span class="cm">&lt;-- still there, taking memory</span>
+  iterating   = Customer(new@x.com) -> order-1   <span class="cm">&lt;-- visible, but unreachable</span></code></pre>
+  <p>Read those five lines carefully, because together they describe something genuinely nasty.</p>
+  <ul class="body">
+    <li>You cannot <strong>find</strong> it. <code>get</code> returns nothing.</li>
+    <li>You cannot <strong>delete</strong> it. <code>remove</code> does nothing.</li>
+    <li>It still <strong>counts</strong>. The size is 1.</li>
+    <li>It is still <strong>there</strong>. Walking the map shows it.</li>
+  </ul>
+  <p>The entry was filed under the old hash. Lookups now compute the new hash and search a different bucket. The map is still holding the entry, so it is never cleaned up, and your code has no way to reach it. That is a permanent leak, and it is the leak archetype from Episode 1 that nobody can find by searching.</p>
+  <p>The same thing happens with a Set. Adding an object and then changing it means the set no longer contains the very object you put in:</p>
+  <pre><code>contains(the very same object) = <span class="bad">false</span>
+size                           = 1</code></pre>
+
+  <h3>The fix</h3>
+  <p><strong>Use keys that cannot change.</strong> In modern Java a record is the easiest way, because its fields are final and it generates a correct <code>equals</code> and <code>hashCode</code> for you.</p>
+  <pre><code><span class="kw">record</span> CustomerId(String email) { }     <span class="cm">// cannot be changed after creation</span></code></pre>
+  <p>If you must use a mutable class as a key, base its identity on something that genuinely never changes, such as a database id assigned at creation, and never on a field a setter can touch.</p>
+
+  <div class="wrong">
+    <p><b>"I only need equals, hashCode is optional."</b> Only if the object never goes into a HashMap or HashSet, and you cannot guarantee that about a class other people will use. Override both or neither.</p>
+    <p><b>"Returning a constant from hashCode is valid."</b> It is technically legal, because equal objects do get the same hash code. It is also catastrophic: every key lands in one bucket, so the map degrades into a single long chain. That is exactly the setup used to force the tree behaviour in the previous chapter.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What exactly breaks if you override equals but not hashCode?</summary>
+    <div class="rvb">
+      <p>Anything hash based stops working, while everything else looks fine, which is what makes it hard to spot.</p>
+      <p>Without overriding <code>hashCode</code>, you inherit the default, which is derived from the object's identity rather than its contents. So two objects your <code>equals</code> considers equal get two unrelated hash codes.</p>
+      <p>The map computes a bucket from the hash code. Two equal objects land in different buckets. The map never compares them because it only compares within a bucket. So you put an entry in with one object and look it up with an equal one, and it is not found.</p>
+      <p>The reason this survives testing is that plain comparisons still work perfectly. <code>a.equals(b)</code> is true, <code>list.contains(a)</code> is true, because a list compares every element directly. Only hash based structures break, and only when the lookup object is a different instance from the one that was stored.</p>
+      <p>Also worth naming: <code>HashSet</code> is backed by a HashMap, so it has exactly the same problem, and so does using your object as a key anywhere in a cache.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Can two different objects have the same hash code on purpose?</summary>
+    <div class="rvb">
+      <p>Yes, and it is unavoidable rather than a flaw.</p>
+      <p>A hash code is a 32 bit number, so there are about four billion possible values. There are infinitely many possible strings. So different objects sharing a hash code is guaranteed by counting alone, no matter how good the hashing is.</p>
+      <p>That is exactly why the map does not trust the hash code by itself. It uses the hash code to pick a bucket, and then within that bucket it compares keys with <code>equals</code> to find the right one. The hash code narrows the search, <code>equals</code> decides the answer.</p>
+      <p>This is also why rule 2 exists: equal hash codes do not imply equal objects. Only the other direction is required.</p>
+      <p>The practical consequence for writing a <code>hashCode</code>: you are not trying to guarantee uniqueness, which is impossible. You are trying to spread values out so that unrelated keys rarely land together. Include the fields that actually distinguish your objects, and leave out ones that are usually the same for everything.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> ConcurrentHashMap</h2>
+
+  <ul class="prompts">
+    <li>What actually goes wrong if several threads write to a plain HashMap?</li>
+    <li>How did ConcurrentHashMap work in Java 7, and what changed in Java 8?</li>
+    <li>Why does it not allow null keys or values?</li>
+    <li>Why is it faster than wrapping a HashMap in a lock?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Everyone can say a HashMap is not thread safe. The interesting question is what that actually means, and the answer is worse than most people expect.</p>
+
+  <h3>Measured: eight threads writing to one map</h3>
+  <p>Eight threads, twenty thousand distinct keys each. No key is written twice, so a correct map ends with exactly 160,000 entries. Run five times:</p>
+  <pre><code>HashMap (no protection)
+  attempt 1: <span class="bad">DID NOT FINISH</span> - threads still spinning after 10s
+  attempt 2: 105,688 entries  <span class="bad">LOST 54,312</span>
+  attempt 3: <span class="bad">DID NOT FINISH</span> - threads still spinning after 10s
+  attempt 4: 160,000 entries  <span class="st">correct</span>
+  attempt 5: 151,665 entries  <span class="bad">LOST 8,335</span></code></pre>
+  <p>Three different outcomes from the same code. It lost a third of the data once, hung completely twice, and worked perfectly once.</p>
+  <div class="note">
+    <p><b>Attempt 4 is the most dangerous line in that output.</b> It was correct. That is why this bug reaches production: it passes review, it passes tests, it works on your machine, and then it loses data or hangs under real load. A bug that always failed would have been caught.</p>
+  </div>
+  <p>The hang is worth understanding. Two threads resizing the map at the same time can leave the internal structure pointing at itself in a loop. A later lookup then walks that loop forever, at full processor speed, and never returns. That is a thread stuck in <code>RUNNABLE</code> burning a whole core, which is exactly the shape of the problem from Episode 2.</p>
+
+  <h3>The same test with the safe options</h3>
+  <pre><code>Collections.synchronizedMap
+  attempt 1 to 5: 160,000 entries  <span class="st">correct</span>   (52, 77, 14, 15, 38 ms)
+
+ConcurrentHashMap
+  attempt 1 to 5: 160,000 entries  <span class="st">correct</span>   (117, 25, 31, 22, 12 ms)</code></pre>
+  <p>Both are correct every time. On this small test their speeds overlap, and that is worth being honest about rather than claiming a dramatic win: the difference between them shows up under sustained contention with many readers, not in a short burst.</p>
+
+  <h3>How it works, then and now</h3>
+  <p>This comes up as a direct question, so know both.</p>
+  <p><strong>Java 7: segments.</strong> The map was divided into a fixed number of independent sections, each with its own lock. Two threads writing to different sections did not block each other. The limit was the number of sections, so with 16 of them only 16 threads could ever write at once, no matter how big the map was.</p>
+  <p><strong>Java 8 onwards: per bucket.</strong> The segments are gone. Instead, adding to an empty bucket uses a single hardware level operation that either succeeds or fails without any lock at all. If the bucket already has entries, only that one bucket is locked while the entry is added.</p>
+  <p>The improvement is that the amount of possible parallel work now grows with the map. A bigger map has more buckets, so more threads can write at once, rather than being capped at a fixed number of sections.</p>
+  <p>Reads take no lock at all, in both versions.</p>
+
+  <div class="wrong">
+    <p><b>"HashMap is not thread safe, so you might see stale data."</b> Far too gentle. You can lose tens of thousands of entries, or hang the program with a thread spinning at full speed forever.</p>
+    <p><b>"ConcurrentHashMap locks the map on write."</b> It locks one bucket, and only when that bucket is already occupied. Adding to an empty bucket takes no lock at all.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why does ConcurrentHashMap not allow null keys or values?</summary>
+    <div class="rvb">
+      <p>Because with several threads, a null result would be genuinely ambiguous, and there would be no safe way to resolve it.</p>
+      <p>With a plain HashMap, <code>get</code> returning null could mean the key is absent, or the key is present with a null value stored against it. You resolve that by calling <code>containsKey</code>.</p>
+      <p>In a concurrent map that check does not help. Between your <code>get</code> returning null and your <code>containsKey</code> running, another thread may have added or removed that key. So the answer you get back describes a moment that has already passed, and there is no way to ask both questions as one atomic step.</p>
+      <p>Rather than provide a method whose result cannot be trusted, the designers removed the ambiguity: null is not allowed, so null always means absent.</p>
+      <p>Worth adding, because it demonstrates you understand rather than memorised: this is the difference between a design flaw and a deliberate trade. Allowing null would not have been unsafe, it would have been <em>unanswerable</em>, and an API that cannot answer its own question is worse than one that forbids the input.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What does "weakly consistent" mean for its iteration?</summary>
+    <div class="rvb">
+      <p>It means walking the map never throws, but it also does not promise you a single frozen moment in time.</p>
+      <p>A plain HashMap gives you the opposite deal. Change it while walking and it throws immediately, so you know your walk was invalid rather than getting quietly wrong results.</p>
+      <p>ConcurrentHashMap cannot do that, because in a concurrent map other threads changing things is normal rather than a bug. So its iteration is defined loosely on purpose: you will see every entry that was present for the whole walk, you will never see the same entry twice, and you <em>may</em> see entries added during the walk, or miss ones removed during it.</p>
+      <p>What it guarantees firmly is that it never throws and never shows you corrupted data.</p>
+      <p>The practical consequence: <code>size()</code> on a concurrent map is an estimate that may be stale the instant it returns. If you need a count you can act on, either you do not really need it to be exact, or a concurrent map is the wrong structure for that part of the problem.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why is it faster than wrapping a HashMap in a lock?</summary>
+    <div class="rvb">
+      <p>Because of how much gets blocked, and it matters most for reads.</p>
+      <p>Wrapping a HashMap means every operation takes the same single lock. Two threads reading different keys still queue behind each other, even though neither is changing anything. With many readers, that one lock becomes the bottleneck and adding processors does not help.</p>
+      <p>ConcurrentHashMap takes <strong>no lock at all for reads</strong>. Any number of threads can read at the same time, including while another thread is writing somewhere else. Writes lock only the single bucket involved, so two threads writing different keys usually do not interact.</p>
+      <p>The honest caveat, visible in the measurement above: on a short burst of pure writes the two came out similar, because the wrapped version's lock was held very briefly each time and there was little real contention. The gap opens up as you add readers and sustain the load.</p>
+      <p>So the accurate answer is not "it is faster", it is "it scales, whereas a single lock does not". Under one thread they are much the same; the difference is what happens when you add the eighth.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> Which map to use</h2>
+
+  <ul class="prompts">
+    <li>Compare HashMap, Hashtable, synchronizedMap and ConcurrentHashMap.</li>
+    <li>Which allow null keys and values?</li>
+    <li>Why is Hashtable considered obsolete?</li>
+    <li>When would you still use synchronizedMap?</li>
+  </ul>
+
+  <div class="teach">
+  <p>This is asked as a direct comparison, so here is the table. Then click each one for when it is actually the right answer.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Map</th><th>Thread safe</th><th>Locking</th><th>Null key</th><th>Null values</th><th>Use it when</th></tr></thead>
+    <tbody>
+      <tr><td><code>HashMap</code></td><td class="lose">no</td><td>none</td><td>one allowed</td><td>allowed</td><td>single threaded, or confined to one thread</td></tr>
+      <tr><td><code>Hashtable</code></td><td class="win">yes</td><td>whole map, every call</td><td class="lose">no</td><td class="lose">no</td><td>essentially never, in new code</td></tr>
+      <tr><td><code>synchronizedMap</code></td><td class="win">yes</td><td>whole map, every call</td><td>one allowed</td><td>allowed</td><td>you need a wrapper around an existing map</td></tr>
+      <tr><td><code>ConcurrentHashMap</code></td><td class="win">yes</td><td>one bucket, writes only</td><td class="lose">no</td><td class="lose">no</td><td>the default choice for shared maps</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="dx">
+    <div class="dxq">
+      <p>Which one do you want to know about?</p>
+      <div class="opts" id="mapOpts">
+        <button class="opt" data-k="hashmap">HashMap</button>
+        <button class="opt" data-k="hashtable">Hashtable</button>
+        <button class="opt" data-k="sync">Collections.synchronizedMap</button>
+        <button class="opt" data-k="chm">ConcurrentHashMap</button>
+      </div>
+    </div>
+    <div class="dxout" id="mapOut">
+      <span class="lbl">Map</span>
+      <p class="verdict">Pick one</p>
+      <p>The table says what they do. Click through for when each is genuinely the right choice, and what people get wrong about it.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><b>The trap in synchronizedMap.</b> Each individual call is safe. A sequence of calls is not. Checking whether a key is absent and then adding it is two operations, and another thread can act in between, so you can still lose an update. ConcurrentHashMap gives you single operations that do both at once, which is the real reason to prefer it.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"Hashtable and ConcurrentHashMap are both thread safe, so they are equivalent."</b> Hashtable locks the entire map on every single call including reads. ConcurrentHashMap locks nothing for reads and one bucket for writes. Under load that is the difference between scaling and not.</p>
+    <p><b>"synchronizedMap makes my code thread safe."</b> It makes each call safe. Your read then write sequence is still a race, and so is iterating over it, which needs you to hold the lock manually for the whole walk.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why is Hashtable obsolete rather than just old?</summary>
+    <div class="rvb">
+      <p>Because everything it offers is now done better by something else, and it carries costs nothing else does.</p>
+      <p>It locks the whole map on every operation, including reads, so it cannot scale with more threads. ConcurrentHashMap does the same job without that limitation.</p>
+      <p>It also predates the collections framework, so it fits awkwardly with everything else. Its original interface used different method names, and it exposes an older style of iteration alongside the modern one.</p>
+      <p>The reason to still know it is that interviewers use it to check whether you understand <em>why</em> one design is better, rather than just which name is newer. The answer they want is the locking granularity: whole map versus one bucket, and reads locking versus reads not locking.</p>
+      <p>One historical note that lands well: Hashtable rejecting nulls was not a considered design decision the way it was for ConcurrentHashMap. It simply predates the discussion. The two make the same choice for completely different reasons.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Is there any case where you would still choose synchronizedMap?</summary>
+    <div class="rvb">
+      <p>A few narrow ones, and being able to name them shows you are thinking rather than reciting "always use ConcurrentHashMap".</p>
+      <p><strong>You need null keys or values.</strong> ConcurrentHashMap forbids both. If you are wrapping an existing structure that legitimately stores nulls, changing that may be a bigger job than accepting the wrapper.</p>
+      <p><strong>You need to wrap something that is not a HashMap.</strong> The wrapper works on any Map, including a LinkedHashMap that maintains order or a TreeMap that keeps keys sorted. There is no concurrent equivalent of a LinkedHashMap.</p>
+      <p><strong>You need a genuinely consistent view across several operations.</strong> Because there is one lock, you can hold it yourself and do a multi step sequence knowing nothing else can interleave. With a concurrent map that guarantee does not exist, by design.</p>
+      <p><strong>Contention is genuinely low.</strong> A map touched rarely by a couple of threads gains nothing measurable from the more sophisticated option, and the wrapper is one line.</p>
+      <p>Outside those, ConcurrentHashMap is the default and the burden of proof is on choosing something else.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> Changing a collection while walking it</h2>
+
+  <ul class="prompts">
+    <li>What is fail-fast, and what is fail-safe?</li>
+    <li>How does an ArrayList detect that it changed?</li>
+    <li>Is fail-fast guaranteed?</li>
+    <li>What is the correct way to remove items while walking?</li>
+  </ul>
+
+  <div class="teach">
+  <p>Change a collection while you are in the middle of walking it and one of two things happens, depending on the collection.</p>
+  <ul class="body">
+    <li><strong>Fail-fast</strong> collections notice and throw <code>ConcurrentModificationException</code> straight away. ArrayList, HashMap, HashSet.</li>
+    <li><strong>Fail-safe</strong> collections carry on without complaining. CopyOnWriteArrayList, ConcurrentHashMap.</li>
+  </ul>
+
+  <h3>How the detection works</h3>
+  <p>Every fail-fast collection keeps a counter of how many times its structure has changed. When you start walking it, the iterator records the current value. Before each step it checks the counter still matches. If something added or removed an element behind its back, the numbers differ and it throws.</p>
+  <p>Note that the name is misleading. It has nothing specifically to do with threads. The most common way to trigger it is a single thread modifying a list inside its own loop.</p>
+
+  <h3>Measured, including the case that surprises people</h3>
+  <pre><code>ArrayList, remove 'b' of 5 : <span class="bad">ConcurrentModificationException</span>   &lt;-- as expected
+ArrayList, remove 'b' of 3 : <span class="bad">no exception</span>, but only saw [a, b]   &lt;-- silently skipped 'c'</code></pre>
+  <p>The same operation, on the same type of list, with a different number of elements. The first throws. The second does not, and quietly gives you the wrong answer instead.</p>
+  <div class="note">
+    <p><b>Why the second one does not throw.</b> Removing the second to last element leaves the list one shorter, and the iterator's position now equals the new size. So it concludes it has finished, stops, and never runs the check that would have thrown. You get no error and a walk that silently skipped the last element.</p>
+    <p>This is why the detection is documented as best effort: <b>fail-fast is a debugging aid, not a guarantee.</b> Never write code that relies on getting the exception.</p>
+  </div>
+
+  <h3>The two correct ways to remove while walking</h3>
+  <pre><code><span class="cm">// 1. use the iterator's own remove</span>
+Iterator&lt;String&gt; it = list.iterator();
+<span class="kw">while</span> (it.hasNext()) {
+    <span class="kw">if</span> (it.next().equals(<span class="st">"b"</span>)) it.remove();
+}
+
+<span class="cm">// 2. or say what you mean, in one call</span>
+list.removeIf(s -> s.equals(<span class="st">"b"</span>));</code></pre>
+  <p>The iterator's own <code>remove</code> works because it updates the counter it is checking against, so the two stay in step. <code>removeIf</code> is usually clearer and is the better choice when the condition is simple.</p>
+
+  <h3>What the fail-safe collections did instead</h3>
+  <pre><code>CopyOnWriteArrayList : no exception, walked [a, b, c], list is now [a, c]
+ConcurrentHashMap    : no exception, saw 3 keys, map is now {}</code></pre>
+  <p>The list walked a <strong>snapshot</strong> taken when iteration began, so it saw all three original elements even though one was removed during the walk. The map walked live data and let the removals happen as it went.</p>
+  <p>Both are correct behaviour for their design, and neither gives you the frozen consistent view a plain ArrayList would have given you if nothing had changed.</p>
+
+  <div class="wrong">
+    <p><b>"ConcurrentModificationException means two threads touched it."</b> Usually it is one thread modifying a collection inside its own loop over that collection.</p>
+    <p><b>"If there is no exception, my loop was fine."</b> The measurement above shows a loop that threw nothing and silently skipped an element.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What does CopyOnWriteArrayList actually copy, and when?</summary>
+    <div class="rvb">
+      <p>It copies the entire underlying array on <strong>every single modification</strong>. Add one element to a list of ten thousand and it allocates a fresh array of ten thousand and one, copies everything across, and swaps it in.</p>
+      <p>That sounds obviously wasteful, and for most uses it is. What it buys is that readers never need a lock and never see a half changed list, because the array they are walking is never modified. It is replaced, and their walk continues over the old one.</p>
+      <p>That is also why its iteration cannot throw and why its <code>remove</code> during iteration does nothing to what you are walking: you are holding a snapshot that is now out of date, by design.</p>
+      <p>So it fits one specific shape: <strong>read very often, write very rarely</strong>. The classic example is a list of registered listeners, set up at startup and then read on every event. If writes are anything but rare, the copying will dominate and you want a different structure.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you safely walk a map that other threads are changing?</summary>
+    <div class="rvb">
+      <p>Depends which map, and the answer differs sharply.</p>
+      <p><strong>With ConcurrentHashMap</strong>, just walk it. Its iteration is built for this and will not throw. Accept that what you see reflects a period of time rather than one instant: entries added during the walk may or may not appear.</p>
+      <p><strong>With a wrapped synchronized map</strong>, you must hold the lock yourself for the entire walk. The wrapper makes each individual call safe but does nothing for iteration, so without holding it you will get an exception. That means blocking every other thread for as long as your walk takes, which is often unacceptable.</p>
+      <p><strong>With a plain HashMap shared between threads</strong>, there is no safe answer. Fix the sharing rather than the iteration.</p>
+      <p>The pattern worth mentioning if you need a genuinely consistent snapshot: copy first, then walk the copy. Take the lock briefly to make the copy, release it, and iterate at your leisure. You get a consistent view and hold the lock for the shortest possible time.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> ArrayList versus LinkedList</h2>
+
+  <ul class="prompts">
+    <li>How is each one laid out in memory?</li>
+    <li>Which is better for inserting, and why is the usual answer wrong?</li>
+    <li>When would you genuinely choose LinkedList?</li>
+    <li>What is CopyOnWriteArrayList for?</li>
+  </ul>
+
+  <div class="teach">
+  <p>The textbook answer is that ArrayList is better for reading and LinkedList is better for inserting. The second half of that is mostly wrong, and it is easy to show.</p>
+
+  <h3>How they are laid out</h3>
+  <p><strong>ArrayList</strong> is one array. The elements sit next to each other in memory. Getting element 5000 is arithmetic: jump straight there. Inserting in the middle means shifting everything after it along by one.</p>
+  <p><strong>LinkedList</strong> is a chain of separate objects, each holding a value and pointers to its neighbours. They can be anywhere in memory. Getting element 5000 means starting at one end and following 5000 pointers. Inserting means changing two pointers, <em>once you are already there</em>.</p>
+  <p>That last clause is where the textbook answer falls apart.</p>
+
+  <h3>Measured</h3>
+  <p>100,000 elements, 20,000 operations, best of seven rounds after warmup:</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Operation</th><th>ArrayList</th><th>LinkedList</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>get by random index</td><td class="num">91 us</td><td class="num">628,300 us</td><td class="win">ArrayList 6852x faster</td></tr>
+      <tr><td>add at the end</td><td class="num">193 us</td><td class="num">70 us</td><td>LinkedList 3x faster</td></tr>
+      <tr><td>add at the front</td><td class="num">143,017 us</td><td class="num">76 us</td><td class="win">LinkedList 1877x faster</td></tr>
+      <tr><td>insert in the middle</td><td class="num">71,721 us</td><td class="num">1,404,909 us</td><td class="win">ArrayList 20x faster</td></tr>
+      <tr><td>walk the whole list</td><td class="num">68 us</td><td class="num">349 us</td><td>ArrayList 5x faster</td></tr>
+      <tr><td>remove while iterating</td><td class="num">164,400 us</td><td class="num">404 us</td><td class="win">LinkedList 406x faster</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Look at rows three and four together, because they look contradictory and are not.</p>
+  <div class="note">
+    <p><b>LinkedList is 1877 times faster at inserting at the front, and 20 times slower at inserting in the middle.</b> The insert itself is cheap either way. The difference is entirely the cost of <b>getting to the position</b>. The front is free. The middle means following 50,000 pointers, every single time.</p>
+  </div>
+  <p>So the correct version of the textbook claim is: LinkedList is faster at inserting <strong>only when you already have the position</strong>. That means at the ends, or when you are holding an iterator that is already there. That is exactly why row six is so lopsided, since removing through an iterator needs no searching at all.</p>
+  <p>The other quiet result is row five. Walking the whole list is 5 times faster on ArrayList even though both are simply visiting every element in order. Its elements sit together in memory, so the processor fetches them in efficient blocks. LinkedList elements are scattered, so each step is a jump to somewhere unrelated.</p>
+
+  <h3>The honest practical conclusion</h3>
+  <p><strong>Use ArrayList by default.</strong> Reach for LinkedList only when you are genuinely working at the ends of the list, and at that point what you usually want is a <code>Deque</code>, which says what you mean and is normally implemented with an array anyway.</p>
+
+  <h3>CopyOnWriteArrayList</h3>
+  <p>The third option, for one specific situation: <strong>read constantly, write almost never</strong>. Every write copies the whole array, which is expensive, but reads take no lock at all and can happen while a write is in progress. Listener lists set up at startup and read on every event are the standard example.</p>
+
+  <div class="wrong">
+    <p><b>"LinkedList is better for inserting and removing."</b> Only at a position you already hold. Inserting in the middle measured 20 times slower, because it had to walk there first.</p>
+    <p><b>"LinkedList uses less memory because it grows exactly as needed."</b> The opposite. Every element is a separate object holding two extra pointers, so it uses substantially more memory per element than an array, even accounting for the array's spare capacity.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Why is walking a LinkedList slower when both visit every element once?</summary>
+    <div class="rvb">
+      <p>Because of how memory is physically read, and this is a good answer because it goes past the counting of operations.</p>
+      <p>Memory is not fetched one value at a time. The processor pulls in a block of neighbouring bytes at once, on the assumption that if you wanted one you will probably want the ones next to it.</p>
+      <p>An ArrayList rewards that assumption exactly. Its elements sit next to each other, so fetching one brings several neighbours along for free, and the next few steps need no fetch at all.</p>
+      <p>A LinkedList defeats it. Each element is a separate object allocated at a different time, so they end up scattered. Every step is a jump to an unrelated place, and the block fetched around it is mostly useless.</p>
+      <p>So both do the same number of steps, and one does far more waiting. In the measurement that was a factor of five, and it is why the theoretical complexity of an operation is a starting point rather than an answer.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How does ArrayList grow, and what does that cost?</summary>
+    <div class="rvb">
+      <p>When the array is full, it allocates a larger one, copies everything across and continues. The new size is roughly one and a half times the old one, not double as people often assume.</p>
+      <p>Growing by a proportion rather than a fixed amount is what keeps adding at the end cheap on average. Each individual growth costs a full copy, but they happen exponentially less often as the list gets bigger, so the cost spread across all additions stays small.</p>
+      <p>The measurement shows this: adding at the end came out at 193 microseconds for 20,000 additions including the growth steps, against LinkedList's 70. Slower, but in the same range, and both are fast enough that it rarely decides anything.</p>
+      <p>The practical advice is the same as for maps: <strong>if you know roughly how big it will be, say so when you create it</strong>. That skips the growth steps entirely and, for a large list, also avoids briefly holding both the old and new arrays at once, which matters if the list is big enough to strain the heap.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ QUIZ ============ -->
+<section class="ch" id="quiz">
+  <h2><em>Q</em> Quiz</h2>
+  <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+  <div class="quiz">
+    <div class="qhead">
+      <span class="qn" id="qNum">1 / 12</span>
+      <span id="qChap">Chapter 1</span>
+      <span class="sc" id="qScore">0 correct</span>
+    </div>
+    <div class="qbody" id="qBody"></div>
+    <div class="qacts" id="qActs"></div>
+  </div>
+</section>
+
+<section class="ch" id="allq">
+  <h2><em>R</em> Every question, with answers</h2>
+  <p>The same twelve questions as a plain list, for revising quickly.</p>
+  <div id="allqList"></div>
+</section>
+
+<section class="ch" id="gloss" style="border-bottom:none">
+  <h2><em>G</em> Word list</h2>
+  <p>Every term on this page that you might not already know.</p>
+  <dl class="gloss">
+    <dt>bucket</dt><dd>One slot in a HashMap's internal array. Keys whose hash leads to the same slot all land in the same bucket.</dd>
+    <dt>capacity</dt><dd>How many buckets the internal array has. Starts at 16 and always doubles, so it is always a power of two.</dd>
+    <dt>load factor</dt><dd>How full the map is allowed to get before it grows. Default 0.75, so a capacity of 16 resizes once size passes 12.</dd>
+    <dt>chain</dt><dd>The list of entries sitting in one bucket because their keys collided. Walked one at a time.</dd>
+    <dt>collision</dt><dd>Two different keys landing in the same bucket. Normal and expected, not an error.</dd>
+    <dt>treeify</dt><dd>Turning a long chain into a tree so it can be searched more efficiently. Needs at least 8 entries in the bucket <em>and</em> a capacity of at least 64.</dd>
+    <dt>resize</dt><dd>Doubling the array and placing every existing entry again, because the bucket index depends on the array length.</dd>
+    <dt>hash code</dt><dd>A number derived from an object's contents, used to choose a bucket. Equal objects must produce equal hash codes.</dd>
+    <dt>fail-fast</dt><dd>A collection that throws immediately if it changes while you are walking it. A debugging aid, and explicitly not guaranteed.</dd>
+    <dt>fail-safe</dt><dd>A collection that lets you carry on walking while it changes, without throwing. Usually because you are walking a snapshot or a structure built for it.</dd>
+    <dt>ConcurrentModificationException</dt><dd>The error thrown by a fail-fast collection. Despite the name, it is usually caused by one thread, not two.</dd>
+    <dt>weakly consistent</dt><dd>Iteration that never throws but does not promise a single frozen moment: you may or may not see changes made during the walk.</dd>
+    <dt>snapshot</dt><dd>A frozen copy taken at one moment. CopyOnWriteArrayList walks a snapshot, which is why changes during the walk do not affect it.</dd>
+    <dt>contention</dt><dd>Several threads wanting the same lock at the same time. The thing ConcurrentHashMap is designed to reduce.</dd>
+    <dt>Deque</dt><dd>A collection designed for adding and removing at both ends. Usually what people actually want when they reach for a LinkedList.</dd>
+  </dl>
+</section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+          set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("hm.ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("hm.ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("hm.rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("hm.rev")==="1") setRev(true);
+
+  /* ---- bucket simulator: mirrors real HashMap rules ---- */
+  var bkEl=document.getElementById("buckets"), foot=document.getElementById("simFoot");
+  var sSize=document.getElementById("sSize"),sCap=document.getElementById("sCap"),
+      sThr=document.getElementById("sThr"),sMax=document.getElementById("sMax");
+  var map={cap:16,size:0,buckets:[],trees:{},collide:false,next:1,timer:null};
+
+  function resetMap(){
+    if(map.timer){clearInterval(map.timer);map.timer=null;document.getElementById("simAuto").textContent="Run"}
+    map.cap=16;map.size=0;map.next=1;map.trees={};
+    map.buckets=[]; for(var i=0;i<map.cap;i++) map.buckets.push(0);
+    foot.className="simfoot";
+    foot.textContent=map.collide?"Every key will land in the same bucket, on purpose.":"Each square is a bucket. The number is how many entries landed in it.";
+    paint();
+  }
+  function hashOf(n){
+    if(map.collide) return 0;
+    var h=n*2654435761 % 4294967296;      // a simple spreading function
+    h=h^(h>>>16);
+    return Math.abs(h)%map.cap;
+  }
+  function rebuild(){                      // resize: place every entry again
+    var old=map.size, wasCollide=map.collide;
+    map.buckets=[]; for(var i=0;i<map.cap;i++) map.buckets.push(0);
+    map.trees={};
+    if(wasCollide){ map.buckets[0]=old; }
+    else{
+      for(var k=1;k<=old;k++){ map.buckets[hashOf(k)]++; }
+    }
+  }
+  function put(){
+    map.size++;
+    var idx=hashOf(map.next); map.next++;
+    map.buckets[idx]++;
+    var msg="", cls="simfoot";
+    // treeify needs BOTH 8 in a bucket AND capacity >= 64
+    if(map.buckets[idx]>=8 && !map.trees[idx]){
+      if(map.cap>=64){
+        map.trees[idx]=true;
+        msg="Bucket "+idx+" reached "+map.buckets[idx]+" entries and the capacity is "+map.cap+", so it became a tree.";
+        cls="simfoot crash";
+      }else{
+        map.cap*=2; rebuild();
+        msg="Bucket had 8 or more entries, but the capacity was only "+(map.cap/2)+". Below 64 the map resizes instead of building a tree. Capacity is now "+map.cap+".";
+        cls="simfoot gc";
+      }
+    }
+    if(map.size>map.cap*0.75){
+      map.cap*=2; rebuild();
+      if(!msg){ msg="Size passed "+Math.floor(map.cap/2*0.75)+", so the capacity doubled to "+map.cap+" and every entry was placed again."; cls="simfoot gc"; }
+    }
+    if(msg){ foot.className=cls; foot.textContent=msg; }
+    else if(map.collide){
+      foot.className=map.trees[0]?"simfoot crash":"simfoot";
+      if(map.trees[0]){
+        foot.textContent="Bucket 0 is already a tree, now holding "+map.buckets[0]
+          +" entries. Searching it stays fast no matter how many more arrive.";
+      }else if(map.buckets[0]<8){
+        foot.textContent="Bucket 0 now holds "+map.buckets[0]+" entries, capacity "+map.cap
+          +". A tree needs 8 entries in one bucket AND a capacity of at least 64.";
+      }else{
+        foot.textContent="Bucket 0 holds "+map.buckets[0]+" entries but the capacity is only "+map.cap
+          +", so it still cannot become a tree.";
+      }
+    }
+  }
+  function paint(){
+    bkEl.style.gridTemplateColumns="repeat("+Math.min(16,map.cap)+",1fr)";
+    bkEl.innerHTML="";
+    var max=0;
+    for(var i=0;i<map.cap;i++){
+      var n=map.buckets[i]; if(n>max) max=n;
+      var d=document.createElement("div");
+      var cls="bk";
+      if(map.trees[i]) cls+=" tree";
+      else if(n>=5) cls+=" n3"; else if(n>=2) cls+=" n2"; else if(n===1) cls+=" n1";
+      d.className=cls;
+      d.textContent=map.trees[i]?"T":(n||"");
+      bkEl.appendChild(d);
+    }
+    sSize.textContent=map.size; sCap.textContent=map.cap;
+    sThr.textContent=Math.floor(map.cap*0.75); sMax.textContent=max;
+  }
+  document.getElementById("simRun").addEventListener("click",function(){
+    var n=map.collide?1:10;
+    for(var i=0;i<n;i++) put();
+    paint();
+  });
+  document.getElementById("simAuto").addEventListener("click",function(){
+    var b=document.getElementById("simAuto");
+    if(map.timer){clearInterval(map.timer);map.timer=null;b.textContent="Run";return}
+    b.textContent="Pause";
+    map.timer=setInterval(function(){
+      if(map.size>=(map.collide?14:120)){clearInterval(map.timer);map.timer=null;b.textContent="Run";
+        if(!map.collide){foot.className="simfoot ok";foot.textContent="120 keys across "+map.cap+" buckets. Notice how many buckets are still empty: hashing spreads keys out well, not perfectly.";}
+        return}
+      put(); paint();
+    },160);
+  });
+  document.getElementById("simMode").addEventListener("click",function(){
+    map.collide=!map.collide;
+    this.setAttribute("aria-pressed",map.collide?"true":"false");
+    this.textContent=map.collide?"Keys that all collide":"Normal keys";
+    document.getElementById("simRun").textContent=map.collide?"Add 1 key":"Add 10 keys";
+    resetMap();
+  });
+  document.getElementById("simReset").addEventListener("click",resetMap);
+  resetMap();
+
+  /* ---- map chooser ---- */
+  var MAPS={
+    hashmap:{v:"HashMap: the default, for a single thread",
+      n:"No locking at all, which is what makes it fast and what makes it dangerous when shared. Allows one null key and any number of null values. Use it freely for anything confined to one thread, including local variables and fields that are never shared. The measurement in Chapter 3 shows what happens when it is shared: across five runs it hung twice, lost 54,312 entries once, lost 8,335 another time, and worked correctly once.",
+      x:"Map<K,V> m = new HashMap<>();"},
+    hashtable:{v:"Hashtable: obsolete, but you should know why",
+      n:"Thread safe by locking the entire map on every call, including reads, so it cannot scale with more threads. It predates the collections framework and fits awkwardly with everything else. Rejects null keys and values, though unlike ConcurrentHashMap that was not a considered decision so much as an accident of age. Know it because interviewers use it to check you understand locking granularity, not because you will ever choose it.",
+      x:"avoid in new code"},
+    sync:{v:"Collections.synchronizedMap: a wrapper, with a catch",
+      n:"Wraps any existing map so that each individual call takes one shared lock. Correct every time in the measurement. The catch is that only single calls are protected: checking whether a key is absent and then adding it is two calls, and another thread can act between them. Iterating also needs you to hold the lock manually for the whole walk. Genuinely useful when you need null support, or when wrapping something a concurrent map has no equivalent of, such as a map that keeps its keys in order.",
+      x:"Map<K,V> m = Collections.synchronizedMap(new HashMap<>());"},
+    chm:{v:"ConcurrentHashMap: the default for anything shared",
+      n:"Reads take no lock at all. Writes lock a single bucket, and only if that bucket already has entries. Since Java 8 there are no fixed segments, so the amount of parallel work possible grows with the map instead of being capped. Forbids null keys and values on purpose, because in a concurrent map a null result would be genuinely ambiguous and there is no atomic way to resolve it. Also gives you single operations that read and write together, which is what removes the race the wrapper leaves open.",
+      x:"Map<K,V> m = new ConcurrentHashMap<>();"}
+  };
+  var mapOut=document.getElementById("mapOut");
+  [].slice.call(document.querySelectorAll("#mapOpts .opt")).forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("#mapOpts .opt").forEach(function(x){x.setAttribute("aria-pressed","false")});
+      b.setAttribute("aria-pressed","true");
+      var d=MAPS[b.dataset.k];
+      mapOut.innerHTML='<span class="lbl">Map</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p><p><span class="lbl">How you write it</span><code>'+d.x+'</code></p>';
+    });
+  });
+
+  /* ---- quiz ---- */
+  var Q=[
+    {c:1,q:"What is the default capacity and load factor, and when does a HashMap resize?",
+     a:"Capacity starts at <b>16</b> and the load factor is <b>0.75</b>, so it doubles once size passes capacity times 0.75. Measured on a real map: it grew at size 13 (past 12), then at 25 (past 24), then 49, then 97. Resizing is expensive because the bucket index depends on the array length, so every existing entry has to be placed again. If you know roughly how many entries you need, pass that when creating the map, but remember the number is capacity rather than entries, so room for 1000 entries needs a capacity above 1333."},
+    {c:1,q:"When does a bucket become a tree?",
+     a:"Two conditions, and most people only give the first. The bucket needs at least <b>8 entries</b> <b>and</b> the capacity must be at least <b>64</b>. Below 64 the map resizes instead, because with a small array the collisions are more likely caused by a cramped array than by bad keys. Measured with deliberately colliding keys: the chain reached 9 and then 10 entries while the map resized twice, and only became a tree once the capacity hit 64. The reason trees exist at all is that a chain is walked one entry at a time, so the worst case was O(n); with a tree it is O(log n)."},
+    {c:1,q:"Why is a HashMap's capacity always a power of two?",
+     a:"For speed. Turning a hash code into a bucket index needs a number in range, and the obvious way is a remainder operation, which is slow. With a power of two length you get the same result with a single bitwise operation that keeps the lowest bits. It also makes resizing cheaper, because when the array doubles an entry either stays where it is or moves to that index plus the old length. The cost is that keeping only the low bits throws the high bits away, which is exactly why HashMap mixes the hash code first, folding high bits down into the low ones."},
+    {c:2,q:"What happens if you change a key after putting it in a map?",
+     a:"The entry becomes permanently unreachable. Measured: after changing a field used by hashCode, <code>get</code> returned null, <code>containsKey</code> returned false, <code>remove</code> returned null and did nothing, but <b>size stayed at 1</b> and the entry was still visible when walking the map. It was filed under the old hash and lookups now compute the new one, so they search a different bucket. You cannot find it, cannot delete it, and it never gets cleaned up. Fix: use immutable keys, which a record gives you for free."},
+    {c:2,q:"What breaks if you override equals but not hashCode?",
+     a:"Everything hash based, while everything else keeps working, which is what makes it hard to spot. You inherit a hash code based on object identity, so two objects your equals considers equal get unrelated hash codes and land in different buckets. The map only compares keys within a bucket, so it never even compares them. Meanwhile <code>a.equals(b)</code> is still true and <code>list.contains(a)</code> still works, because a list compares elements directly. HashSet is backed by a HashMap, so it has the identical problem."},
+    {c:3,q:"What actually happens when several threads write to a plain HashMap?",
+     a:"Worse than stale data. Measured with 8 threads writing 160,000 distinct keys, five times: it <b>hung completely twice</b> with threads spinning at full speed, lost 54,312 entries once, lost 8,335 another time, and <b>worked perfectly once</b>. That last outcome is the dangerous one, because it is why the bug passes review and testing and only shows up under real load. The hang happens because two threads resizing at once can leave the structure pointing at itself in a loop, and a later lookup walks that loop forever."},
+    {c:3,q:"How did ConcurrentHashMap change between Java 7 and Java 8?",
+     a:"<b>Java 7</b> divided the map into a fixed number of segments, each with its own lock, so threads writing to different segments did not block each other. The cap was the segment count: with 16 segments only 16 threads could write at once regardless of map size. <b>Java 8 onwards</b> removed segments entirely. Adding to an empty bucket uses a single hardware level operation with no lock, and if the bucket is occupied only that one bucket is locked. So the possible parallelism now grows with the map instead of being fixed. Reads take no lock in either version."},
+    {c:3,q:"Why does ConcurrentHashMap forbid null keys and values?",
+     a:"Because a null result would be ambiguous and there would be no safe way to resolve it. In a plain HashMap, <code>get</code> returning null could mean absent or present-with-null, and you disambiguate with <code>containsKey</code>. In a concurrent map that second call describes a moment that has already passed, since another thread may have added or removed the key in between, and there is no way to ask both as one atomic step. Rather than offer a method whose answer cannot be trusted, null is forbidden so null always means absent."},
+    {c:4,q:"Compare Hashtable and ConcurrentHashMap.",
+     a:"Both are thread safe, and that is where the similarity ends. <b>Hashtable</b> locks the entire map on every call including reads, so threads reading different keys still queue behind each other and it cannot scale. <b>ConcurrentHashMap</b> takes no lock for reads at all and locks a single bucket for writes, and only when that bucket is already occupied. Hashtable also predates the collections framework and fits awkwardly with modern code. Both reject nulls, but for different reasons: for ConcurrentHashMap it was a deliberate decision about ambiguity, for Hashtable it is an accident of age."},
+    {c:4,q:"What is the trap with Collections.synchronizedMap?",
+     a:"Each individual call is safe, but a <b>sequence</b> of calls is not. Checking whether a key is absent and then adding it is two separate calls, and another thread can act between them, so you can still lose an update. Iterating has the same problem and requires you to hold the lock manually for the whole walk, which blocks everyone else for as long as it takes. ConcurrentHashMap gives you single operations that read and write together, which is the real reason to prefer it over a wrapper."},
+    {c:5,q:"Is fail-fast guaranteed?",
+     a:"No, it is documented as best effort, and this is worth showing rather than asserting. Measured: removing an element from a 5 element list threw ConcurrentModificationException as expected, but the same operation on a 3 element list <b>threw nothing and silently skipped the last element</b>. Removing the second to last element leaves the iterator's position equal to the new size, so it concludes it has finished and never runs the check that would have thrown. Never write code that relies on getting the exception. To remove safely, use the iterator's own remove, or removeIf."},
+    {c:6,q:"Is LinkedList really better for inserting?",
+     a:"Only when you already have the position, and the measurements make that precise. Inserting at the <b>front</b>: LinkedList 1877 times faster. Inserting in the <b>middle</b>: LinkedList 20 times <b>slower</b>. The insert itself is cheap either way; the difference is entirely the cost of getting there, and reaching the middle means following 50,000 pointers. Random access was 6852 times faster on ArrayList, and even plain iteration was 5 times faster because its elements sit together in memory and the processor fetches neighbours together. Use ArrayList by default; if you genuinely work at the ends, what you want is usually a Deque."}
+  ];
+  var qi=0,score=0,answered=[];
+  var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+      qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),qScore=document.getElementById("qScore");
+  function drawQ(){
+    if(qi>=Q.length){drawResult();return}
+    var q=Q[qi];
+    qNum.textContent=(qi+1)+" / "+Q.length;
+    qChap.textContent="Chapter "+q.c;
+    qScore.textContent=score+" correct";
+    qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+    qActs.innerHTML='';
+    var reveal=document.createElement("button");
+    reveal.className="btn"; reveal.textContent="Reveal answer";
+    reveal.addEventListener("click",function(){
+      qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+      qActs.innerHTML='';
+      var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+      var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+      g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;drawQ()});
+      b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;drawQ()});
+      qActs.appendChild(g);qActs.appendChild(b);
+    });
+    qActs.appendChild(reveal);
+  }
+  function drawResult(){
+    qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+    var weak={};
+    answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+    var names={1:"Inside a HashMap",2:"equals and hashCode",3:"ConcurrentHashMap",4:"Which map to use",5:"Changing while walking",6:"ArrayList vs LinkedList"};
+    var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+    var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+    if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+    else{
+      html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+      ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+names[k]+'</a>, '+weak[k]+' missed</li>'});
+      html+='</ul>';
+    }
+    html+='</div>';
+    qBody.innerHTML=html; qActs.innerHTML='';
+    var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+    again.addEventListener("click",function(){qi=0;score=0;answered=[];drawQ()});
+    qActs.appendChild(again);
+  }
+  drawQ();
+  document.getElementById("quizBtn").addEventListener("click",function(){
+    qi=0;score=0;answered=[];drawQ();
+    document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+  });
+
+  var list=document.getElementById("allqList");
+  Q.forEach(function(q,i){
+    var d=document.createElement("details");d.className="rv";
+    d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a+'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+    list.appendChild(d);
+  });
+})();
+</script>
+</body>
+</html>

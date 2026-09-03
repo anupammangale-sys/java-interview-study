@@ -1,0 +1,1271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Reading a Thread Dump, episode 2 of the Java interview study series">
+<title>Reading a Thread Dump</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td code{white-space:nowrap}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+
+.hotspot{cursor:pointer}
+.hotspot rect{transition:fill .18s,stroke .18s}
+.hotspot:hover rect{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* dump anatomy */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.9;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* pool simulator */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simbody{padding:16px;display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start}
+.slots{display:flex;flex-direction:column;gap:7px}
+.slot{width:132px;padding:7px 10px;border-radius:6px;border:1px solid var(--line-soft);background:var(--surface-2);font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-soft)}
+.slot.busy{background:var(--held-bg);border-color:var(--held-line);color:var(--held);font-weight:600}
+.qlabel{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:7px}
+.queue{display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start;min-height:70px}
+.job{width:20px;height:20px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line-soft)}
+.job.wait{background:var(--freed-bg);border-color:var(--freed-line)}
+.job.over{background:var(--alarm-bg);border-color:var(--alarm-line)}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+  .simbody{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="backlink" href="index.html">All episodes</a>
+  <div class="brand">
+    <b>Reading a Thread Dump</b>
+    <span>Episode 2 &middot; Freezes, Deadlocks and 100% CPU</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> What a thread is doing</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Taking a dump</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> Deadlock</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> 100% CPU</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> When a dump is not enough</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Pool starvation</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>The service is frozen and memory is fine</h1>
+      <p class="sub">Episode 1 was about memory. This one is about the other half: what to do when the application is stuck, or slow, or burning all the CPU, and the memory graph is perfectly flat. Everything on this page was produced by running the code and capturing the real output.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+<!-- ============ CH 1 ============ -->
+<section class="ch" id="c1">
+  <h2><em>01</em> What a thread is doing</h2>
+
+  <ul class="prompts">
+    <li>Name the thread states and what each one means.</li>
+    <li>What is the difference between BLOCKED and WAITING?</li>
+    <li>A thread is RUNNABLE. Does that mean it is using the CPU right now?</li>
+    <li>Which states are normal in a healthy application, and which are a warning sign?</li>
+  </ul>
+
+  <div class="teach">
+  <p>A thread dump is a photo of every thread in your application and what each one was doing at that moment. To read it, you need to know the handful of states a thread can be in.</p>
+  <p>Most people can list the states. Very few can say what the difference between two of them actually means, and that is the follow-up that gets asked.</p>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Diagram of thread states. New leads to Runnable. From Runnable a thread can become Blocked waiting for a lock, Waiting with no timeout, or Timed Waiting with a timeout, and all three return to Runnable. Runnable ends at Terminated.">
+        <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+
+        <g class="hotspot" data-s="new" tabindex="0" role="button" aria-label="New state">
+          <rect x="16" y="128" width="96" height="44" rx="7" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="64" y="155" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">NEW</text>
+        </g>
+        <line x1="116" y1="150" x2="156" y2="150" stroke="currentColor" marker-end="url(#a1)"/>
+        <text x="136" y="142" font-size="10" text-anchor="middle" fill="currentColor" opacity=".65">start()</text>
+
+        <g class="hotspot" data-s="runnable" tabindex="0" role="button" aria-label="Runnable state">
+          <rect x="160" y="122" width="128" height="56" rx="7" fill="var(--freed-bg)" stroke="var(--freed)" stroke-width="1.8"/>
+          <text x="224" y="146" font-size="13" text-anchor="middle" fill="currentColor" font-weight="600">RUNNABLE</text>
+          <text x="224" y="164" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">doing work</text>
+        </g>
+
+        <line x1="292" y1="134" x2="392" y2="52" stroke="currentColor" marker-end="url(#a1)"/>
+        <line x1="292" y1="150" x2="392" y2="150" stroke="currentColor" marker-end="url(#a1)"/>
+        <line x1="292" y1="166" x2="392" y2="248" stroke="currentColor" marker-end="url(#a1)"/>
+
+        <g class="hotspot" data-s="blocked" tabindex="0" role="button" aria-label="Blocked state">
+          <rect x="396" y="24" width="180" height="56" rx="7" fill="var(--alarm-bg)" stroke="var(--alarm-line)" stroke-width="1.5"/>
+          <text x="486" y="48" font-size="13" text-anchor="middle" fill="currentColor" font-weight="600">BLOCKED</text>
+          <text x="486" y="66" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">wants a lock someone holds</text>
+        </g>
+        <g class="hotspot" data-s="waiting" tabindex="0" role="button" aria-label="Waiting state">
+          <rect x="396" y="122" width="180" height="56" rx="7" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="486" y="146" font-size="13" text-anchor="middle" fill="currentColor" font-weight="600">WAITING</text>
+          <text x="486" y="164" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">waiting, with no time limit</text>
+        </g>
+        <g class="hotspot" data-s="timed" tabindex="0" role="button" aria-label="Timed waiting state">
+          <rect x="396" y="220" width="180" height="56" rx="7" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="486" y="244" font-size="13" text-anchor="middle" fill="currentColor" font-weight="600">TIMED_WAITING</text>
+          <text x="486" y="262" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">waiting, but gives up eventually</text>
+        </g>
+
+        <path d="M396 40 Q330 40 300 118" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+        <path d="M396 262 Q330 262 300 182" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+
+        <g class="hotspot" data-s="terminated" tabindex="0" role="button" aria-label="Terminated state">
+          <rect x="608" y="122" width="96" height="56" rx="7" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="656" y="153" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">TERMINATED</text>
+        </g>
+        <path d="M224 118 Q224 96 400 96 Q640 96 656 118" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#a1)"/>
+        <text x="440" y="90" font-size="10" text-anchor="middle" fill="currentColor" opacity=".6">work finished</text>
+      </svg>
+    </div>
+    <div class="readout" id="stOut">
+      <span class="tag">click a state</span>
+      <h6>Five states, and only two of them worry you</h6>
+      <p>Click any box to see what it means, what puts a thread there, and exactly how it appears in a dump.</p>
+    </div>
+    <figcaption><b>The three on the right are all "not running".</b> The difference between them is what the thread is waiting for, and that difference is the whole diagnosis.</figcaption>
+  </figure>
+
+  <h3>The difference that gets asked</h3>
+  <p><strong>BLOCKED</strong> means the thread wants a lock and another thread is holding it. It did not choose to wait. It was stopped at the door.</p>
+  <p><strong>WAITING</strong> means the thread chose to wait. It called something like <code>wait()</code>, <code>join()</code>, or it is waiting for a result that has not arrived yet. It will sit there until somebody wakes it up.</p>
+  <p>Put simply: BLOCKED is "I want in and I cannot get in". WAITING is "wake me when you are ready".</p>
+  <p>That distinction matters because <strong>lots of BLOCKED threads is nearly always a problem</strong>, while lots of WAITING threads is completely normal. An idle thread pool is full of WAITING threads and that is exactly how it should look.</p>
+
+  <div class="note">
+    <p><b>The trap in RUNNABLE.</b> RUNNABLE does not mean "using the CPU right now". It means "not waiting for anything Java knows about". A thread reading from a socket shows as RUNNABLE even though it is doing nothing but waiting for the network, because Java hands that wait to the operating system and stops tracking it.</p>
+    <p>So a dump full of RUNNABLE threads does not prove your CPU is busy. To know that, you need the <code>cpu=</code> number, which is in Chapter 4.</p>
+  </div>
+
+  <div class="wrong">
+    <p><b>"BLOCKED and WAITING are basically the same."</b> They lead to completely different fixes. BLOCKED means a lock is being held too long, so you look at who holds it. WAITING usually means something upstream is slow or never replies, so you look at timeouts.</p>
+    <p><b>"RUNNABLE means the thread is running."</b> It means it is not waiting on anything Java is tracking. It could be sitting on a network read doing nothing at all.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What is the difference between WAITING and TIMED_WAITING?</summary>
+    <div class="rvb">
+      <p>Only whether there is a time limit.</p>
+      <p><strong>WAITING</strong> comes from calling something with no timeout: <code>object.wait()</code>, <code>thread.join()</code>, or waiting for a result with no deadline. The thread will sit there forever unless something wakes it.</p>
+      <p><strong>TIMED_WAITING</strong> comes from the same calls with a number attached: <code>Thread.sleep(1000)</code>, <code>wait(5000)</code>, <code>join(2000)</code>, or waiting for a result with a deadline. The thread gives up on its own eventually.</p>
+      <p>This looks like a trivia question and it is not. In a real incident, a pool of threads stuck in <strong>WAITING</strong> is much worse news than the same pool in TIMED_WAITING, because nothing will ever release them by itself. Somebody wrote a call with no timeout, and now the service needs a restart to recover.</p>
+      <p>That is why "always set a timeout" is such a common piece of advice. It converts a permanent freeze into a temporary slowdown.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>If a thread is stuck reading from the network, which state is it in?</summary>
+    <div class="rvb">
+      <p>RUNNABLE, which surprises almost everybody, and it is a favourite follow-up.</p>
+      <p>The reason is where the waiting happens. Java tracks waiting that Java itself controls: locks, sleeps, waits on objects. But when you read from a socket, Java hands the request to the operating system and asks it to wake the thread up when data arrives. Java is no longer managing that wait, so it has nothing to report, and the thread stays marked RUNNABLE.</p>
+      <p>The practical effect is a very confusing dump. You see fifty RUNNABLE threads and assume the CPU is on fire. Then you check and the CPU is at 2 percent, because all fifty are sitting on a socket read waiting for a service that is not answering.</p>
+      <p>How to tell the two apart: look at the top line of the stack. If it says something like <code>socketRead0</code> or a similar network method, the thread is waiting for the network, not using the CPU. And check the <code>cpu=</code> number in the dump, which will be near zero for a thread that is really just waiting.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What does it mean when many threads share the same stack trace?</summary>
+    <div class="rvb">
+      <p>It is the single most useful pattern in the whole file, and it is how you find problems quickly instead of reading hundreds of threads one by one.</p>
+      <p>Threads in a pool are normally spread across different work, so their stacks differ. When twenty, fifty or two hundred of them show the <strong>same name pattern and the same stack trace in the same state</strong>, they are all stuck on the same thing. That shared line is your problem.</p>
+      <p>What it usually means depends on the state. All stuck in WAITING or TIMED_WAITING on the same call means something they all depend on is slow or not answering, like a database or a downstream service. All stuck in BLOCKED on the same lock means one piece of code is holding a lock far too long and everything else is queueing behind it.</p>
+      <p>Practical tip that works on any dump: rather than reading it top to bottom, count the states first, then look at whichever group is biggest. That one group usually explains the whole incident.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 2 ============ -->
+<section class="ch" id="c2">
+  <h2><em>02</em> Taking a dump, and reading one entry</h2>
+
+  <ul class="prompts">
+    <li>Three ways to take a thread dump.</li>
+    <li>How is taking a thread dump different from taking a memory snapshot?</li>
+    <li>Why do you take more than one?</li>
+    <li>Read out every field in a single thread entry and say what it means.</li>
+  </ul>
+
+  <div class="teach">
+  <p>Three ways, and you should know all three because different interviewers name different ones.</p>
+  <pre><code><span class="cm"># 1. The modern one. Works everywhere.</span>
+jcmd &lt;pid&gt; Thread.print &gt; dump.txt
+
+<span class="cm"># 2. The classic. Same output, older tool.</span>
+jstack &lt;pid&gt; &gt; dump.txt
+
+<span class="cm"># 3. No tools installed? Send the signal.</span>
+kill -3 &lt;pid&gt;      <span class="cm"># Linux. Output goes to the application log, not to a file.</span></code></pre>
+  <p>That third one is worth remembering. On a stripped down container with no JDK tools installed, <code>kill -3</code> still works. It does not kill anything, despite the name. It asks Java to print a thread dump, and Java prints it into its own log output.</p>
+
+  <div class="note">
+    <p><b>The big difference from Episode 1.</b> A memory snapshot freezes your whole application for as long as it takes to write, which can be tens of seconds on a large heap. A <b>thread dump is cheap.</b> It pauses things for a few milliseconds and the file is a few hundred kilobytes.</p>
+    <p>So the safety rule is the opposite way round. You should not take memory snapshots casually, but you absolutely should take thread dumps freely. If an interviewer asks whether it is safe on production, the answer is yes, and knowing the difference between the two shows you understand both.</p>
+  </div>
+
+  <h3>Always take three</h3>
+  <p>One dump is a single photo. It tells you where threads are, but not whether they are moving.</p>
+  <p>Take <strong>three dumps, about ten seconds apart</strong>. Then compare them.</p>
+  <ul class="body">
+    <li>If a thread is on the <strong>same line in all three</strong>, it is genuinely stuck.</li>
+    <li>If it moves between them, it is working, just slowly, and you are looking at the wrong problem.</li>
+  </ul>
+  <p>This single habit separates people who have actually done this from people who have read about it. Say it in an interview without being asked.</p>
+
+  <h3>Reading one entry</h3>
+  <p>Here is a real thread entry, copied from an actual dump taken while the demo was running. Click any highlighted part to see what it means.</p>
+
+  <div class="dump">
+    <div class="dumpcode" id="dumpCode"><button class="fld" data-f="name" aria-pressed="false">"report-builder"</button> <button class="fld" data-f="num" aria-pressed="false">#26</button> <button class="fld" data-f="nid" aria-pressed="false">[24068]</button> daemon prio=5 os_prio=0 <button class="fld" data-f="cpu" aria-pressed="false">cpu=5500.00ms</button> <button class="fld" data-f="elapsed" aria-pressed="false">elapsed=5.76s</button> tid=0x000002741dce2a60 nid=24068 <button class="fld" data-f="cond" aria-pressed="false">runnable</button>
+   java.lang.Thread.State: <button class="fld" data-f="state" aria-pressed="false">RUNNABLE</button>
+	<button class="fld" data-f="stack" aria-pressed="false">at HotCpuDemo.spin(HotCpuDemo.java:34)</button>
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)</div>
+    <div class="readout" id="fldOut">
+      <span class="tag">click a highlighted part</span>
+      <h6>One thread, eight pieces of information</h6>
+      <p>Most people read only the state and the stack. The two numbers that actually solve a CPU incident are <code>cpu=</code> and <code>elapsed=</code>, and almost nobody looks at them.</p>
+    </div>
+  </div>
+
+  <div class="wrong">
+    <p><b>"I would take a thread dump and read it."</b> Too vague, and it is what everyone says. Say how many you would take and how far apart, and say what you would compare between them.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>The container has no jstack or jcmd. Now what?</summary>
+    <div class="rvb">
+      <p>This is common, because production images are often built on a runtime that ships without the developer tools to keep the image small.</p>
+      <p><strong>First option: <code>kill -3 &lt;pid&gt;</code>.</strong> This works with no tools at all. It does not stop the program. Java catches that signal and prints a full thread dump into its standard output, which means it lands in your container logs. So you take the dump and then read it with your normal log viewer.</p>
+      <p><strong>Second option: get a shell with the tools.</strong> In Kubernetes you can attach a temporary debug container that shares the same process space, and run <code>jcmd</code> from there against the running program.</p>
+      <p><strong>Third option: expose it from the application.</strong> If you run Spring Boot, the built in monitoring endpoints include one that returns a thread dump over HTTP. It has to be enabled and protected, but when it is, you can fetch a dump without touching the container at all.</p>
+      <p>The good habit is deciding this before an incident, not during one. Being able to say that in an interview is worth more than naming the commands.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Does taking a thread dump slow the application down?</summary>
+    <div class="rvb">
+      <p>Barely, and being confident about this is a good signal because it shows you have done it on a live system.</p>
+      <p>To take the dump, Java has to briefly bring all threads to a stopping point so it can read them consistently. That pause is typically a few milliseconds. For a few hundred threads you will not see it in your latency graphs.</p>
+      <p>Compare that with a memory snapshot, which has to walk the entire heap and write it to disk, freezing the application for seconds on a big heap.</p>
+      <p>The honest caveat: if you have a very large number of threads, say tens of thousands, the pause grows and becomes noticeable. But at that point the thread count is itself the bug you are looking for.</p>
+      <p>So the practical answer is: take thread dumps freely, take memory snapshots carefully.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why does the dump show two different numbers for the same thread?</summary>
+    <div class="rvb">
+      <p>Because they come from two different places, and knowing which is which saves you real time during an incident.</p>
+      <p>One is Java's own internal number for the thread. The other is the number the operating system uses for it. They are completely different numbering systems and they do not match.</p>
+      <p>The operating system number is the important one, because that is what system tools report. When a monitoring tool tells you a particular thread is eating the CPU, it gives you the operating system number, and you then have to find that same number in the dump.</p>
+      <p>The awkward part on Linux is that the dump traditionally prints that number in hexadecimal, while the system tools print it in ordinary decimal. So the classic recipe involves converting one to the other before you can match them up. Newer Java versions also print a plain decimal number in square brackets, which removes that step when it is available.</p>
+      <p>Chapter 4 walks through this properly with the real numbers.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 3 ============ -->
+<section class="ch" id="c3">
+  <h2><em>03</em> Deadlock</h2>
+
+  <ul class="prompts">
+    <li>What is a deadlock, in one sentence?</li>
+    <li>What four things must all be true for one to happen?</li>
+    <li>How do you find one in a thread dump?</li>
+    <li>How do you prevent them?</li>
+    <li>Can you recover from one without restarting?</li>
+  </ul>
+
+  <div class="teach">
+  <p>A deadlock is two or more threads each holding something the other one needs, and neither will let go. Nothing moves again, ever.</p>
+  <p>The classic version is two locks taken in opposite order.</p>
+
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 640 220" role="img" aria-label="Diagram of a deadlock. Thread A holds lock 1 and wants lock 2. Thread B holds lock 2 and wants lock 1. The arrows form a circle that cannot be broken.">
+        <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <rect x="30" y="26" width="180" height="48" rx="7" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+        <text x="120" y="56" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">thread A</text>
+        <rect x="430" y="26" width="180" height="48" rx="7" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1.5"/>
+        <text x="520" y="56" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">thread B</text>
+        <rect x="30" y="150" width="180" height="48" rx="7" fill="var(--held-bg)" stroke="var(--held-line)" stroke-width="1.5"/>
+        <text x="120" y="180" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">lock 1</text>
+        <rect x="430" y="150" width="180" height="48" rx="7" fill="var(--held-bg)" stroke="var(--held-line)" stroke-width="1.5"/>
+        <text x="520" y="180" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">lock 2</text>
+
+        <line x1="100" y1="78" x2="100" y2="146" stroke="var(--freed)" stroke-width="1.8" marker-end="url(#a2)"/>
+        <text x="92" y="118" font-size="10.5" text-anchor="end" fill="var(--freed)" font-weight="600">holds</text>
+        <line x1="540" y1="78" x2="540" y2="146" stroke="var(--freed)" stroke-width="1.8" marker-end="url(#a2)"/>
+        <text x="548" y="118" font-size="10.5" fill="var(--freed)" font-weight="600">holds</text>
+
+        <path d="M200 50 L440 160" fill="none" stroke="var(--alarm)" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a2)"/>
+        <text x="330" y="96" font-size="10.5" text-anchor="middle" fill="var(--alarm)" font-weight="600">wants lock 2</text>
+        <path d="M440 50 L200 160" fill="none" stroke="var(--alarm)" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a2)"/>
+        <text x="322" y="140" font-size="10.5" text-anchor="middle" fill="var(--alarm)" font-weight="600">wants lock 1</text>
+      </svg>
+    </div>
+    <figcaption><b>The circle is the deadlock.</b> Follow the arrows and you come back where you started, which is exactly what Java looks for.</figcaption>
+  </figure>
+
+  <h3>The code that causes it</h3>
+  <pre><code>Thread A:                        Thread B:
+  synchronized (ACCOUNT_A) {       synchronized (ACCOUNT_B) {
+      synchronized (ACCOUNT_B) {       synchronized (ACCOUNT_A) {
+          ...                              ...</code></pre>
+  <p>Read the order. A takes account A then wants account B. B takes account B then wants account A. If they interleave badly, both stop forever.</p>
+  <p>Notice how ordinary this looks. Nobody writes this on purpose. It happens because two methods in different files each lock two things, and nobody checked that they do it in the same order.</p>
+
+  <h3>Finding it in the dump</h3>
+  <p>This is the good news, and the reason this question is popular. <strong>Java finds deadlocks for you.</strong> It checks for the circle and writes the answer at the bottom of the dump.</p>
+  <p>This is the real output from running the demo:</p>
+  <pre><code><span class="bad">Found one Java-level deadlock:</span>
+=============================
+"transfer-A-to-B":
+  waiting to lock monitor 0x0000021f910ad680 (object 0x0000000710a40628),
+  which is held by "transfer-B-to-A"
+
+"transfer-B-to-A":
+  waiting to lock monitor 0x0000021f4bd5ef90 (object 0x0000000710a40618),
+  which is held by "transfer-A-to-B"
+
+...
+
+<span class="bad">Found 1 deadlock.</span></code></pre>
+  <p>It names both threads and tells you which one holds what. Read it as a sentence: A is waiting for something B holds, and B is waiting for something A holds. That is the circle.</p>
+
+  <div class="note">
+    <p><b>The one line answer for an interview.</b> "Take a thread dump and search for the words <b>Found one Java-level deadlock</b>. Java detects the cycle itself and names both threads and both locks. Then I look at the two stack traces it prints to find which lines took the locks in the wrong order."</p>
+  </div>
+
+  <p>And here is the individual thread entry, also real. Note the two lines under the stack:</p>
+  <pre><code>"transfer-A-to-B" #26 [12416] ... waiting for monitor entry
+   java.lang.Thread.State: <span class="bad">BLOCKED (on object monitor)</span>
+	at DeadlockDemo.lambda$main$0(DeadlockDemo.java:21)
+	- <span class="bad">waiting to lock</span> &lt;0x0000000710a40628&gt;
+	- <span class="st">locked</span> &lt;0x0000000710a40618&gt;</code></pre>
+  <p>Those two lines are the whole story in miniature. This thread <em>has</em> one lock and <em>wants</em> another. Find the other thread with those same two numbers the other way round, and you have your pair.</p>
+
+  <h3>Preventing them</h3>
+  <ol class="body">
+    <li><strong>Always take locks in the same order.</strong> This is the real fix and it removes the circle completely. If every piece of code locks account A before account B, no circle can form. When the objects have no natural order, sort by something stable like their id.</li>
+    <li><strong>Hold one lock at a time.</strong> If you never hold two at once, you cannot deadlock. Often possible with a bit of restructuring.</li>
+    <li><strong>Use a lock with a timeout.</strong> <code>ReentrantLock</code> lets you try to take a lock and give up after a while. This turns a permanent freeze into a failed request you can retry, which is much easier to live with.</li>
+    <li><strong>Do not hold a lock while calling something slow.</strong> Never make a network call or a database call while holding a lock. It multiplies how long everyone else waits.</li>
+  </ol>
+
+  <div class="wrong">
+    <p><b>"You can detect deadlocks by looking for BLOCKED threads."</b> Not on its own. BLOCKED threads are very common and usually harmless, because locks are held briefly all the time. A deadlock is specifically a circle, and Java reports it explicitly.</p>
+    <p><b>"You fix it by adding a timeout."</b> A timeout stops the freeze, but the ordering bug is still there and will keep firing. Fix the lock order, and use the timeout as a safety net.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>What four conditions are needed for a deadlock?</summary>
+    <div class="rvb">
+      <p>All four have to be true at once. Break any one and it cannot happen.</p>
+      <p><strong>1. Only one at a time.</strong> The resource cannot be shared. A lock is a lock, so only one thread can hold it.</p>
+      <p><strong>2. Hold and wait.</strong> A thread is holding something while asking for something else. This is the one you attack by holding only one lock at a time.</p>
+      <p><strong>3. No taking it away.</strong> You cannot force a thread to give up a lock it already has. Java will not do it for you.</p>
+      <p><strong>4. A circle.</strong> A is waiting for B, and B is waiting back for A, possibly through a longer chain.</p>
+      <p>In practice you break number 4, because it is by far the easiest. Locking everything in the same consistent order makes a circle impossible, and it costs nothing at runtime.</p>
+      <p>Worth saying out loud in an interview: the reason consistent lock ordering is the standard advice is precisely that it kills condition four, and condition four is the only one you can remove without changing what your code does.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Can you recover from a deadlock without restarting?</summary>
+    <div class="rvb">
+      <p>With plain <code>synchronized</code> locks, no. There is no way to force a thread to release one, and no way to interrupt a thread that is blocked waiting for one. Those threads are gone for the life of the process. If enough of your pool ends up there, the service needs a restart.</p>
+      <p>This is exactly why people move to <code>ReentrantLock</code> in code where deadlock is a real risk. It gives you two ways out that <code>synchronized</code> does not have. You can try to take the lock with a time limit and give up if you do not get it. And you can take it in a way that lets the thread be interrupted, so you can cancel it from outside.</p>
+      <p>Neither of those fixes the underlying ordering bug. What they do is turn "the service is dead until someone restarts it at 3am" into "some requests failed and were retried". That is a very different incident.</p>
+      <p>So the honest interview answer is: recovery is a restart, prevention is consistent lock ordering, and a timeout is what stops it becoming an outage while you fix the real cause.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Can a deadlock involve a database instead of Java locks?</summary>
+    <div class="rvb">
+      <p>Yes, and it is far more common in real systems than the two lock Java example everybody learns.</p>
+      <p>Databases take locks on rows. Two transactions updating the same two rows in opposite order deadlock in exactly the same way. Transaction one locks the customer row then wants the order row, transaction two does the reverse.</p>
+      <p>The important difference is who notices. <strong>Java cannot see database locks at all.</strong> Your thread dump will show the threads as RUNNABLE or waiting on a socket read, because from Java's point of view they are just waiting for a slow query. There will be no "Found one Java-level deadlock" line, because as far as Java is concerned nothing is wrong.</p>
+      <p>Most databases detect this themselves, pick one transaction as the loser, and fail it with a deadlock error. So the evidence appears in your application logs as a failed query, not in the thread dump.</p>
+      <p>That is a strong thing to say in an interview, because it shows you know the limits of the tool. A thread dump only knows about locks inside this one Java process. Database locks, file locks, and locks held by another service are all invisible to it.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 4 ============ -->
+<section class="ch" id="c4">
+  <h2><em>04</em> CPU at 100 percent</h2>
+
+  <ul class="prompts">
+    <li>Walk through finding which thread is burning the CPU.</li>
+    <li>Which two numbers in the dump identify the busy thread on their own?</li>
+    <li>Why do you convert a number to hexadecimal in the classic method?</li>
+    <li>Why take more than one dump for this?</li>
+  </ul>
+
+  <div class="teach">
+  <p>The setup is always the same. CPU is pinned, the service is slow, memory is fine. You have hundreds of threads and you need to find the one doing it.</p>
+
+  <h3>The short way, using the dump alone</h3>
+  <p>This works on any operating system and almost nobody mentions it, which makes it a strong answer.</p>
+  <p>Every thread entry carries two numbers. <code>cpu=</code> is how much processor time that thread has used in its whole life. <code>elapsed=</code> is how long the thread has existed. Compare them.</p>
+  <p>Here are two entries from the same real dump, taken while one thread was spinning:</p>
+  <pre><code>"report-builder" ... <span class="bad">cpu=5500.00ms  elapsed=5.76s</span>  runnable
+   java.lang.Thread.State: RUNNABLE
+	at HotCpuDemo.spin(HotCpuDemo.java:34)
+
+"worker-1" ... <span class="st">cpu=0.00ms  elapsed=5.76s</span>  waiting on condition
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(Native Method)</code></pre>
+  <p>Read those numbers. <code>report-builder</code> used <strong>5.5 seconds of processor time in 5.76 seconds of real time</strong>. That is about 95 percent of one core, continuously, since it started. <code>worker-1</code> existed for exactly as long and used none at all.</p>
+  <p>You have your culprit, and the very next line names the method and the line number.</p>
+
+  <div class="note">
+    <p><b>Say this in the interview.</b> "Before anything else I would compare <code>cpu=</code> against <code>elapsed=</code> in the dump. A thread whose processor time is close to its lifetime is spinning, and the stack underneath it names the exact line." It is faster than the classic method and it works even when you cannot get a shell on the machine.</p>
+  </div>
+
+  <h3>The classic way, which interviewers expect</h3>
+  <p>This is the recipe most people are taught, and it is what a Linux focused interviewer wants to hear.</p>
+  <figure>
+    <div class="fbody">
+      <svg viewBox="0 0 700 132" role="img" aria-label="Four steps. Find the busy thread with top dash H, convert its id to hexadecimal, take a thread dump, then find that number in the dump to reach the guilty line of code.">
+        <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <rect x="8" y="30" width="150" height="54" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text x="83" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">top -H -p pid</text>
+        <text x="83" y="70" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">which thread is busy</text>
+        <line x1="162" y1="57" x2="190" y2="57" stroke="currentColor" marker-end="url(#a3)"/>
+        <rect x="194" y="30" width="150" height="54" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text x="269" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">printf %x</text>
+        <text x="269" y="70" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">convert the id</text>
+        <line x1="348" y1="57" x2="376" y2="57" stroke="currentColor" marker-end="url(#a3)"/>
+        <rect x="380" y="30" width="150" height="54" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text x="455" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">jstack pid</text>
+        <text x="455" y="70" font-size="10.5" text-anchor="middle" fill="currentColor" opacity=".75">take the dump</text>
+        <line x1="534" y1="57" x2="562" y2="57" stroke="var(--held)" stroke-width="1.8" marker-end="url(#a3)"/>
+        <rect x="566" y="30" width="126" height="54" rx="7" fill="var(--held-bg)" stroke="var(--held)" stroke-width="1.5"/>
+        <text x="629" y="52" font-size="12.5" text-anchor="middle" fill="currentColor" font-weight="600">find nid=</text>
+        <text x="629" y="70" font-size="10.5" text-anchor="middle" fill="var(--held)">the guilty line</text>
+        <text x="8" y="114" font-size="11.5" fill="currentColor" opacity=".75">The conversion step exists only because the two tools print the same number in different formats.</text>
+      </svg>
+    </div>
+    <figcaption><b>Four steps, and step two is only there because of a formatting mismatch.</b></figcaption>
+  </figure>
+
+  <pre><code><span class="cm"># 1. Show individual threads instead of the whole program, sorted by CPU</span>
+top -H -p &lt;pid&gt;
+
+<span class="cm"># 2. Take the busy thread id, say 24068, and convert it to hexadecimal</span>
+printf '%x\n' 24068        <span class="cm"># gives 5e04</span>
+
+<span class="cm"># 3. Take a thread dump</span>
+jstack &lt;pid&gt; &gt; dump.txt
+
+<span class="cm"># 4. Find that thread in the dump</span>
+grep -A 20 'nid=0x5e04' dump.txt</code></pre>
+
+  <p><strong>Why the conversion?</strong> Because the two tools disagree about how to print the same number. The system tool prints thread ids as ordinary decimal. The thread dump has traditionally printed them in hexadecimal, which is a different way of writing the same value. Step two just translates between the two so you can match them.</p>
+  <p>Newer Java versions also print a plain decimal id in square brackets at the start of each entry, like <code>[24068]</code> in the real output above. Where that is present you can skip the conversion and search for the decimal number directly.</p>
+
+  <div class="note">
+    <p><b>On Windows, for practising.</b> There is no <code>top -H</code>. Use the short way instead and read <code>cpu=</code> straight from the dump, which is exactly how the numbers above were produced. The demo files and the dumps for this episode were all captured on Windows this way.</p>
+  </div>
+
+  <h3>Take three, again</h3>
+  <p>One dump can mislead you badly here. A thread that happens to be running at the instant you take the photo looks guilty and is completely innocent.</p>
+  <p>Take three dumps ten seconds apart. The real culprit is <strong>on the same line in all three</strong>, and its <code>cpu=</code> number climbs sharply between them. An innocent thread will have moved on and its processor time will barely change.</p>
+
+  <div class="wrong">
+    <p><b>"I would look for RUNNABLE threads."</b> Not enough on its own. A thread waiting on the network also shows as RUNNABLE while using no processor time at all. You need <code>cpu=</code>, or the system tool, to tell those apart.</p>
+    <p><b>"I would restart the service."</b> It will come back. Whatever loop was spinning will spin again on the next request that triggers it.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>CPU is high but every thread shows low cpu time. What now?</summary>
+    <div class="rvb">
+      <p>Then no single thread is the problem, and you should suspect one of three things.</p>
+      <p><strong>Garbage collection.</strong> The threads that clean up memory are usually not shown in the ordinary part of a thread dump, so their work is invisible there. If cleanup is running constantly, the processor is busy but your application threads look idle. Check how much time is going into cleanup. This connects straight back to Episode 1, because a memory leak eventually shows up as a CPU problem.</p>
+      <p><strong>Lots of threads each doing a little.</strong> Five hundred threads at 1 percent each still adds up to five whole cores. No individual entry looks alarming. The tell is a very high thread count and a request rate that does not justify it.</p>
+      <p><strong>Something outside Java.</strong> Another process on the same machine, or a library written in C doing work that Java cannot see. Check whether the processor time even belongs to your program before digging further.</p>
+      <p>The general lesson worth saying out loud: a thread dump only shows you Java threads doing Java things. When the numbers do not add up, the cause is usually something the dump cannot see.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you tell a spinning loop from genuinely heavy work?</summary>
+    <div class="rvb">
+      <p>Both show high processor time, so the numbers alone will not separate them. The difference is in the stack, and in whether it changes.</p>
+      <p><strong>A spinning loop stays still.</strong> Take three dumps and it is on the same few lines every time, usually inside a small loop, often a retry that never gives up or a check that never becomes true. The line numbers barely move.</p>
+      <p><strong>Real work moves.</strong> Three dumps show three different places, because the thread is progressing through actual work: parsing, then calculating, then writing.</p>
+      <p>The other signal is what the code is doing. A loop that checks a condition over and over with no pause is a bug, because it burns a whole core doing nothing. A loop that is sorting a large list is just slow, which is a different conversation about the algorithm.</p>
+      <p>Practical follow-up: if it is genuinely heavy work, the fix is not a thread dump problem at all. It is either doing less work, doing it somewhere else, or doing it once and caching the answer.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why not just attach a debugger to the running service?</summary>
+    <div class="rvb">
+      <p>Because a debugger changes the thing you are trying to measure, and on production it is dangerous.</p>
+      <p>Setting a breakpoint stops threads. On a live service that means requests pile up behind the pause, and you can turn a slow service into a completely dead one in seconds. Some debugger features also slow the whole program down noticeably even when nothing is paused.</p>
+      <p>There is also a security angle worth mentioning. The port a debugger connects to allows running arbitrary code inside your application, so leaving it open on a production machine is a serious hole.</p>
+      <p>Thread dumps are the right tool precisely because they are passive. You take a photo and the application carries on. That is why the answer to "how do you debug a stuck production service" is dumps and monitoring, not a debugger, and saying so shows production judgement.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 5 ============ -->
+<section class="ch" id="c5">
+  <h2><em>05</em> When a dump is not enough</h2>
+
+  <ul class="prompts">
+    <li>When does a thread dump stop being the right tool?</li>
+    <li>What is a profiler doing that a dump is not?</li>
+    <li>What is Java Flight Recorder and when would you turn it on?</li>
+    <li>What is a flame graph showing you?</li>
+  </ul>
+
+  <div class="teach">
+  <p>A thread dump is a photo. It is perfect for things that are <strong>stuck</strong>, because a stuck thread looks the same in every photo you take.</p>
+  <p>It is bad at things that are <strong>fast and frequent</strong>. If a method takes two milliseconds but runs a million times an hour, you will almost never catch it in a photo. You need something that records continuously instead.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Symptom</th><th>Right tool</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Completely frozen</td><td>Thread dump</td><td>Stuck threads show up in every photo. Take three and compare.</td></tr>
+      <tr><td>Deadlock suspected</td><td>Thread dump</td><td>Java finds and reports the circle for you.</td></tr>
+      <tr><td>One thread pinning a core</td><td>Thread dump</td><td>The cpu number and the stack name the line.</td></tr>
+      <tr><td>Slow, but nothing is stuck</td><td>Profiler</td><td>The cost is spread over many short calls that a photo will miss.</td></tr>
+      <tr><td>Slow only sometimes</td><td>Flight Recorder</td><td>You need it already recording when the problem happens.</td></tr>
+      <tr><td>Slow and you do not know why</td><td>Flame graph</td><td>Shows where the time actually goes, ranked.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>What a profiler does differently</h3>
+  <p>A profiler takes the same kind of photo, but hundreds of times a second, and adds up the results. If a method appears in 30 percent of those samples, it is using roughly 30 percent of your processor time.</p>
+  <p>That is the whole idea. A thread dump asks "what is happening right now". A profiler asks "where does the time actually go", and only the second question can be answered by sampling repeatedly.</p>
+  <p>The commonly used one for Java is <strong>async-profiler</strong>. It is popular because it can be attached to a program that is already running, it costs very little performance, and unlike some older tools it does not distort the answer by only sampling at convenient moments.</p>
+
+  <h3>What a flame graph shows</h3>
+  <p>A flame graph is how profiler output is usually drawn. It is simpler than it looks.</p>
+  <ul class="body">
+    <li>Each box is a method.</li>
+    <li>A box sits on top of the method that called it, so height is just call depth.</li>
+    <li><strong>Width is the only thing that matters.</strong> A wide box means that method was on the stack in a large share of the samples.</li>
+    <li>Colours usually mean nothing at all.</li>
+  </ul>
+  <p>So you read it by looking for <strong>wide plateaus</strong>, not tall towers. A tall narrow spike is deep call nesting, which is normal. A wide flat box is where your time is going.</p>
+
+  <h3>Java Flight Recorder</h3>
+  <p>Flight Recorder is a recorder built into Java itself. Instead of you turning up after the problem and taking a photo, it is already running and writing down what happened.</p>
+  <p>You turn it on when the problem is <strong>intermittent</strong>: slow every few hours, or only at 3am, or only under a load you cannot reproduce. It records events like slow methods, cleanup pauses, lock contention and file access, then you open the file afterwards and look at the window when things went wrong.</p>
+  <pre><code><span class="cm"># start a recording on a program that is already running</span>
+jcmd &lt;pid&gt; JFR.start name=diag duration=120s filename=/tmp/rec.jfr</code></pre>
+  <p>The reason people like it is cost. Its default settings are designed to be safe to leave on in production, so you can have the evidence ready before the incident rather than trying to reproduce it afterwards.</p>
+
+  <div class="wrong">
+    <p><b>"I would use a profiler."</b> Fine for a slowness problem, wrong for a freeze. If threads are stuck, a profiler tells you almost nothing, because nothing is consuming time. Match the tool to the symptom, and say why you chose it.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>Is it safe to run a profiler on production?</summary>
+    <div class="rvb">
+      <p>It depends entirely on which tool and which settings, and giving a nuanced answer here scores well.</p>
+      <p><strong>Flight Recorder on its default settings is designed for this.</strong> The overhead is small, usually quoted at around one percent, and it exists precisely so you can leave it running on real systems. This is the safe default answer.</p>
+      <p><strong>async-profiler at a sensible sampling rate is also generally fine.</strong> It samples rather than instrumenting every call, so the cost is bounded and predictable. Most teams are comfortable attaching it to one instance during an incident.</p>
+      <p><strong>The dangerous kind is a profiler that rewrites your code to count every method call.</strong> That can slow an application down by a large factor and change its behaviour, so timing sensitive bugs may vanish or appear. Never do that on production.</p>
+      <p>The good practical answer is to profile <em>one</em> instance rather than all of them, take it out of the pool first if you can, and prefer sampling over instrumenting. That way even a surprise is contained to a single machine.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>What would you use for a service that is slow only at 3am?</summary>
+    <div class="rvb">
+      <p>Flight Recorder, and the reasoning matters more than the name.</p>
+      <p>You cannot take a thread dump at 3am unless someone is awake and watching, and by the time an alert wakes you the moment has often passed. You also cannot reproduce it, because whatever causes it is tied to real conditions: a batch job, a backup, a scheduled report, a traffic pattern.</p>
+      <p>So you need something that is already recording when it happens. Start a recording that runs continuously, or configure it to always keep the last hour, and then pull the file the next morning and look at the window that matters.</p>
+      <p>What to look for in that window, in order: unusually long cleanup pauses, threads blocked on the same lock, slow database calls, and any scheduled job that lines up with the timing.</p>
+      <p>The strong extra sentence: 3am is a very big clue by itself. Something scheduled is usually running. Before reaching for any tool at all, look at what is on the schedule, because backups, batch jobs and nightly reports explain a surprising share of these.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>How do you know whether the problem is your code or something you call?</summary>
+    <div class="rvb">
+      <p>Look at what the threads are doing, and in particular at whether they are using the processor or waiting.</p>
+      <p><strong>If threads are waiting</strong>, in WAITING or TIMED_WAITING, with almost no processor time used, and their stacks end in a network or database call, the slowness is not yours. You are waiting on something else. Your fix is timeouts, retries, a circuit breaker, or a conversation with whoever owns that service.</p>
+      <p><strong>If threads are using real processor time</strong>, with high cpu numbers and stacks inside your own classes, the slowness is yours. Your fix is in the code.</p>
+      <p>The number that settles it quickly is the same one from Chapter 4. Compare processor time used against how long the thread has existed. Waiting threads use almost none, no matter how slow the request feels.</p>
+      <p>Worth adding: this is also how you answer the blame question in a real incident. "Our threads are idle and waiting on their endpoint" is a fact from the dump, not an opinion, and it moves the conversation on quickly.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ CH 6 ============ -->
+<section class="ch" id="c6">
+  <h2><em>06</em> Pool starvation</h2>
+
+  <ul class="prompts">
+    <li>What is thread pool starvation?</li>
+    <li>Why does the service look frozen when memory and CPU are both fine?</li>
+    <li>What does it look like in a thread dump?</li>
+    <li>What is the actual fix, and what is only a workaround?</li>
+  </ul>
+
+  <div class="teach">
+  <p>This is the most common freeze in real services, and it is the one people are least prepared for, because nothing looks wrong. Memory is flat. CPU is near zero. And the service answers nothing.</p>
+  <p>A thread pool has a fixed number of threads. Requests arrive, a free thread picks one up, and when it finishes it goes back and takes the next. Simple, until every thread is stuck on something slow at the same time. Then there is nobody left to pick up the next request, and everything queues behind them.</p>
+
+  <h3>Watch it happen</h3>
+  <p>Four threads. Requests keep arriving. In the first mode the slow call has no timeout, so threads never come back. In the second it gives up after a while, so threads keep cycling.</p>
+
+  <div class="sim">
+    <div class="simhead">
+      <button class="btn" id="simRun">Run</button>
+      <button class="btn" id="simMode" aria-pressed="false">No timeout</button>
+      <button class="btn" id="simReset">Reset</button>
+      <div class="sp">
+        <div class="stat">handled<b id="sDone">0</b></div>
+        <div class="stat">queued<b id="sQueue">0</b></div>
+        <div class="stat">free threads<b id="sFree">4</b></div>
+      </div>
+    </div>
+    <div class="simbody">
+      <div class="slots" id="slots" aria-hidden="true"></div>
+      <div>
+        <div class="qlabel">waiting queue</div>
+        <div class="queue" id="queue" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="simfoot" id="simFoot">Press Run. Orange threads are busy on a slow call.</div>
+  </div>
+
+  <h3>What it looks like in a dump</h3>
+  <p>This is real output from the demo. Three threads in the pool, ten jobs submitted, and every thread stuck in exactly the same place:</p>
+  <pre><code>"pool-1-thread-1" ... cpu=0.00ms elapsed=6.74s  waiting on condition
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at PoolStarvationDemo.callSlowService(...)
+
+"pool-1-thread-2" ... cpu=0.00ms elapsed=6.74s  waiting on condition
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at PoolStarvationDemo.callSlowService(...)
+
+"pool-1-thread-3" ... cpu=0.00ms elapsed=6.74s  waiting on condition
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at PoolStarvationDemo.callSlowService(...)</code></pre>
+  <p>The program also reported: <code>pool threads = 3, jobs running = 3, jobs waiting = 7</code>.</p>
+  <p>Three signs together, and once you have seen them you cannot miss them again:</p>
+  <ol class="body">
+    <li><strong>Same name pattern</strong>, because they are all from one pool.</li>
+    <li><strong>Same stack trace</strong>, because they are all stuck on the same call.</li>
+    <li><strong>Processor time near zero</strong>, because they are waiting, not working.</li>
+  </ol>
+
+  <div class="note">
+    <p><b>The sentence that shows you have seen this before.</b> "Memory flat, processor near zero, service not responding: I would take a thread dump and count how many threads share the same stack. If a whole pool is sitting on one call, the service is not broken, it is waiting for something that never answers."</p>
+  </div>
+
+  <h3>The fix, and the workaround</h3>
+  <p>People reach for the wrong one, so be clear about which is which.</p>
+  <p><strong>The workaround is a bigger pool.</strong> If every thread is stuck forever, doubling the pool just means twice as many stuck threads and a slightly later freeze. It buys minutes.</p>
+  <p><strong>The fix is a timeout on the slow call.</strong> A thread that gives up after two seconds comes back and serves someone else. The service gets slower under stress instead of dying, which is what you want.</p>
+  <p>Then two more things that turn a slowdown into something manageable:</p>
+  <ul class="body">
+    <li><strong>Give the queue a maximum size</strong>, and decide what happens when it is full. Rejecting a request quickly is much better than accepting it and never answering. An unlimited queue also grows until memory runs out, which turns this into an Episode 1 problem as well.</li>
+    <li><strong>Keep separate pools for separate things.</strong> If your slow reporting calls and your fast customer requests share one pool, reports will starve customers. Separate pools mean a failure in one does not take the other down.</li>
+  </ul>
+
+  <div class="wrong">
+    <p><b>"Increase the pool size."</b> The most common answer and mostly wrong. If the calls never return, more threads means more stuck threads.</p>
+    <p><b>"Memory and CPU are fine, so the application is fine."</b> This is exactly the case where both look perfect and the service is completely dead. Thread exhaustion is invisible on the two graphs everybody watches.</p>
+  </div>
+  </div>
+
+  <h3>Follow-up questions</h3>
+
+  <details class="rv"><summary>How do you pick the right pool size?</summary>
+    <div class="rvb">
+      <p>It depends entirely on what the threads spend their time doing, and saying that first is the answer.</p>
+      <p><strong>For work that uses the processor</strong>, like calculations or parsing, the useful size is close to the number of cores you have. More threads than cores does not make the work finish faster, it just means the machine spends time switching between them instead of doing work.</p>
+      <p><strong>For work that waits</strong>, like calling a database or another service, you can have many more threads than cores, because most are idle at any moment. The right number depends on how long each call takes and how many you need to handle at once.</p>
+      <p>The rough reasoning goes: if a call takes 100 milliseconds and you need to handle 200 requests a second, you need about 20 threads busy at any time, so a pool of 20 to 30 is sensible.</p>
+      <p>The more important point, and the one worth landing: <strong>do not tune the number until you have set the timeouts.</strong> Pool size only matters when threads come back. If they never come back, no size is big enough.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Do virtual threads make this problem go away?</summary>
+    <div class="rvb">
+      <p>They remove one version of it and leave the more important one, so the honest answer is "partly, and here is what is left".</p>
+      <p>Virtual threads are cheap enough that you can have a very large number of them, so you stop being limited by having only a few hundred threads available. Blocking on a slow call no longer wastes a scarce resource in the same way. That genuinely removes the classic starvation shape where a small fixed pool fills up.</p>
+      <p><strong>What does not go away is the downstream service being slow.</strong> If a service takes 30 seconds, your users still wait 30 seconds. You have simply moved the queue from your thread pool to somewhere else. And you can now pile up so many waiting calls that you overwhelm the slow service completely, making it worse.</p>
+      <p>So you still need timeouts, and you still need a limit on how many calls you send to one dependency at a time. The tool for that becomes something like a bulkhead or a circuit breaker rather than the pool size itself.</p>
+      <p>The nuance that lands well: virtual threads fix the resource problem, not the dependency problem. Anyone who says they remove the need for timeouts has not run them in production.</p>
+    </div>
+  </details>
+
+  <details class="rv"><summary>Why is a queue with no size limit dangerous?</summary>
+    <div class="rvb">
+      <p>Because it hides the problem until it becomes a much worse one, and it connects the two episodes together.</p>
+      <p>With no limit, work that cannot be handled just accumulates. From the outside the service looks like it is accepting everything, which feels like coping. In reality every request is being accepted and then answered far too late or not at all, and the caller has usually given up long before you get to it.</p>
+      <p>Then there is the memory. Every queued item is an object being held, so an unlimited queue is also an unlimited amount of memory. Under sustained pressure it becomes an out of memory error, which means a thread problem turns into a memory crash and the real cause gets buried.</p>
+      <p>With a size limit you get a decision point instead. When the queue is full you can reject quickly, which tells the caller immediately so it can retry or fail cleanly, and it keeps memory bounded. Rejecting fast is a much better user experience than accepting and never answering.</p>
+      <p>The general principle worth saying: an unlimited queue is not backpressure, it is a delayed outage. Real backpressure means telling the caller to slow down, and you cannot do that if you always say yes.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ DIAGNOSER ============ -->
+<section class="ch" id="dx">
+  <h2><em>D</em> Which tool do I need?</h2>
+  <p>Pick what you are actually seeing and get the tool, the reason, and the first command.</p>
+  <div class="dx">
+    <div class="dxq">
+      <p>What is the service doing?</p>
+      <div class="opts" id="dxOpts">
+        <button class="opt" data-k="frozen">Completely frozen. No responses at all. Memory and CPU both look fine.</button>
+        <button class="opt" data-k="cpu">Processor pinned at 100 percent and everything is slow.</button>
+        <button class="opt" data-k="slow">Slow, but nothing is stuck and the processor is not busy.</button>
+        <button class="opt" data-k="intermittent">Fine most of the time, terrible every few hours.</button>
+        <button class="opt" data-k="restart">Restarts fix it for a while, then it comes back.</button>
+      </div>
+    </div>
+    <div class="dxout" id="dxOut">
+      <span class="lbl">Diagnosis</span>
+      <p class="verdict">Pick a symptom</p>
+      <p>The tool you reach for should follow from the symptom. Saying why you picked it matters more than naming it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUIZ ============ -->
+<section class="ch" id="quiz">
+  <h2><em>Q</em> Quiz</h2>
+  <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+  <div class="quiz">
+    <div class="qhead">
+      <span class="qn" id="qNum">1 / 12</span>
+      <span id="qChap">Chapter 1</span>
+      <span class="sc" id="qScore">0 correct</span>
+    </div>
+    <div class="qbody" id="qBody"></div>
+    <div class="qacts" id="qActs"></div>
+  </div>
+</section>
+
+<section class="ch" id="allq">
+  <h2><em>R</em> Every question, with answers</h2>
+  <p>The same twelve questions as a plain list, for revising quickly.</p>
+  <div id="allqList"></div>
+</section>
+
+<section class="ch" id="gloss" style="border-bottom:none">
+  <h2><em>G</em> Word list</h2>
+  <p>Every term on this page that you might not already know.</p>
+  <dl class="gloss">
+    <dt>thread dump</dt><dd>A photo of every thread in your application and what each one was doing at that moment.</dd>
+    <dt>thread state</dt><dd>What a thread is currently doing: running, waiting for a lock, waiting for something else, or finished.</dd>
+    <dt>lock</dt><dd>A way of making sure only one thread at a time can touch something. In a dump these are called monitors.</dd>
+    <dt>monitor</dt><dd>The dump's word for the lock attached to an object. "Waiting for monitor entry" means waiting to get a lock.</dd>
+    <dt>deadlock</dt><dd>Two or more threads each holding something the other needs, so none of them can ever continue.</dd>
+    <dt>nid</dt><dd>The number the operating system uses for a thread. On Linux the dump usually prints it in hexadecimal, which is why you convert.</dd>
+    <dt>hexadecimal</dt><dd>Another way of writing numbers, using 0 to 9 and then a to f. The value 24068 is written 5e04.</dd>
+    <dt>thread pool</dt><dd>A fixed set of reusable threads that take jobs from a queue, so you do not create a new thread per request.</dd>
+    <dt>pool starvation</dt><dd>When every thread in a pool is stuck on something slow, so no thread is left to handle new work.</dd>
+    <dt>timeout</dt><dd>A time limit on a call. Without one, a slow dependency can hold a thread forever.</dd>
+    <dt>profiler</dt><dd>A tool that samples what your program is doing hundreds of times a second and adds it up, to show where time actually goes.</dd>
+    <dt>flame graph</dt><dd>The usual picture of profiler output. Each box is a method, width means share of time. Look for wide boxes, not tall ones.</dd>
+    <dt>Java Flight Recorder</dt><dd>A recorder built into Java that writes down what happened, so you can look at a problem after it occurred. Often shortened to JFR.</dd>
+    <dt>async-profiler</dt><dd>A widely used profiler for Java that can attach to a running program and costs very little performance.</dd>
+    <dt>virtual threads</dt><dd>A newer kind of thread introduced in Java 21 that is cheap enough to have very many of. Covered properly in a later episode.</dd>
+    <dt>pid</dt><dd>Process id. The number the operating system uses for your running program. You pass it to the tools.</dd>
+  </dl>
+</section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+          set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("td.ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("td.ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("td.rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("td.rev")==="1") setRev(true);
+
+  /* thread states */
+  var ST={
+    "new":{t:"NEW",tag:"harmless",h:"Created, but not started yet",
+      p:"The thread object exists because somebody wrote new Thread(...), but start() has not been called. You almost never see this in a dump, because a thread in this state is not doing anything and usually gets started immediately. Nothing to diagnose here."},
+    runnable:{t:"RUNNABLE",tag:"usually fine, sometimes misleading",h:"Not waiting for anything Java knows about",
+      p:"The important thing is what this does NOT mean. It does not mean the thread is using the processor right now. It means Java is not tracking any wait for it. A thread reading from a network socket shows as RUNNABLE while doing nothing at all, because Java handed that wait to the operating system. To tell real work from waiting, look at the cpu number in the entry, and look at whether the top of the stack is a network call."},
+    blocked:{t:"BLOCKED",tag:"worth investigating",h:"Wants a lock that another thread is holding",
+      p:"The thread did not choose to wait. It reached a synchronized block and someone else was already inside, so it was stopped at the door. In the dump the line reads waiting for monitor entry, and underneath you see waiting to lock followed by a number. A few of these at any moment is completely normal, because locks are taken and released constantly. Many of them on the same lock means one piece of code is holding it far too long, and everything else is queued behind it."},
+    waiting:{t:"WAITING",tag:"normal in pools, bad in a freeze",h:"Chose to wait, with no time limit",
+      p:"The thread called something with no deadline: wait(), join(), or waiting for a result that has not arrived. It will sit there until something wakes it. An idle thread pool is full of these and that is exactly correct. It becomes a problem when a whole pool is in this state on the same call, because nothing will ever release them by itself and the service needs a restart to recover."},
+    timed:{t:"TIMED_WAITING",tag:"normal",h:"Chose to wait, but gives up eventually",
+      p:"The same as WAITING except a number was passed in: Thread.sleep(1000), wait(5000), or waiting for a result with a deadline. The thread will free itself even if nothing else happens. This is the state you want your waiting code to be in, because it means somebody set a timeout. Seeing TIMED_WAITING instead of WAITING on a slow call is the difference between a service that recovers and one that needs restarting."},
+    terminated:{t:"TERMINATED",tag:"harmless",h:"Finished",
+      p:"The thread's work is done and it has stopped. You rarely see these in a dump because finished threads are cleaned up. If you do see a lot of them, it usually means something is creating threads directly instead of using a pool, which is worth questioning on its own."}
+  };
+  var stOut=document.getElementById("stOut");
+  [].slice.call(document.querySelectorAll("[data-s]")).forEach(function(g){
+    function pick(){
+      var d=ST[g.dataset.s]; if(!d) return;
+      document.querySelectorAll("[data-s]").forEach(function(x){x.classList.remove("sel")});
+      g.classList.add("sel");
+      stOut.innerHTML='<span class="tag">'+d.tag+'</span><h6>'+d.t+'. '+d.h+'</h6><p>'+d.p+'</p>';
+    }
+    g.addEventListener("click",pick);
+    g.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}});
+  });
+
+  /* dump entry anatomy */
+  var FLD={
+    name:{t:"The thread name",p:"The single most useful field, and the one you control. Threads you name yourself, or pools you name, make a dump readable in seconds. Default names like pool-1-thread-3 tell you a pool exists but not what it does. Naming your pools after their job, such as payment-worker, turns a confusing dump into an obvious one. This is a genuinely good thing to say in an interview."},
+    num:{t:"Java's own thread number",p:"A simple counter Java keeps internally. It is not the operating system's number and does not match anything you see in system monitoring tools. Useful only for telling two entries apart inside the same file."},
+    nid:{t:"The operating system's thread number",p:"This is the one that matters when you are hunting a busy thread, because system tools report this number. Newer Java versions print it in plain decimal in square brackets like this. On Linux the dump has traditionally printed the same value in hexadecimal further along the line, which is why the classic recipe includes a conversion step."},
+    cpu:{t:"Processor time used, in total",p:"How much processor time this thread has used across its whole life. This is the number that finds a spinning thread, and hardly anyone looks at it. Compare it with the elapsed value next to it: here 5500ms of processor time in 5.76s of real time means this thread used about 95 percent of one core continuously since it started."},
+    elapsed:{t:"How long the thread has existed",p:"Wall clock time since the thread started. On its own it means little. Its job is to give the processor time something to be compared against. A thread with cpu close to elapsed is spinning. A thread with cpu near zero is waiting, no matter how busy it looks."},
+    cond:{t:"A short description of the state",p:"A human readable summary printed on the first line. runnable means working or waiting on something outside Java. waiting on condition means it is waiting for something to happen. waiting for monitor entry means it is stuck at the door of a synchronized block, which is the phrase to search for when hunting lock problems."},
+    state:{t:"The official state",p:"The proper thread state, and the one to quote in an interview. The five are NEW, RUNNABLE, BLOCKED, WAITING and TIMED_WAITING, plus TERMINATED when finished. When it appears with extra words in brackets, such as BLOCKED (on object monitor) or TIMED_WAITING (sleeping), those brackets tell you exactly which kind of wait it is."},
+    stack:{t:"The stack, most recent call first",p:"The top line is where the thread is right now, and it is almost always the line you care about. Read downwards to see how it got there. When you are comparing three dumps taken ten seconds apart, this top line is what you compare: same line every time means genuinely stuck, a moving line means it is working."}
+  };
+  var fldOut=document.getElementById("fldOut");
+  [].slice.call(document.querySelectorAll(".fld")).forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll(".fld").forEach(function(x){x.setAttribute("aria-pressed","false")});
+      b.setAttribute("aria-pressed","true");
+      var d=FLD[b.dataset.f]; if(!d) return;
+      fldOut.innerHTML='<span class="tag">'+b.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+    });
+  });
+
+  /* pool simulator */
+  var THREADS=4, QMAX=28;
+  var slotsEl=document.getElementById("slots"), queueEl=document.getElementById("queue");
+  var slots=[], jobs=[];
+  for(var i=0;i<THREADS;i++){
+    var s=document.createElement("div"); s.className="slot"; slotsEl.appendChild(s); slots.push(s);
+  }
+  for(var j=0;j<QMAX;j++){
+    var q=document.createElement("div"); q.className="job"; queueEl.appendChild(q); jobs.push(q);
+  }
+  var sim={t:null,busy:[],queue:0,done:0,timeout:false,frozen:false,ticks:0};
+  function initSlots(){sim.busy=[];for(var i=0;i<THREADS;i++)sim.busy.push(0)}
+  initSlots();
+  var elDone=document.getElementById("sDone"),elQ=document.getElementById("sQueue"),elF=document.getElementById("sFree"),
+      foot=document.getElementById("simFoot"),runBtn=document.getElementById("simRun"),modeBtn=document.getElementById("simMode");
+
+  function paintSim(){
+    var free=0;
+    for(var i=0;i<THREADS;i++){
+      if(sim.busy[i]>0){slots[i].className="slot busy";slots[i].textContent="thread-"+(i+1)+"  busy"}
+      else{slots[i].className="slot";slots[i].textContent="thread-"+(i+1)+"  free";free++}
+    }
+    for(var j=0;j<QMAX;j++){
+      jobs[j].className="job"+(j<sim.queue?(sim.queue>=QMAX?" over":" wait"):"");
+    }
+    elDone.textContent=sim.done; elQ.textContent=sim.queue; elF.textContent=free;
+  }
+  function stopSim(){if(sim.t){clearInterval(sim.t);sim.t=null}runBtn.textContent="Run"}
+  function resetSim(){
+    stopSim(); initSlots(); sim.queue=0; sim.done=0; sim.frozen=false; sim.ticks=0;
+    foot.className="simfoot";
+    foot.textContent=sim.timeout?"Threads now give up after a while, so they come back and take the next job.":"Press Run. Orange threads are busy on a slow call.";
+    paintSim();
+  }
+  function tick(){
+    sim.ticks++;
+    sim.queue++;                                   // a new request arrives
+    for(var i=0;i<THREADS;i++){                    // finish work
+      if(sim.busy[i]>0){
+        sim.busy[i]--;
+        if(sim.busy[i]===0) sim.done++;
+      }
+    }
+    for(var k=0;k<THREADS;k++){                    // free threads pick up work
+      if(sim.busy[k]===0 && sim.queue>0){
+        sim.queue--;
+        sim.busy[k]=sim.timeout?4:99999;           // no timeout means never returns
+      }
+    }
+    if(sim.queue>=QMAX){
+      sim.queue=QMAX; sim.frozen=true; stopSim(); paintSim();
+      foot.className="simfoot crash";
+      foot.textContent="Frozen. All 4 threads are stuck on a call that never returns, the queue is full, and new requests have nowhere to go. Memory is fine. Processor is idle. The service answers nothing.";
+      return;
+    }
+    if(sim.timeout && sim.ticks>=40){
+      stopSim(); paintSim();
+      foot.className="simfoot ok";
+      foot.textContent="Still serving after "+sim.done+" requests, queue holding at "+sim.queue+". Same slow dependency, same 4 threads. The only difference is that the call gives up, so threads keep coming back.";
+      return;
+    }
+    paintSim();
+  }
+  runBtn.addEventListener("click",function(){
+    if(sim.t){stopSim();return}
+    if(sim.frozen||(sim.timeout&&sim.ticks>=40)) resetSim();
+    runBtn.textContent="Pause";
+    foot.className="simfoot";
+    foot.textContent=sim.timeout?"Threads pick up work, give up after a while, and come back for more.":"Threads pick up work and never come back. Watch the queue.";
+    sim.t=setInterval(tick,220);
+  });
+  modeBtn.addEventListener("click",function(){
+    sim.timeout=!sim.timeout;
+    modeBtn.setAttribute("aria-pressed",sim.timeout?"true":"false");
+    modeBtn.textContent=sim.timeout?"Timeout set":"No timeout";
+    resetSim();
+  });
+  document.getElementById("simReset").addEventListener("click",resetSim);
+  resetSim();
+
+  /* diagnoser */
+  var DX={
+    frozen:{v:"Thread dump. Look for a whole pool on one line",
+      n:"Memory flat and processor idle while nothing responds is the signature of thread exhaustion. Take three dumps ten seconds apart and count how many threads share the same name pattern and the same stack. If a whole pool is sitting on one call, the service is not broken, it is waiting for something that never answers. Also search the file for the deadlock line, because Java reports those itself.",
+      x:"jcmd &lt;pid&gt; Thread.print &gt; dump1.txt   (repeat 3 times, 10s apart)"},
+    cpu:{v:"Thread dump, and read the cpu numbers",
+      n:"Compare cpu against elapsed in each entry. A thread whose processor time is close to its lifetime is spinning, and the line underneath names the method. Take three dumps: the real culprit sits on the same line in all three while its cpu number climbs. On Linux you can also start from top -H to find the busy thread id first, then match it in the dump.",
+      x:"jcmd &lt;pid&gt; Thread.print | grep -B2 -A12 'cpu='"},
+    slow:{v:"A profiler, not a dump",
+      n:"Nothing is stuck, so a photo will show you very little. The cost is spread across many short calls that a dump will almost never catch. Sample instead: a profiler takes hundreds of photos a second and adds them up, so a method using 30 percent of your time shows up as 30 percent of the samples. Read the result as a flame graph and look for wide boxes, not tall ones.",
+      x:"async-profiler, or jcmd &lt;pid&gt; JFR.start duration=120s filename=/tmp/rec.jfr"},
+    intermittent:{v:"Flight Recorder, running before it happens",
+      n:"You cannot take a dump at the moment it breaks, because nobody is watching and it will not reproduce on demand. You need something already recording. Start a recording and pull the file afterwards, then look at the window when things went wrong. Before reaching for any tool, check what is on the schedule: backups, batch jobs and nightly reports explain a surprising share of these.",
+      x:"jcmd &lt;pid&gt; JFR.start name=diag duration=120s filename=/tmp/rec.jfr"},
+    restart:{v:"Something is accumulating. Check memory as well as threads",
+      n:"Getting better after a restart and worse over time means something builds up while the program runs. Two candidates. Threads: take a dump and count them, and see whether the count climbs steadily over days, which points at pools or clients being created per request. Memory: this is the Episode 1 pattern, so check how much is still in use after a full cleanup rather than raw usage.",
+      x:"jcmd &lt;pid&gt; Thread.print | grep -c 'java.lang.Thread.State'"}
+  };
+  var dxOut=document.getElementById("dxOut");
+  [].slice.call(document.querySelectorAll("#dxOpts .opt")).forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("#dxOpts .opt").forEach(function(x){x.setAttribute("aria-pressed","false")});
+      b.setAttribute("aria-pressed","true");
+      var d=DX[b.dataset.k];
+      dxOut.innerHTML='<span class="lbl">Diagnosis</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p><p><span class="lbl">What to run</span><code>'+d.x+'</code></p>';
+    });
+  });
+
+  /* quiz */
+  var Q=[
+    {c:1,q:"What is the difference between BLOCKED and WAITING?",
+     a:"<b>BLOCKED</b> means the thread wants a lock that another thread is holding. It did not choose to wait, it was stopped at the door of a synchronized block. <b>WAITING</b> means the thread chose to wait, by calling something like wait() or join() with no time limit, and will sit there until something wakes it. Put simply: BLOCKED is 'I want in and cannot get in', WAITING is 'wake me when you are ready'. Many BLOCKED threads on one lock is nearly always a problem. Many WAITING threads is normal, because that is what an idle pool looks like."},
+    {c:1,q:"A thread is RUNNABLE. Is it using the processor?",
+     a:"Not necessarily, and this is a favourite trap. RUNNABLE only means Java is not tracking any wait for it. A thread reading from a network socket shows as RUNNABLE while doing nothing at all, because Java handed that wait to the operating system and stopped tracking it. So a dump full of RUNNABLE threads does not prove the processor is busy. To know, check the <code>cpu=</code> number in the entry, and look at whether the top of the stack is a network call."},
+    {c:1,q:"What does it mean when many threads share the same stack trace?",
+     a:"They are all stuck on the same thing, and that shared line is your problem. It is the fastest way to read a dump: count the states first, then look at the biggest group. If they are all WAITING or TIMED_WAITING on the same call, something they depend on is slow or not answering. If they are all BLOCKED on the same lock, one piece of code is holding that lock far too long and everything else is queued behind it."},
+    {c:2,q:"Name three ways to take a thread dump.",
+     a:"<code>jcmd &lt;pid&gt; Thread.print</code> is the modern one. <code>jstack &lt;pid&gt;</code> is the classic one with the same output. <code>kill -3 &lt;pid&gt;</code> works when no tools are installed at all: it does not kill anything, it asks Java to print a dump into its own log output. That third one matters because production images often ship without developer tools to keep them small."},
+    {c:2,q:"How is taking a thread dump different from taking a memory snapshot?",
+     a:"A thread dump is cheap. It pauses the application for a few milliseconds and produces a small file, so you can take them freely on production. A memory snapshot has to walk the whole heap and write it to disk, freezing the application for seconds on a large heap, so you take those carefully and ideally from a server pulled out of the pool. Knowing that the safety rule is opposite for the two shows you understand both."},
+    {c:2,q:"Why take three thread dumps instead of one?",
+     a:"One dump is a single photo. It shows where threads are but not whether they are moving. Take three about ten seconds apart and compare the top line of each stack. A thread on the same line in all three is genuinely stuck. A thread that moves is working, just slowly, and you are looking at the wrong problem. This one habit separates people who have done this from people who have read about it."},
+    {c:3,q:"How do you find a deadlock in a thread dump?",
+     a:"Search for the words <b>Found one Java-level deadlock</b>. Java detects the circle itself and writes the answer at the bottom of the dump, naming both threads and telling you which one holds what. Then read the two stack traces it prints to find the lines that took the locks in the wrong order. In the individual entries you also see the pair of lines 'waiting to lock' and 'locked', which is the same story in miniature."},
+    {c:3,q:"What four conditions are needed for a deadlock, and which do you attack?",
+     a:"Only one thread can hold the resource at a time; a thread holds one thing while asking for another; nothing can force it to give the lock up; and there is a circle of threads waiting on each other. You attack the <b>circle</b>, because it is the only one you can remove without changing what your code does. Always taking locks in the same consistent order makes a circle impossible and costs nothing at runtime."},
+    {c:3,q:"Can a deadlock involve the database instead of Java locks?",
+     a:"Yes, and it is more common than the two lock Java example. Two transactions updating the same two rows in opposite order deadlock the same way. The key difference is that <b>Java cannot see database locks</b>, so your dump shows nothing wrong and there is no deadlock line. The database detects it, picks a loser, and fails that transaction, so the evidence shows up in your application logs instead. A dump only knows about locks inside this one Java process."},
+    {c:4,q:"Which two numbers in a thread dump identify a spinning thread?",
+     a:"<code>cpu=</code> and <code>elapsed=</code>. The first is how much processor time the thread has used in its whole life, the second is how long it has existed. When they are close, the thread has been running flat out. In the real capture, the busy thread showed cpu=5500ms against elapsed=5.76s, which is about 95 percent of one core, while idle threads on the same dump showed cpu=0.00ms. The line under it names the method. This works on any operating system and hardly anyone mentions it. The classic Linux method starts from <code>top -H</code> instead, and needs the thread id converted to hexadecimal purely because the two tools print the same number in different formats: the system tool in decimal, the dump traditionally in hexadecimal. Newer Java versions also print a plain decimal id in square brackets, which removes that step."},
+    {c:5,q:"When does a thread dump stop being the right tool?",
+     a:"When nothing is stuck. A dump is a photo, so it is perfect for things that are frozen, because a stuck thread looks the same in every photo you take. It is bad at things that are fast and frequent: a method taking two milliseconds that runs a million times an hour will almost never be caught in a photo. For that you need to sample instead, which is what a profiler does, taking hundreds of photos a second and adding them up, so a method using 30 percent of your time shows up in 30 percent of the samples. Read the result as a flame graph and look for <b>wide</b> boxes, not tall ones: width is share of time, height is only call depth. And when the problem is intermittent, happening every few hours or only at 3am, you cannot be there to take anything, so you need Flight Recorder already running and writing down what happened before it happens."},
+    {c:6,q:"A service is frozen, memory is flat and the processor is idle. What is happening?",
+     a:"Almost certainly thread pool starvation. Every thread in the pool is stuck on a slow call, so there is nobody left to pick up new requests, and everything queues behind them. In the dump you see the same name pattern, the same stack trace, and processor time near zero. The fix is a <b>timeout on the slow call</b> so threads come back, not a bigger pool: if calls never return, more threads just means more stuck threads. Then give the queue a size limit and keep separate pools for separate jobs."}
+  ];
+  var qi=0,score=0,answered=[];
+  var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+      qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),qScore=document.getElementById("qScore");
+  function drawQ(){
+    if(qi>=Q.length){drawResult();return}
+    var q=Q[qi];
+    qNum.textContent=(qi+1)+" / "+Q.length;
+    qChap.textContent="Chapter "+q.c;
+    qScore.textContent=score+" correct";
+    qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+    qActs.innerHTML='';
+    var reveal=document.createElement("button");
+    reveal.className="btn"; reveal.textContent="Reveal answer";
+    reveal.addEventListener("click",function(){
+      qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+      qActs.innerHTML='';
+      var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+      var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+      g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;drawQ()});
+      b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;drawQ()});
+      qActs.appendChild(g);qActs.appendChild(b);
+    });
+    qActs.appendChild(reveal);
+  }
+  function drawResult(){
+    qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+    var weak={};
+    answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+    var names={1:"What a thread is doing",2:"Taking a dump",3:"Deadlock",4:"100% CPU",5:"When a dump is not enough",6:"Pool starvation"};
+    var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+    var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+    if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+    else{
+      html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+      ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+names[k]+'</a>, '+weak[k]+' missed</li>'});
+      html+='</ul>';
+    }
+    html+='</div>';
+    qBody.innerHTML=html; qActs.innerHTML='';
+    var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+    again.addEventListener("click",function(){qi=0;score=0;answered=[];drawQ()});
+    qActs.appendChild(again);
+  }
+  drawQ();
+  document.getElementById("quizBtn").addEventListener("click",function(){
+    qi=0;score=0;answered=[];drawQ();
+    document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+  });
+
+  var list=document.getElementById("allqList");
+  Q.forEach(function(q,i){
+    var d=document.createElement("details");d.className="rv";
+    d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a+'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+    list.appendChild(d);
+  });
+})();
+</script>
+</body>
+</html>
