@@ -1,0 +1,1839 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The Cost of a Change, episode 10 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>The Cost of a Change</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS GOES HERE
+   Only the bespoke visualisation for this episode's simulator or
+   diagram. Never redefine a token above.
+   =================================================================== */
+
+/* ===================================================================
+   EPISODE CSS: the requirement panel and the fat interface grid
+   =================================================================== */
+.matrix{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  margin:22px 0;overflow:hidden}
+.reqs{display:flex;flex-wrap:wrap;gap:7px;padding:16px}
+.req{text-align:left;font:inherit;font-size:13.5px;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;
+  transition:background-color .15s,border-color .15s}
+.req:hover{border-color:var(--ink-faint)}
+.req:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.req[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);
+  color:var(--held);font-weight:600}
+.grid4{display:grid;grid-template-columns:96px repeat(4,1fr);gap:6px;padding:16px}
+.gh{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);
+  font-weight:600;display:flex;align-items:flex-end;padding-bottom:4px}
+.rh{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);
+  font-weight:600;display:flex;align-items:center}
+.cell{font:inherit;font-size:12.5px;font-family:"IBM Plex Mono",monospace;
+  border:1px solid var(--line);border-radius:8px;padding:11px 8px;cursor:pointer;
+  background:var(--surface-2);color:var(--ink-soft);text-align:center;
+  transition:background-color .15s,border-color .15s,color .15s}
+.cell:hover{border-color:var(--ink-faint)}
+.cell:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.cell.broke{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm);font-weight:600}
+.cell.held{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed);font-weight:600}
+.cell[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--held)}
+.mout{border-top:1px solid var(--line-soft);padding:15px 17px;background:var(--surface)}
+.mout h6{margin:0 0 6px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;font-weight:600}
+.mout p{font-size:14.5px;margin:0 0 10px;color:var(--ink-soft);max-width:none}
+.mout p:last-child{margin:0}
+.mout .real{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface-2);
+  border:1px solid var(--line-soft);border-radius:6px;padding:9px 12px;color:var(--ink);
+  overflow-x:auto;white-space:pre;margin:0 0 10px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 12px}
+.side{border:1px solid var(--line-soft);border-radius:8px;padding:11px 13px;background:var(--surface-2)}
+.side.win{border-color:var(--freed-line);background:var(--freed-bg)}
+.side.lose{border-color:var(--alarm-line);background:var(--alarm-bg)}
+.side .cap{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:0 0 7px}
+.side .num{display:block;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:20px;
+  font-weight:600;color:var(--ink);margin:0 0 3px;font-variant-numeric:tabular-nums}
+.side p{font-size:13px;margin:0;color:var(--ink-soft);max-width:none}
+@media (max-width:700px){
+  .grid4{grid-template-columns:70px repeat(4,1fr);gap:4px}
+  .cell{font-size:11px;padding:9px 3px}.rh{font-size:11px}
+  .cmp{grid-template-columns:1fr}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep10">
+  <a class="backlink" href="index.html">All episodes</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>The Cost of a Change</b>
+    <span>Episode 10 &middot; SOLID, measured</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> The class that does everything</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Adding UPI without touching what works</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> The subclass that breaks a promise</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> The interface nobody can implement</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Code that builds its own dependencies</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> The quick round</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>The cost of a change</h1>
+      <p class="sub">Everyone can recite SOLID. Almost nobody can show what it buys. So here is one checkout system written twice, five real requirements sent at both versions, and the actual cost of each change measured with <code>git diff</code> and a stopwatch. The headline number is not the one the textbooks promise: the clean version is <b>52 percent more code</b>. What it buys is something else entirely, and that is the whole episode.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+    <section class="ch" id="c1">
+      <h2><em>01</em> The class that does everything</h2>
+
+      <ul class="prompts">
+        <li>What does "one reason to change" actually mean? Give an example.</li>
+        <li>A marketing person asks for different wording in an email. Which file should that touch?</li>
+        <li>Is a class with 20 methods breaking the single responsibility principle?</li>
+        <li>How is single responsibility different from tight coupling?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What it is.</b> The single responsibility principle says a class should have
+        <b>one reason to change</b>. Not one method. Not one line. One reason.</p>
+
+        <p>A reason to change is a person or a team who can walk up to you and ask for something
+        different. Finance can change the fee. Marketing can change the email. The platform team
+        can move the database. Each of those is a reason. If all three land in the same file,
+        that file has three reasons to change, and the principle is broken.</p>
+
+        <p><b>What it looks like when it is broken.</b> Here is the checkout method that this
+        whole episode is built on. It works. It has been in production for two years. Read what
+        it does, in order:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>tangled/OrderService.java</span><span class="sp">103 lines, 6 files</span></div>
+          <pre class="dumpcode"><span class="kw">public void</span> checkout(Order order, String method) {
+
+    <span class="cm">// 1. is this order allowed at all</span>
+    <span class="kw">if</span> (order.amountPaise() &lt;= 0) throw ...
+    <span class="kw">if</span> (method.equals(<span class="st">"card"</span>))            <span class="cm">// card has a limit</span>
+    <span class="kw">else if</span> (method.equals(<span class="st">"netbanking"</span>))  <span class="cm">// netbanking has a floor</span>
+
+    <span class="cm">// 2. what the payment provider charges us</span>
+    <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) fee = amount * 0.0195 + 300;
+    <span class="kw">else if</span> (method.equals(<span class="st">"netbanking"</span>)) fee = 1200;
+
+    <span class="cm">// 3. actually take the money</span>
+    <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) <span class="cm">// call the card gateway</span>
+    <span class="kw">else if</span> (method.equals(<span class="st">"netbanking"</span>)) <span class="cm">// call the bank portal</span>
+
+    <span class="cm">// 4. store it</span>
+    Database db = Database.connect(<span class="st">"jdbc:postgresql://prod-db:5432/orders"</span>);
+    db.savePayment(order.id(), method, fee);
+
+    <span class="cm">// 5. tell the customer</span>
+    Smtp smtp = Smtp.connect(<span class="st">"smtp.company.internal"</span>);
+    smtp.send(order.customerEmail(), <span class="st">"Order confirmed"</span>, <span class="st">"Thank you..."</span>);
+
+    <span class="cm">// 6. audit trail</span>
+    System.out.println(<span class="st">"[audit] "</span> + order.id() + <span class="st">" paid by "</span> + method);
+}</pre>
+        </div>
+
+        <p>Six jobs. Six reasons to change. This is not a made up example written to look bad:
+        it is what code turns into when a feature ships on time and every later change gets added
+        to the method that was already there.</p>
+
+        <p><b>The measurement.</b> Marketing asked for different wording in the confirmation email.
+        Nothing to do with payments. Here is the real diff, taken from both versions of the same
+        system:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Version</th><th>File that changed</th><th>Lines</th></tr></thead>
+          <tbody>
+          <tr><td>tangled</td><td><code>OrderService.java</code>, which also holds the fee rules, the
+              card gateway call and the database connection</td><td>3 added, 1 removed</td></tr>
+          <tr><td>clean</td><td><code>EmailNotifier.java</code>, which holds nothing else</td>
+              <td>3 added, 2 removed</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>Look at the line counts. They are <b>the same</b>. Single responsibility did not save
+        a single keystroke here. What it changed is <b>which file a person had to open</b>. In the
+        tangled version, a wording change from marketing meant opening the payment logic, which
+        means a code review by the payments team, and a small chance of breaking how money moves
+        because of a sentence about a discount.</p>
+
+        <p><b>The trap: this is not the same as tight coupling.</b> Interviewers ask this to
+        separate people who memorised the list from people who have used it.</p>
+
+        <ul class="body">
+          <li><b>Too many responsibilities</b> means one class does several unrelated jobs.
+          The fix is to split it. Our <code>OrderService</code> has this problem.</li>
+          <li><b>Tight coupling</b> means one class depends on the exact details of another,
+          so changing one forces you to change the other. The fix is to put an interface between
+          them, or to stop the dependency existing. Our <code>OrderService</code> also has this
+          problem, separately, because it names <code>Database</code> and <code>Smtp</code>
+          directly.</li>
+        </ul>
+
+        <p>They travel together, but they are different faults with different fixes. You can have
+        a class that does one job and is still tightly coupled to a specific database driver. You
+        can have a class that is loosely coupled to everything and still does six jobs.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"A class should do only one thing."</b> Too vague to act on, and it leads people
+          to write classes with one method each. The test is who can ask you to change it, not
+          how many things it appears to do.</p>
+          <p><b>"Small classes are good, big classes are bad."</b> Size is a symptom, not the
+          rule. A 400 line class that only the tax team ever changes is fine. A 30 line class
+          that three teams keep editing is not.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>What counts as "one reason to change"? It sounds subjective.</summary>
+      <div class="rvb">
+        <p>It is subjective, and pretending otherwise is how people get lost. The version that
+        actually works in practice is: <b>a reason to change is a group of people who can ask
+        for a change independently of the others</b>. Robert Martin, who wrote the principle,
+        later restated it exactly this way, because the original wording confused everyone.</p>
+        <p>So test it by naming the humans. In our checkout method: finance owns the fee
+        percentages. Marketing owns the email text. The platform team owns which database it
+        connects to. Compliance owns what goes in the audit line. Four groups of people, one
+        file. Any one of them can force a change that the other three did not ask for and must
+        now review.</p>
+        <p>If you cannot name two different groups, you probably do not have two
+        responsibilities, and splitting the class will just create more files with no benefit.
+        That is the failure mode people hit when they apply this principle by feel.</p>
+      </div></details>
+
+      <details class="rv"><summary>Is a class with 20 methods automatically breaking this principle?</summary>
+      <div class="rvb">
+        <p>No, and this is worth saying clearly in an interview because it shows you are not
+        just counting things.</p>
+        <p><code>java.lang.String</code> has over 60 public methods. It is not a violation. Every
+        one of those methods exists for the same reason: to do something with a sequence of
+        characters. There is one group of people who would ever change it, and one concept it
+        serves. Splitting <code>String</code> into <code>StringSearcher</code>,
+        <code>StringTrimmer</code> and <code>StringJoiner</code> would make the code worse and
+        harder to find your way around.</p>
+        <p>Now compare a 3 method class: <code>saveUser()</code>, <code>sendWelcomeEmail()</code>,
+        <code>chargeSubscription()</code>. Three methods, three teams, three reasons to change.
+        That small class is the violation, and the 60 method one is not.</p>
+        <p>So the honest answer is: method count tells you nothing on its own. It is a hint worth
+        looking at, in the same way a large file is a hint. The actual test is whether the
+        reasons to change are the same reason.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do I tell this principle apart from tight coupling in an interview?</summary>
+      <div class="rvb">
+        <p>Use this sentence: <b>one is about how much a class does, the other is about how much
+        a class knows.</b></p>
+        <p>Too many responsibilities is about how much it <b>does</b>. Our checkout method
+        validates, prices, charges, saves, emails and audits. Too much doing. You fix it by moving
+        work out into other classes.</p>
+        <p>Tight coupling is about how much it <b>knows</b>. Our checkout method knows the exact
+        class name <code>Database</code>, and the exact connection string, and that email is sent
+        over SMTP. Too much knowing. You fix it by replacing the specific knowledge with a general
+        promise, which in Java means an interface, and having someone else supply the specific
+        thing at start up.</p>
+        <p>A worked example of the difference. Suppose you split the email sending out into an
+        <code>EmailSender</code> class, and <code>OrderService</code> now calls
+        <code>new EmailSender().send(...)</code>. You have genuinely fixed the responsibility
+        problem, because the marketing wording now lives in its own file. You have <b>not</b>
+        fixed the coupling, because <code>OrderService</code> still names the concrete
+        <code>EmailSender</code> and still cannot be tested without a mail server. Two faults,
+        two fixes, and doing one does not do the other.</p>
+      </div></details>
+
+      <details class="rv"><summary>If splitting classes is free, why not split everything as far as possible?</summary>
+      <div class="rvb">
+        <p>Because it is not free, and this episode measured the price. The clean version of this
+        system is <b>157 lines across 13 files</b> against <b>103 lines across 6 files</b>. That
+        is 52 percent more code and more than double the number of files, for identical behaviour.</p>
+        <p>Every extra file is a thing to name, a thing to find, and a jump for whoever is reading
+        the code later. Follow one request through the clean version and you visit
+        <code>Main</code>, <code>CheckoutService</code>, <code>CardPayment</code>,
+        <code>PostgresOrderRepository</code> and <code>EmailNotifier</code>. Follow it through
+        the tangled version and you scroll down one method. For a reader who just wants to know
+        what happens, the tangled version is genuinely easier.</p>
+        <p>The trade is that the tangled version is easier to <b>read once</b> and harder to
+        <b>change safely</b>, and code gets changed far more often than it gets read from
+        scratch. That is the actual argument, and it is a trade rather than a free win. Saying
+        this out loud in an interview is worth more than reciting the principle, because it
+        shows you have paid the cost and decided it was worth it.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c2">
+      <h2><em>02</em> Adding UPI without touching what works</h2>
+
+      <ul class="prompts">
+        <li>"Support a new payment method without changing existing code." How?</li>
+        <li>The clean version wrote more lines for the same feature. Why is that still better?</li>
+        <li>You still edited one existing file. Is that a violation?</li>
+        <li>How do you decide what to make extensible before you know the future?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What it is.</b> Open for extension, closed for modification. New behaviour should
+        arrive as <b>new code</b>, not as edits inside code that already works.</p>
+
+        <p><b>The scenario, which is asked almost word for word.</b> "Next month we need to
+        support UPI. Card and netbanking are live and must not break. How do you build this?"</p>
+
+        <p>Here is what actually happened when UPI was added to both versions of the system.
+        These are real diffs, not estimates:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>git diff --no-index --stat</span><span class="sp">adding UPI</span></div>
+          <pre class="dumpcode"><span class="cm">tangled</span>
+  Main.java         | 2 +-
+  OrderService.java | 9 +++++++++
+  <span class="bad">2 files changed, 10 insertions(+), 1 deletion(-)</span>
+
+<span class="cm">clean</span>
+  Main.java         |  4 ++--
+  UpiPayment.java   | 16 ++++++++++++++++
+  <span class="bad">2 files changed, 18 insertions(+), 2 deletions(-)</span></pre>
+        </div>
+
+        <p><b>The clean version wrote more code.</b> Eighteen lines against ten. If the argument
+        for this principle were "you write less", the measurement just lost it.</p>
+
+        <p>So measure the thing that actually matters. Not how many lines were written, but
+        <b>how many lines of working, tested code had to be opened and edited</b>:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th></th><th>New lines written</th><th>Lines of existing logic modified</th>
+            <th>Existing files left byte identical</th></tr></thead>
+          <tbody>
+          <tr><td>tangled</td><td>10</td><td class="bad">9, in three separate places inside the
+            method that also opens the database and sends the email</td><td>3 of 5</td></tr>
+          <tr><td>clean</td><td>18</td><td class="hl">0</td><td class="hl">12 of 13</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>In the clean version, <code>CardPayment.java</code> and
+        <code>NetBankingPayment.java</code> were never opened. Not edited carefully, not
+        reviewed: never opened. They came out of the change byte for byte identical, which was
+        checked with <code>cmp</code> rather than trusted. Card payments cannot have been broken
+        by this change, and that is a fact about the diff, not a promise from a developer.</p>
+
+        <p>In the tangled version, nine new lines went into three different places inside a
+        method that also moves money and writes to production. Each of those is somewhere a
+        mistake could reach card payments.</p>
+
+        <p><b>This is the sentence to say in an interview:</b> "It is not about writing less
+        code. It is about not editing code that already works. Adding UPI touched zero lines of
+        the card logic."</p>
+
+        <div class="note">
+          <b>What made this possible</b>
+          <p>One interface, <code>PaymentMethod</code>, with the four things every payment method
+          must be able to do: give its name, check the order, work out the fee, take the money.
+          UPI is a new file that implements it. <code>CheckoutService</code> looks the method up
+          by name and calls it, and has no idea UPI exists.</p>
+        </div>
+
+        <p><b>Try it below.</b> Pick a requirement and see what each version actually cost. Every
+        number and every line of output came from running the code.</p>
+
+      <div class="matrix">
+        <div class="simhead"><span>The requirement arrives</span><span class="sp">real measurements</span></div>
+        <div class="reqs" id="reqOpts">
+          <button class="req" data-req="upi" aria-pressed="false">Add UPI as a payment method</button>
+          <button class="req" data-req="email" aria-pressed="false">Marketing wants different email wording</button>
+          <button class="req" data-req="refund" aria-pressed="false">Gift cards, which cannot be refunded</button>
+          <button class="req" data-req="split" aria-pressed="false">Let friends split one bill</button>
+          <button class="req" data-req="test" aria-pressed="false">Write a test for checkout</button>
+        </div>
+        <div class="mout" id="reqOut">
+          <p style="color:var(--ink-faint)">Pick a requirement above.</p>
+        </div>
+      </div>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"It means you never edit an existing file."</b> You edited
+          <code>Main.java</code>. That is fine, and pretending otherwise makes the principle
+          impossible to follow. Wiring has to change when there is something new to wire. What
+          must not change is the <b>logic</b>.</p>
+          <p><b>"You need an abstract class for everything just in case."</b> This is how
+          codebases end up with an interface per class and one implementation each. You make
+          something extensible when you have a real reason to think it will be extended, and a
+          payment method list is about as safe a bet as exists.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>You still edited Main.java. Is that not a modification?</summary>
+      <div class="rvb">
+        <p>It is, and it is the right answer to give rather than dodge.</p>
+        <p>Something, somewhere, has to learn that UPI exists. There is no design where a new
+        class appears on disk and starts being used with nothing anywhere pointing at it. The
+        goal is not zero edits. The goal is that the edit lands in a place that holds
+        <b>wiring and no logic</b>, so that getting it wrong cannot break how money moves.</p>
+        <p><code>Main.java</code> in the clean version is exactly that place. It has one job: to
+        build the real objects and hand them to each other. It is called the composition root,
+        which is just a name for the one place that knows which real classes are in use. If you
+        break it, the application will not start, which is the loudest and safest way to fail.</p>
+        <p>And in a Spring application, even that edit usually disappears. You annotate
+        <code>UpiPayment</code> with <code>@Component</code>, ask for a
+        <code>List&lt;PaymentMethod&gt;</code> in the constructor, and Spring finds every
+        implementation on the classpath and passes them all in. Now adding UPI really is one new
+        file and no edits anywhere. That is not magic: Spring is doing the job that
+        <code>Main.java</code> was doing by hand.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do I know what to make extensible before I know what is coming?</summary>
+      <div class="rvb">
+        <p>You mostly do not, and guessing is expensive. The useful rule is to <b>wait for the
+        second one</b>.</p>
+        <p>When there is one payment method, write it directly. When the second arrives, you now
+        know something real: this is an axis the business actually changes along. That is the
+        moment to pull out the interface, and you can do it with confidence because you have two
+        concrete examples to design against, not one example and your imagination. When the third
+        arrives, it costs almost nothing.</p>
+        <p>Designing for change you have not seen produces the opposite failure, which is just as
+        common and harder to unpick. You end up with <code>AbstractPaymentStrategyFactory</code>
+        and one implementation, because you guessed at an axis of change that never moved, and
+        now everyone pays the reading cost forever for flexibility nobody uses.</p>
+        <p>The exception is when the business has already told you. If someone says "we will be
+        adding wallets and UPI next quarter", that is not a guess, that is a requirement with a
+        date on it, and you build for it now.</p>
+      </div></details>
+
+      <details class="rv"><summary>If the clean version is 52 percent more code, how do I justify it to a manager?</summary>
+      <div class="rvb">
+        <p>Not by naming the principle. Managers do not buy principles, they buy outcomes, and
+        this is a genuinely good interview answer because it shows you can operate outside your
+        own team.</p>
+        <p>Use the numbers this episode produced. "Adding a payment method to the current code
+        means editing nine lines inside the method that also charges cards and writes to the
+        production database. Every one of those is a place a mistake reaches live payments, so
+        every change needs the payments team to review it and a full regression pass. In the
+        other shape, the same feature is one new file and zero lines of existing payment code
+        touched, so the review is smaller and the blast radius is provably nothing."</p>
+        <p>Then add the honest cost, because leaving it out is how you lose trust: "It is about
+        50 percent more code and roughly twice the files. It is more to read the first time. We
+        get that back the second and third time we change it."</p>
+        <p>And be willing to say when it is not worth it. A script that runs once, a proof of
+        concept, an integration nobody will extend: leave it tangled. The trade only pays off
+        where change is actually coming.</p>
+      </div></details>
+
+      <details class="rv"><summary>Is this the same as the strategy pattern?</summary>
+      <div class="rvb">
+        <p>Very close, and the difference is worth being precise about because interviewers
+        sometimes push on it.</p>
+        <p>Open for extension is the <b>goal</b>: new behaviour should arrive as new code.
+        Strategy is <b>one way</b> of reaching that goal: define an interface for a job that can
+        be done several ways, write one class per way, and pick between them at run time. That is
+        exactly what <code>PaymentMethod</code>, <code>CardPayment</code> and
+        <code>UpiPayment</code> are. So yes, this design is the strategy pattern, and it is being
+        used to reach the goal.</p>
+        <p>But the goal has other routes. You can reach it with a lookup table of small functions
+        rather than classes. You can reach it by having new behaviour arrive as a plugin the
+        program discovers on the classpath, which is what Java's <code>ServiceLoader</code>
+        does. You can reach it with rules held in a database instead of in code, so new behaviour
+        is a row rather than a deployment. All of those are open for extension, and none of them
+        are the strategy pattern.</p>
+        <p>So the accurate phrasing is: every use of strategy serves this principle, but not
+        every way of serving this principle is strategy.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c3">
+      <h2><em>03</em> The subclass that breaks a promise</h2>
+
+      <ul class="prompts">
+        <li>What promise does a parent class make, and how does a subclass break it?</li>
+        <li>Why is the gift card refund a design fault and not a bug?</li>
+        <li>Explain the rectangle and square example, and what it is really showing.</li>
+        <li>Can a subclass throw an exception the parent never threw?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What it is.</b> If your code works with a parent type, it must keep working when
+        it is handed any subclass, without knowing which one it got. That is the whole rule.</p>
+
+        <p>A parent class makes a promise. A subclass is allowed to keep that promise
+        <b>differently</b>. It is not allowed to <b>break</b> it.</p>
+
+        <p><b>The scenario.</b> Refunds get added. There is a <code>Refundable</code> parent
+        whose promise is simple: call <code>refund(amount)</code> and that amount goes back to
+        the customer. Card and netbanking implement it. Then gift cards arrive.</p>
+
+        <p>A gift card behaves like a card in almost every way, so someone extends
+        <code>CardRefund</code> to save the duplication. But the business rule is that gift card
+        money is never returned. So the only thing <code>refund</code> can do is fail:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>proofs/LiskovProof.java</span><span class="sp">the same test, three subclasses</span></div>
+          <pre class="dumpcode"><span class="kw">class</span> GiftCardRefund <span class="kw">extends</span> CardRefund {
+    <span class="cm">// the parent promised: give me an amount, I return it</span>
+    <span class="kw">long</span> refund(<span class="kw">long</span> amountPaise) {
+        <span class="kw">throw new</span> UnsupportedOperationException(<span class="st">"gift cards are not refundable"</span>);
+    }
+}
+
+<span class="cm">// one test, written once, against the promise the parent made</span>
+card         contract holds? <span class="st">true</span>
+netbanking   contract holds? <span class="st">true</span>
+gift card    contract holds? <span class="bad">false</span></pre>
+        </div>
+
+        <p><b>Why this is worse than it looks.</b> The damage is not a tidy exception at the top
+        of the program. Real code that was written against the parent type does not know anything
+        is unusual, so it goes ahead and does half the job. Here is a refund batch, run twice:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>a refund batch written against the parent type</span><span class="sp">real output</span></div>
+          <pre class="dumpcode"><span class="cm">all subclasses keeping the promise:</span>
+  refunded Rs 500.00 by card
+  refunded Rs 500.00 by netbanking
+  refunded Rs 500.00 by card
+<span class="st">batch finished, 3 of 3, total Rs 1500.00</span>
+
+<span class="cm">one gift card in the middle:</span>
+  refunded Rs 500.00 by card
+  <span class="bad">STOPPED: gift cards are not refundable</span>
+<span class="bad">batch died after 1 of 3. Rs 500.00 already left the account and the rest
+never ran.</span></pre>
+        </div>
+
+        <p>Money moved. Then the batch died. The remaining customers were not refunded and
+        nothing was rolled back. <b>Nobody wrote a bug.</b> Every individual class is correct on
+        its own. The batch code is reasonable. The fault is that a subclass was allowed to say it
+        was a <code>CardRefund</code> while not being able to do what a <code>CardRefund</code>
+        does.</p>
+
+        <p><b>What should have happened.</b> Gift cards are not a kind of refundable payment.
+        They are a payment method that happens to share some code with cards. So do not inherit
+        from <code>CardRefund</code>. Have <code>GiftCard</code> implement the payment interface
+        and simply not implement <code>Refundable</code> at all. Then the refund batch cannot be
+        handed one, because the types will not allow it, and the compiler catches it instead of
+        production. That is chapter four, and it is the same fix.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"It means inheritance is bad."</b> It means inheritance carries a promise that
+          most people do not notice they are making. Used where the promise genuinely holds, it
+          is fine.</p>
+          <p><b>"It is about matching method signatures."</b> The compiler already forces
+          signatures to match. This principle is about the part the compiler cannot see: what
+          the method actually does, and what the caller was entitled to assume.</p>
+          <p><b>"Just catch the exception in the batch."</b> Now every caller of every subclass
+          has to know which subclasses might fail, which is exactly the knowledge the parent type
+          existed to hide.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>What exactly is "the promise"? It is not written down anywhere.</summary>
+      <div class="rvb">
+        <p>It is usually not written down, which is why this is the principle people break
+        without noticing. It has three parts, and each has a plain English version worth
+        memorising.</p>
+        <p><b>What the method demands before you call it.</b> A subclass may accept
+        <b>more</b> than the parent did, never less. If the parent accepts any positive amount
+        and the subclass rejects anything under 100 rupees, code written for the parent will
+        start failing. This is the one that bites most often in real systems, because it looks
+        like harmless extra validation.</p>
+        <p><b>What the method guarantees when it finishes.</b> A subclass must deliver
+        <b>at least</b> what the parent promised, and may deliver more. If the parent guarantees
+        the money is returned and the subclass returns nothing, the guarantee is broken. That is
+        our gift card.</p>
+        <p><b>What stays true about the object throughout.</b> If a <code>Refundable</code> is
+        supposed to keep a running total of everything refunded, every subclass has to keep that
+        true too, including any new methods it adds.</p>
+        <p>Short version for an interview: <b>a subclass may ask for less and give more. It may
+        never ask for more or give less.</b></p>
+      </div></details>
+
+      <details class="rv"><summary>Explain the rectangle and square example properly.</summary>
+      <div class="rvb">
+        <p>This is the textbook example and it does get asked, so here it is in full.</p>
+        <p>A <code>Rectangle</code> has <code>setWidth</code> and <code>setHeight</code>. A
+        square is a rectangle in school geometry, so someone writes
+        <code>Square extends Rectangle</code>. A square must keep its sides equal, so
+        <code>setWidth(5)</code> has to set the height to 5 as well, and the other way round.
+        Every method exists, every signature matches, it compiles.</p>
+        <p>Now here is ordinary code written against <code>Rectangle</code>, by someone who has
+        never heard of <code>Square</code>:</p>
+        <p><code>r.setWidth(5); r.setHeight(4); assert r.area() == 20;</code></p>
+        <p>With a rectangle, the area is 20. With a square, <code>setHeight(4)</code> also set the
+        width to 4, so the area is 16. The test fails, and it fails inside code that did nothing
+        wrong.</p>
+        <p><b>What it is really showing</b>, and this is the part people miss: the problem is not
+        geometry. It is that <code>Rectangle</code>'s promise includes "width and height can be
+        set independently", because it offers two separate setters. A square cannot keep that
+        promise. In geometry a square is a rectangle. In code, <b>a square is not a substitute
+        for a mutable rectangle</b>, because being a subtype is about honouring behaviour, not
+        about matching a real world category.</p>
+        <p>Two things worth adding if you have time. First, if <code>Rectangle</code> were
+        immutable, with no setters and width and height fixed at construction, the problem
+        disappears entirely, because there is no promise about setting them independently. Second,
+        this is exactly the same fault as our gift card: a subclass advertised a capability it
+        could not deliver. The rectangle just does it quietly with a wrong number instead of
+        loudly with an exception, which makes it worse.</p>
+      </div></details>
+
+      <details class="rv"><summary>Can a subclass throw an exception the parent never threw?</summary>
+      <div class="rvb">
+        <p>Java's rules and this principle's rules are different here, and knowing that
+        difference is a good answer.</p>
+        <p><b>What Java enforces.</b> An overriding method cannot add new <b>checked</b>
+        exceptions to the <code>throws</code> clause. The compiler stops you. But it places no
+        restriction at all on unchecked exceptions, which is why
+        <code>throw new UnsupportedOperationException(...)</code> in our gift card compiled
+        without a murmur.</p>
+        <p><b>What the principle asks for.</b> A subclass may throw an exception the parent
+        already declared, or a more specific subclass of one. Throwing something genuinely new
+        breaks the promise, because callers were written against the parent and had no reason to
+        handle it.</p>
+        <p>The practical line: if the parent says "this can fail with
+        <code>PaymentDeclinedException</code>", a subclass may throw that or something more
+        specific like <code>InsufficientFundsException</code>, and callers already cope. If the
+        subclass throws <code>UnsupportedOperationException</code> for an operation the parent
+        said always works, that is not an error case, it is an admission that the class should
+        not have been a subclass.</p>
+        <p>Useful thing to know: this fault is common enough that the Java standard library ships
+        with it. <code>List.of(1,2,3)</code> gives you a <code>List</code>, and calling
+        <code>add</code> on it throws <code>UnsupportedOperationException</code>. It is a genuine
+        violation, the library authors know it, and they accepted it because splitting
+        <code>List</code> into mutable and immutable types after decades of use would break the
+        world. It is a good example to raise, because it shows the principle is a guide with real
+        trade-offs rather than a law.</p>
+      </div></details>
+
+      <details class="rv"><summary>How would I catch this in a real codebase before it reaches production?</summary>
+      <div class="rvb">
+        <p>Write the test once, against the parent type, and run it against every subclass. That
+        is what the demo in this chapter does, and it is the practical form of the principle.</p>
+        <p>Concretely: write a test class that takes a <code>Refundable</code> as input and checks
+        the promise. Call refund with a valid amount, check that amount came back. Then have a
+        test for each subclass that feeds its own instance into that same shared test. In JUnit
+        this is a parameterised test, and the parameters are every implementation you have.</p>
+        <p>The moment somebody adds a subclass that cannot keep the promise, they have to either
+        make their subclass pass the shared test or delete their subclass from the list. Deleting
+        it from the list is a visible, deliberate act that shows up in code review, which is
+        exactly what you want. Right now the gift card slipped in because nothing forced anyone to
+        state that it was different.</p>
+        <p>A second, cheaper habit: be suspicious of any override whose body is only a
+        <code>throw</code>. It is almost never a legitimate use of inheritance, and it is easy to
+        grep for.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c4">
+      <h2><em>04</em> The interface nobody can implement</h2>
+
+      <ul class="prompts">
+        <li>What is a fat interface, and what does it cost?</li>
+        <li>Why can the compiler not help you when every class implements every method?</li>
+        <li>How small should an interface be?</li>
+        <li>Is this not the same as the single responsibility principle?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What it is.</b> No class should be forced to implement methods it cannot honestly
+        do. Several small interfaces beat one big one.</p>
+
+        <p><b>How it happens.</b> Nobody sets out to write a bad interface. Over two years,
+        <code>PaymentMethod</code> gained refunds, then scheduled payments, then split payments.
+        Every addition was reasonable on the day. Now it has five methods, and not every payment
+        method can do all five.</p>
+
+        <p>The classes that cannot do something still have to write the method, because the
+        interface says so. The only thing those methods can do is throw. This program calls every
+        method on every class and counts:</p>
+
+        <div class="matrix">
+          <div class="simhead"><span>proofs/FatInterfaceProof.java</span><span class="sp">click any cell</span></div>
+          <div class="grid4" id="ispGrid">
+            <div class="gh"></div>
+            <div class="gh">charge</div><div class="gh">refund</div>
+            <div class="gh">schedule</div><div class="gh">split</div>
+
+            <div class="rh">card</div>
+            <button class="cell held" data-isp="card|charge" aria-pressed="false">works</button>
+            <button class="cell held" data-isp="card|refund" aria-pressed="false">works</button>
+            <button class="cell held" data-isp="card|schedule" aria-pressed="false">works</button>
+            <button class="cell held" data-isp="card|split" aria-pressed="false">works</button>
+
+            <div class="rh">upi</div>
+            <button class="cell held" data-isp="upi|charge" aria-pressed="false">works</button>
+            <button class="cell held" data-isp="upi|refund" aria-pressed="false">works</button>
+            <button class="cell broke" data-isp="upi|schedule" aria-pressed="false">throws</button>
+            <button class="cell broke" data-isp="upi|split" aria-pressed="false">throws</button>
+
+            <div class="rh">cash</div>
+            <button class="cell held" data-isp="cash|charge" aria-pressed="false">works</button>
+            <button class="cell broke" data-isp="cash|refund" aria-pressed="false">throws</button>
+            <button class="cell broke" data-isp="cash|schedule" aria-pressed="false">throws</button>
+            <button class="cell broke" data-isp="cash|split" aria-pressed="false">throws</button>
+          </div>
+          <div class="mout" id="ispOut">
+            <p style="color:var(--ink-faint)">Pick a cell above to see what that method actually does.</p>
+          </div>
+        </div>
+
+        <p><b>Twelve method implementations had to be written. Seven do something. Five exist
+        only to throw, which is 41 percent.</b> That is measured by the program, not counted by
+        hand.</p>
+
+        <p><b>Why the compiler could not save you.</b> This is the part worth understanding, and
+        it is what makes the fix satisfying. The compiler was perfectly happy, and it had to be:
+        every class really does implement every method. You told the type system that a card, a
+        UPI handle and cash on delivery are all the same kind of thing. It believed you. So when
+        a "split the bill" feature loops over them, this happens at run time:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>split the bill, on the fat interface</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">card: split across 3
+upi:  <span class="bad">CRASH at run time, UnsupportedOperationException: upi cannot split one order across payers</span>
+cash: <span class="bad">CRASH at run time, UnsupportedOperationException: cash cannot be split</span></pre>
+        </div>
+
+        <p><b>The fix, and the payoff.</b> Split the one interface into four small ones:
+        <code>PaymentMethod</code> for what everything can do, then <code>Refundable</code>,
+        <code>Schedulable</code> and <code>Splittable</code>. Each class implements only what it
+        can really do. <code>UpiPayment</code> implements <code>PaymentMethod</code> and
+        <code>Refundable</code>, and says nothing about the other two.</p>
+
+        <p>Now write the exact same mistake as before, handing a UPI payment to the split
+        feature, and run the compiler:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>javac proofs/segregated/*.java</span><span class="sp">real compiler output</span></div>
+          <pre class="dumpcode">Bad.java:5: <span class="bad">error: incompatible types: UpiPayment cannot be converted to Splittable</span>
+        System.out.println(SplitTheBill.run(<span class="kw">new</span> UpiPayment(), 3, 50000));
+                                            ^
+1 error</pre>
+        </div>
+
+        <p><b>The bug moved from production to the compiler.</b> Same mistake, same intent,
+        caught before the code could ever run. And in the segregated version the number of
+        methods that exist only to throw is <b>zero</b>, because no class is forced to claim
+        something it cannot do.</p>
+
+        <p>That is the whole argument, and it is a much better one than "small interfaces are
+        tidier". You are moving a class of error from run time to compile time.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"It means one method per interface."</b> No. It means one <b>capability</b> per
+          interface. <code>PaymentMethod</code> keeps two methods, <code>name</code> and
+          <code>charge</code>, because nothing that can be charged lacks a name. Splitting those
+          apart would buy nothing.</p>
+          <p><b>"Give the interface default methods that throw, so classes do not have to write
+          them."</b> This is worse, not better. You have hidden the problem instead of fixing it:
+          the compiler still cannot tell that UPI is not splittable, and now the throwing method
+          is invisible in the class that has it.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How small should an interface be? Where do you stop?</summary>
+      <div class="rvb">
+        <p>The test is not size, it is whether the methods are <b>always true together</b>. If
+        you can name a real class that can do one of the methods but not another, they belong in
+        different interfaces.</p>
+        <p>Walk through our five. Can something be charged but not named? No, everything that
+        takes money has a name, so those two stay together. Can something be charged but not
+        refunded? Yes, cash on delivery, so refund moves out. Can something be refunded but not
+        scheduled? Yes, UPI, so schedule moves out. Can something be scheduled but not split?
+        Yes, so split moves out. That is how we got to four interfaces, and each split was
+        justified by an actual class, not by a feeling.</p>
+        <p>The stopping point is when you cannot name a class that would want one method without
+        the other. Going further gives you an interface per method and a class declaration that
+        is six lines of <code>implements</code>, which is real cost for no gain.</p>
+        <p>Worth knowing: an interface with exactly one method has a bonus in Java, because it
+        can be written as a lambda. That is a nudge towards small interfaces, not a rule.</p>
+      </div></details>
+
+      <details class="rv"><summary>Is this not just the single responsibility principle again?</summary>
+      <div class="rvb">
+        <p>They are close relatives, and interviewers ask this specifically because the sloppy
+        answer is "they are basically the same".</p>
+        <p><b>Single responsibility is about the class that does the work.</b> It protects the
+        person who has to <b>change</b> the code. The question it answers is "how many different
+        groups of people can force me to edit this file?"</p>
+        <p><b>Interface segregation is about the contract.</b> It protects the person who has to
+        <b>use</b> the code, and the classes that have to implement it. The question it answers
+        is "am I being forced to depend on, or promise, things I do not need?"</p>
+        <p>Here is a case that separates them cleanly. Suppose <code>UpiPayment</code> is a
+        perfect single responsibility class: it does exactly one job, payments over UPI, and only
+        the payments team ever changes it. It fully satisfies the first principle. It still has
+        two methods that only throw, because the interface it was handed demanded them. That is
+        an interface segregation problem living inside a class with a single responsibility, and
+        the fix is to change the interface, not the class.</p>
+        <p>Short version: one is about how much a class does, the other is about how much a
+        contract demands.</p>
+      </div></details>
+
+      <details class="rv"><summary>What about default methods? Java 8 added them for exactly this kind of thing.</summary>
+      <div class="rvb">
+        <p>Default methods let an interface supply a body, so classes that do not care are not
+        forced to write one. They are genuinely useful, and they are also the most common way
+        people make this problem worse while believing they have solved it.</p>
+        <p><b>The bad use.</b> Give <code>PaymentMethod</code> a default
+        <code>splitAcross</code> that throws <code>UnsupportedOperationException</code>. Now
+        <code>UpiPayment</code> is shorter and cleaner to read. Nothing else improved. The
+        compiler still believes UPI is splittable, the split feature still crashes at run time,
+        and the crash is now harder to find because the throwing method is not written anywhere
+        in the class that has it.</p>
+        <p><b>The good use.</b> Default methods are for behaviour that is genuinely correct for
+        every implementer, usually written in terms of the other methods. For example a default
+        <code>chargeInRupees(long rupees)</code> that calls <code>charge(rupees * 100)</code>.
+        Every payment method can do that, the body is real, and nothing throws. The other good
+        use is the one they were added for: putting a new method on an existing interface without
+        breaking every class that already implements it, which is how
+        <code>Collection.stream()</code> arrived without breaking the world.</p>
+        <p>The test: if the default body throws, you are hiding a design problem. If the default
+        body does real work that is right for everyone, you are using the feature properly.</p>
+      </div></details>
+
+      <details class="rv"><summary>Does having four interfaces not make the calling code more complicated?</summary>
+      <div class="rvb">
+        <p>It makes the calling code more <b>specific</b>, which turns out to be the opposite of
+        complicated in practice.</p>
+        <p>Look at the signature. Before:
+        <code>run(PaymentMethod method, int people, long amount)</code>. After:
+        <code>run(Splittable method, int people, long amount)</code>. The second one is shorter to
+        understand, because it tells you exactly what the function needs. You no longer have to
+        read the body to find out that it only calls one of the five methods.</p>
+        <p>It also removes a whole category of question from the reader's mind. With the fat
+        interface, anyone maintaining that function has to wonder which payment methods are safe
+        to pass in, and the only way to find out is to read every implementation. With
+        <code>Splittable</code>, the compiler answers it.</p>
+        <p>Where it does add real cost: a class that can do everything now has a longer
+        declaration, <code>implements PaymentMethod, Refundable, Schedulable, Splittable</code>.
+        That is a genuine readability cost and it is fair to admit it. It is also a line you read
+        once and a compile error you avoid forever.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c5">
+      <h2><em>05</em> Code that builds its own dependencies</h2>
+
+      <ul class="prompts">
+        <li>Why can the tangled checkout not be unit tested?</li>
+        <li>What is the difference between dependency inversion, dependency injection and inversion of control?</li>
+        <li>Who should own the interface, the caller or the implementation?</li>
+        <li>Does every class need an interface?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What it is.</b> Code that makes decisions should depend on <b>promises</b>, not on
+        specific classes. And it should be <b>handed</b> what it needs rather than building it
+        itself.</p>
+
+        <p>Our tangled checkout does the opposite. It writes
+        <code>Database.connect("jdbc:postgresql://prod-db:5432/orders")</code> in the middle of
+        the payment logic. Nobody can change that from outside. To find out whether that matters,
+        both versions were handed the same job: write a test for checkout.</p>
+
+        <div class="dump">
+          <div class="simhead"><span>tangled/TangledTest.java and clean/CleanTest.java</span><span class="sp">timed after a warm up run</span></div>
+          <pre class="dumpcode"><span class="cm">tangled</span>
+  the run being timed: <span class="bad">301 ms</span>
+  what this test could check:
+    1. checkout did not throw
+  what it could NOT check:
+    the fee, because the number went into the database and was never handed back
+    the email, because it went to a mail server
+  <span class="bad">it also wrote a row into whatever database that url points at,
+  and sent a real email, every time anyone ran the test suite.</span>
+
+<span class="cm">clean</span>
+  the run being timed: <span class="st">158 microseconds</span>
+    <span class="st">pass</span>  fee charged = 5175
+    <span class="st">pass</span>  payment method recorded = card
+    <span class="st">pass</span>  order id recorded = T-1
+    <span class="st">pass</span>  email address used = [test@example.com]
+    <span class="st">pass</span>  gateway reference = CARD-T-1-ok
+  <span class="st">5 passed, 0 failed</span>
+  no database, no mail server, nothing to clean up afterwards</pre>
+        </div>
+
+        <p><b>About 1,900 times faster</b>, and that is the least interesting number here. The
+        important one is <b>1 weak check against 5 real ones</b>.</p>
+
+        <p>The tangled test cannot check the fee. Not because the fee is hard to calculate, but
+        because the number went into a database and was never handed back to anyone who could
+        look at it. The only thing the test can assert is that nothing threw, which is barely a
+        test at all.</p>
+
+        <p>The clean test checks the fee, the method, the order id, the email address and the
+        gateway reference, because it handed in fake objects that wrote everything down. The
+        fakes are nine lines each.</p>
+
+        <div class="note">
+          <b>The part that gets skipped</b>
+          <p>The tangled test is not just slow. Every time anyone runs the test suite it writes a
+          real row into whatever that connection string points at, and sends a real email to
+          whatever address the test used. Teams work around this with a test database and a fake
+          mail server, which is real infrastructure that has to be built, paid for and kept
+          working. All of that exists to make up for one line that names a class directly.</p>
+        </div>
+
+        <p><b>The two halves, and the words for them.</b> Interviewers ask people to tell these
+        apart, and most cannot, so it is worth being precise:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Name</th><th>What it is</th><th>In our code</th></tr></thead>
+          <tbody>
+          <tr><td>Dependency inversion</td><td>The <b>principle</b>. Important code should depend
+            on an interface, not on a specific class.</td>
+            <td><code>CheckoutService</code> names <code>OrderRepository</code>, never
+            <code>PostgresOrderRepository</code></td></tr>
+          <tr><td>Dependency injection</td><td>The <b>technique</b>. The specific thing is handed
+            in from outside, usually through the constructor.</td>
+            <td><code>new CheckoutService(methods, repo, mail, audit)</code></td></tr>
+          <tr><td>Inversion of control</td><td>The <b>broader idea</b>. Something else decides
+            when and how your code runs.</td>
+            <td>Spring building the objects and calling you, instead of your
+            <code>main</code> driving everything</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>Where Spring comes in.</b> Nothing in the clean version mentions Spring, and that
+        is the point. All Spring does is take over the job that <code>Main.java</code> was doing
+        by hand: build the real objects and pass them to whoever asked for them. Put
+        <code>@Component</code> on <code>PostgresOrderRepository</code> and ask for an
+        <code>OrderRepository</code> in the constructor, and Spring supplies it. Your test does
+        not use Spring at all, it just calls the constructor with fakes, which is why the clean
+        test runs in microseconds.</p>
+
+        <p>Code written this way is testable <b>before</b> and <b>without</b> a framework. If you
+        need Spring to test a class, the class was not really inverted, it was just annotated.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"Dependency inversion means using Spring."</b> Spring is one way of doing the
+          injection. The principle is about which types your code names, and you can follow it
+          perfectly with a constructor and no framework, which is exactly what this episode did.</p>
+          <p><b>"It means every class needs an interface."</b> It means every class you want to
+          swap or fake needs one. An interface with one implementation that nobody will ever fake
+          is cost with no benefit.</p>
+          <p><b>"Field injection is fine, it is less typing."</b> Fields marked
+          <code>@Autowired</code> cannot be set from a plain test without reflection, so the
+          class stops being testable without the framework. Constructor injection also lets the
+          fields be <code>final</code>, and makes it obvious when a class has grown too many
+          dependencies, because the constructor gets embarrassing.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Who should own the interface, the code that uses it or the code that implements it?</summary>
+      <div class="rvb">
+        <p>The code that <b>uses</b> it. This is the detail that makes the word "inversion" mean
+        something, and most people miss it.</p>
+        <p>Normally the low level thing defines what it offers and the high level thing takes what
+        it is given. A database library ships a class, and your business code adapts to it. The
+        arrow of dependency points from your important code down to the detail.</p>
+        <p>The inversion is that <b>your business code declares what it needs</b>, in its own
+        words, and the detail bends to fit. Our <code>OrderRepository</code> has one method,
+        <code>savePayment(orderId, method, feePaise)</code>. That is written in the language of
+        orders and payments, not in the language of databases: there is no connection, no
+        transaction, no SQL in the signature. Then
+        <code>PostgresOrderRepository</code> is written to satisfy it.</p>
+        <p>Practically this means the interface belongs beside the code that uses it, not in a
+        package with the database code. A good check: if you can read the interface and not be
+        able to tell whether it is backed by Postgres, a file or an in memory map, you have got
+        it right. If the interface mentions <code>ResultSet</code>, you have just moved the
+        coupling behind a new name.</p>
+      </div></details>
+
+      <details class="rv"><summary>Does everything need an interface? That seems like a lot of files.</summary>
+      <div class="rvb">
+        <p>No, and over-applying this is one of the most common ways codebases get worse while
+        following the rules. This episode measured the cost: the clean version is 52 percent more
+        code and more than double the files. That cost is real and you should only pay it where
+        you get something back.</p>
+        <p>You want an interface when at least one of these is true. There is genuinely more than
+        one implementation, as with our payment methods. You need to fake it in a test, as with
+        the database and the mailer. It crosses a boundary you do not control, such as a third
+        party service, so it can be swapped when they change. Or you want to keep two parts of the
+        system from knowing about each other.</p>
+        <p>You do not want one for a value object like <code>Order</code>. A record with three
+        fields has nothing to swap and nothing to fake. You do not want one for a pure function
+        with no external dependencies. And you do not want <code>UserServiceImpl</code>
+        implementing <code>UserService</code> where there will only ever be one of them and it
+        needs no faking, which is a naming convention pretending to be a design.</p>
+        <p>The honest test is: can you name the second implementation, or the fake you would write
+        in a test? If you cannot name either, do not add the interface. You can always add it
+        later, and adding it later is cheap.</p>
+      </div></details>
+
+      <details class="rv"><summary>What is the difference between a fake, a mock and a stub?</summary>
+      <div class="rvb">
+        <p>People use these words loosely, so being precise is a small, easy win in an interview.
+        All three are stand-ins for a real dependency. They differ in what they do.</p>
+        <p><b>A stub</b> returns canned answers and nothing more. "When asked for the exchange
+        rate, always say 83." It exists to get the test past a dependency it does not care about.</p>
+        <p><b>A fake</b> has a real, working implementation that is just not suitable for
+        production. An in memory map standing in for a database is the classic. Our
+        <code>FakeRepository</code> is a fake: it really does store what it was given, and the
+        test reads it back afterwards.</p>
+        <p><b>A mock</b> is about the conversation rather than the data. It records which methods
+        were called, with what, how many times, and the test asserts on that. "Assert that
+        <code>send</code> was called exactly once with this address." Libraries like Mockito
+        build these for you.</p>
+        <p>Rough guidance worth saying: prefer checking the outcome over checking the
+        conversation. Tests that assert on the outcome survive refactoring, because they only care
+        about the result. Tests that assert every call made break when you reorganise the code
+        even though nothing is actually wrong. Mocks earn their keep when the call <b>is</b> the
+        outcome, such as proving that a payment gateway was charged exactly once and not twice.</p>
+      </div></details>
+
+      <details class="rv"><summary>Our constructor now has four parameters. Is that a smell?</summary>
+      <div class="rvb">
+        <p>Four is fine. It becomes a smell somewhere around seven or eight, and the useful part
+        is what it is telling you.</p>
+        <p>A long constructor is not a problem with constructor injection. It is constructor
+        injection <b>reporting</b> a problem that was already there. A class that needs nine
+        collaborators is doing too much, and that is a single responsibility problem showing up in
+        a place you cannot ignore. With field injection the same class needs the same nine things
+        and nothing ever tells you, which is the real reason to avoid field injection.</p>
+        <p>So when the constructor gets embarrassing, do not reach for a way to hide it. Ask which
+        of those nine things belong together. Often three or four of them are one concept that
+        wants to be its own class. In our system, if checkout later needed a fraud checker, a
+        rate limiter and a currency converter, those three might become one
+        <code>OrderChecks</code> collaborator rather than three more parameters.</p>
+        <p>Say the number out loud in an interview: "I start paying attention around five or six,
+        and I treat it as a hint that the class has grown, not as a reason to switch to field
+        injection."</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c6">
+      <h2><em>06</em> The quick round</h2>
+
+      <ul class="prompts">
+        <li>Someone describes a scenario. Which principle are they asking about?</li>
+        <li>Which patterns naturally serve which principles?</li>
+        <li>When is SOLID not worth following?</li>
+        <li>Which principle do you break most often, and why?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The real skill.</b> In an interview nobody asks "what is the L in SOLID". They
+        describe a situation and wait to see whether you can name what is wrong with it. Often
+        more than one answer is defensible, and saying so is a strong signal.</p>
+
+        <p>Work through these. Read the scenario, decide, then check.</p>
+
+      <div class="dx">
+        <div class="dxq">
+          <p id="scenText">A class called <code>ReportService</code> generates a PDF, writes it to
+          disk, and emails it to a list of people. The finance team keeps asking for layout
+          changes and the platform team wants to move file storage to S3.</p>
+          <div class="opts" id="scenOpts">
+            <button class="opt" data-sc="a">Single responsibility</button>
+            <button class="opt" data-sc="b">Open for extension</button>
+            <button class="opt" data-sc="c">Liskov substitution</button>
+            <button class="opt" data-sc="d">Dependency inversion</button>
+          </div>
+        </div>
+        <div class="dxout" id="scenOut">
+          <p style="color:var(--ink-faint)">Pick an answer.</p>
+        </div>
+      </div>
+
+        <p><b>Which patterns serve which principles.</b> Interviewers like this question because
+        it joins two topics they have already asked about. Each pattern below is explained in
+        full, so you do not need anything else to answer it.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Pattern</th><th>What it is</th><th>Which principle it serves</th></tr></thead>
+          <tbody>
+          <tr><td><b>Strategy</b></td>
+            <td>One interface for a job that can be done several ways, one class per way, chosen
+            at run time. Our <code>PaymentMethod</code> with card, netbanking and UPI.</td>
+            <td>Open for extension. A new way is a new class, and no existing one is edited.</td></tr>
+          <tr><td><b>Factory</b></td>
+            <td>A method or class whose job is to decide which concrete class to build, so callers
+            ask for what they want rather than naming a class.</td>
+            <td>Dependency inversion. The caller stops naming concrete classes, so the concrete
+            classes can change without touching it.</td></tr>
+          <tr><td><b>Observer</b></td>
+            <td>One thing happens and several unrelated parties are told about it, without the
+            thing that happened knowing who they are. An order is placed, and email and audit both
+            hear about it.</td>
+            <td>Single responsibility. The checkout stops owning the email and the audit line;
+            it only announces that a payment happened.</td></tr>
+          <tr><td><b>Decorator</b></td>
+            <td>Adding behaviour by wrapping an object in another object with the same interface,
+            rather than by subclassing. Wrap a payment method in one that also logs, and the
+            wrapper looks exactly like a payment method.</td>
+            <td>Open for extension, and it avoids the Liskov trap, because a wrapper keeps the
+            interface's promise instead of overriding a parent's.</td></tr>
+          <tr><td><b>Adapter</b></td>
+            <td>Making something you cannot change fit an interface you own, by writing a small
+            class in between that translates.</td>
+            <td>Dependency inversion. Your code keeps its own interface and the third party class
+            bends to fit it, rather than the other way round.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>The honest summary of the whole episode.</b> This is the answer that separates
+        people who have read about SOLID from people who have used it:</p>
+
+        <div class="note">
+          <p>SOLID did not make this system shorter. It made it <b>52 percent longer</b>, in
+          <b>2.2 times the files</b>. What it changed is <b>where a change lands</b>: in a new
+          file instead of inside working code, and in the file that owns the concern instead of
+          the file that owns everything. Adding a payment method went from editing nine lines of
+          live payment logic to editing none. A test went from 301 milliseconds, one weak
+          assertion and a real database, to 158 microseconds, five real assertions and nothing
+          connected.</p>
+          <p>That is a trade, not a free win, and it only pays where the code is going to change.</p>
+        </div>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>Reciting the five names and their definitions.</b> Everyone can do this. It
+          proves nothing, and the interviewer's next question is always a scenario anyway.</p>
+          <p><b>"You should always follow all five."</b> A one off migration script, a proof of
+          concept, a piece of code with a known deletion date: leave them simple. Applying all
+          five everywhere is how you get twelve files that could have been one.</p>
+          <p><b>"SOLID makes code simpler."</b> It does not, and the numbers in this episode
+          say so. It makes code cheaper to change. Claiming otherwise to an interviewer who has
+          maintained a heavily abstracted codebase will not go well.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>When would you deliberately not follow these principles?</summary>
+      <div class="rvb">
+        <p>Have real examples ready, because this question is checking whether you have judgement
+        or just rules.</p>
+        <p><b>Code with a known end date.</b> A migration script that runs once and gets deleted.
+        Making it extensible is work spent on a future that will not arrive.</p>
+        <p><b>Before you know the second case.</b> With one payment method, the interface is a
+        guess. With two, it is informed. Waiting costs you one small refactor and saves you from
+        designing the wrong abstraction, which is much more expensive to unpick.</p>
+        <p><b>Where the indirection would hide something that must stay obvious.</b> In code where
+        the order of operations is the whole point, such as a tricky transaction or a piece of
+        concurrency, spreading it over six files to satisfy a principle can make it genuinely
+        harder to get right. Being able to read the sequence top to bottom has value.</p>
+        <p><b>Very hot code.</b> Rare, and you should say it is rare, but layers of interfaces in
+        an extremely tight loop can matter. Measure before claiming it, because modern JVMs remove
+        most of that cost.</p>
+        <p>The framing to use: these principles buy you cheap change. Where change is not coming,
+        you are paying for something you will not use.</p>
+      </div></details>
+
+      <details class="rv"><summary>Which one do you break most often?</summary>
+      <div class="rvb">
+        <p>This is a character question as much as a technical one. A confident, specific answer
+        beats a modest vague one.</p>
+        <p>A good honest answer is single responsibility, because it is the one that degrades
+        quietly. Nobody adds a sixth job to a class on purpose. It happens one small, reasonable
+        addition at a time, each of which is easier to put where the related code already lives
+        than to justify a new file for. Six months later the class has six reasons to change and
+        no single commit did anything wrong.</p>
+        <p>Then say what you do about it, which is the part they are actually listening for. A
+        useful habit: when a change means opening a file for a reason that has nothing to do with
+        why you last opened it, that is the signal to split. Not a line count, not a method count.
+        The reason you are there.</p>
+        <p>Liskov is a good second answer, because it is the one people break without noticing at
+        all. An override that only throws, or a subclass that quietly tightens what it will
+        accept, gets through review easily because each looks locally sensible.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do these five relate to each other? Are they independent?</summary>
+      <div class="rvb">
+        <p>They are not independent, and noticing that is a strong answer because most people
+        present them as a flat list of five unrelated rules.</p>
+        <p><b>Liskov and interface segregation are two sides of the same coin.</b> Both are about
+        classes claiming capabilities they do not have. Our gift card broke Liskov by inheriting a
+        refund it could not do. Our UPI broke interface segregation by implementing a split it
+        could not do. Same fault, one through inheritance and one through an interface, and the
+        same fix: stop claiming it.</p>
+        <p><b>Open for extension usually needs dependency inversion to work.</b> You cannot add
+        UPI as a new file if <code>CheckoutService</code> names <code>CardPayment</code> directly.
+        It has to name the interface first. Extension is the goal, inversion is what makes it
+        reachable.</p>
+        <p><b>Single responsibility makes all the others cheaper.</b> A class doing one job has a
+        small interface, so segregation is easy. It has few collaborators, so inversion is easy.
+        It has one behaviour to promise, so substitution is easy. Get this one right and the
+        others mostly follow.</p>
+        <p>A compact way to say it: <b>single responsibility is about splitting things up, and
+        the other four are about how the split pieces should talk to each other.</b></p>
+      </div></details>
+
+      <details class="rv"><summary>The interviewer says my design is over engineered. How do I respond?</summary>
+      <div class="rvb">
+        <p>Do not defend it by naming principles. That is the answer they are expecting and it
+        confirms their point.</p>
+        <p>Agree with the cost first, out loud and specifically. "You are right that it is more
+        code. About 50 percent more here, and roughly twice the files." Naming the cost yourself
+        shows you know what you spent, and it takes the argument away from them.</p>
+        <p>Then say what you bought and why you thought it was worth it, in terms of the change
+        that is coming. "I split it here because payment methods are an axis the business changes
+        several times a year. I did not split the order record or the fee formula, because nothing
+        suggests those will change independently."</p>
+        <p>Then offer the smaller version, which is the part that turns a disagreement into a
+        conversation. "If we only ever expect two payment methods, an if-else is genuinely
+        better and I would write that instead." An interviewer probing for over engineering is
+        usually checking whether you can scale a design down, not whether you can defend it. Being
+        able to name the simpler design you rejected, and the condition under which you would pick
+        it, is the answer.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>composition root</dt><dd>The one place in a program that knows which real classes are in use and hands them to each other. In our clean version that is <code>Main.java</code>, and in a Spring application it is Spring itself.</dd>
+        <dt>concrete class</dt><dd>A real class you can create with <code>new</code>, as opposed to an interface, which only describes what something must be able to do.</dd>
+        <dt>contract</dt><dd>What a method promises: what it will accept, what it guarantees when it finishes, and how it can fail. Mostly not written down, which is why it gets broken.</dd>
+        <dt>coupling</dt><dd>How much one piece of code depends on the exact details of another. Tight coupling means changing one forces you to change the other.</dd>
+        <dt>default method</dt><dd>A method in an interface that comes with a body, so classes are not forced to write their own. Added in Java 8.</dd>
+        <dt>diff stat</dt><dd>The summary <code>git</code> prints for a change: which files were touched and how many lines were added and removed in each.</dd>
+        <dt>fake</dt><dd>A stand-in for a real dependency in a test that genuinely works, just not well enough for production. An in memory map instead of a database is the usual example.</dd>
+        <dt>fat interface</dt><dd>An interface with so many methods that some classes implementing it cannot honestly do all of them, so they write methods that only throw.</dd>
+        <dt>injection</dt><dd>Handing a class the things it needs from outside, usually through its constructor, instead of the class building them itself.</dd>
+        <dt>mock</dt><dd>A stand-in for a real dependency that records which methods were called and with what, so a test can assert on the conversation rather than the result.</dd>
+        <dt>override</dt><dd>A subclass replacing a method it inherited with its own version.</dd>
+        <dt>postcondition</dt><dd>What a method guarantees is true once it has finished. A subclass must deliver at least what the parent guaranteed.</dd>
+        <dt>precondition</dt><dd>What a method requires before you are allowed to call it. A subclass may accept more than the parent did, never less.</dd>
+        <dt>regression</dt><dd>A change that breaks something which used to work. Editing code that already works is how most of them happen.</dd>
+        <dt>SOLID</dt><dd>Five design guidelines, one per letter: single responsibility, open for extension, Liskov substitution, interface segregation, dependency inversion.</dd>
+        <dt>substitutability</dt><dd>Being able to hand any subclass to code written for the parent type and have it keep working, without the code knowing which subclass it got.</dd>
+        <dt>UPI</dt><dd>Unified Payments Interface, the instant bank to bank payment system used across India. Used here as the new payment method that has to be added.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---------- chapter 2: the requirement arrives ---------- */
+
+  var REQS = {
+    upi: {
+      h: "Add UPI as a payment method",
+      principle: "Open for extension",
+      a: {lbl:"tangled", num:"9 lines", p:"of working payment logic edited, in three separate places inside the method that also opens the database", bad:true},
+      b: {lbl:"clean", num:"0 lines", p:"of existing logic edited. 12 of the 13 files came out byte identical, checked with cmp", win:true},
+      real: "tangled\n  Main.java         | 2 +-\n  OrderService.java | 9 +++++++++\n  2 files changed, 10 insertions(+), 1 deletion(-)\n\nclean\n  Main.java         |  4 ++--\n  UpiPayment.java   | 16 ++++++++++++++++\n  2 files changed, 18 insertions(+), 2 deletions(-)",
+      note: "The clean version wrote <b>more</b> lines, 18 against 10. That is the wrong thing to count. It touched no existing payment logic, so card payments could not have broken. The only existing file it opened was Main.java, which is wiring."
+    },
+    email: {
+      h: "Marketing wants different email wording",
+      principle: "Single responsibility",
+      a: {lbl:"tangled", num:"OrderService.java", p:"3 added, 1 removed. That file also holds the fee rules, the card gateway call and the database connection string", bad:true},
+      b: {lbl:"clean", num:"EmailNotifier.java", p:"3 added, 2 removed. That file holds nothing else", win:true},
+      real: "tangled   OrderService.java  | 4 +++-   3 insertions, 1 deletion\nclean     EmailNotifier.java | 5 +++--  3 insertions, 2 deletions",
+      note: "Look at the line counts. They are the same. This principle saved nothing here. What changed is <b>which file a person had to open</b>: in the tangled version a wording change from marketing meant editing the payment logic, which means a payments review and a real chance of breaking how money moves."
+    },
+    refund: {
+      h: "Gift cards, which cannot be refunded",
+      principle: "Liskov substitution",
+      a: {lbl:"gift card extends card", num:"batch died at 1 of 3", p:"Rs 500.00 had already left the account. The rest never ran and nothing was rolled back", bad:true},
+      b: {lbl:"gift card implements only what it can do", num:"cannot be passed in", p:"the refund batch will not accept it, so the mistake cannot reach production", win:true},
+      real: "one gift card in the middle:\n  refunded Rs 500.00 by card\n  STOPPED: gift cards are not refundable\nbatch died after 1 of 3. Rs 500.00 already left the account\nand the rest never ran.",
+      note: "Nobody wrote a bug. Every class is correct on its own and the batch code is reasonable. The fault is that a subclass was allowed to claim it was a CardRefund while being unable to do what a CardRefund does."
+    },
+    split: {
+      h: "Let friends split one bill",
+      principle: "Interface segregation",
+      a: {lbl:"one fat interface", num:"41 percent", p:"of the method implementations exist only to throw. 5 out of 12, counted by the program", bad:true},
+      b: {lbl:"four small interfaces", num:"0", p:"methods that only throw, and the same mistake becomes a compile error instead of a crash", win:true},
+      real: "                  charge      refund      schedule    splitAcross\ncard              works       works       works       works\nupi               works       works       throws      throws\ncash on delivery  works       throws      throws      throws\n\nBad.java:5: error: incompatible types: UpiPayment cannot be\nconverted to Splittable",
+      note: "The compiler could not help with the fat interface, and it had to stay quiet: every class really does implement every method. Splitting the interface moves this exact mistake from run time to compile time."
+    },
+    test: {
+      h: "Write a test for checkout",
+      principle: "Dependency inversion",
+      a: {lbl:"tangled", num:"301 ms", p:"and only one thing could be checked: that it did not throw. It also wrote a real database row and sent a real email", bad:true},
+      b: {lbl:"clean", num:"158 microseconds", p:"and five real assertions: the fee, the method, the order id, the email address and the gateway reference", win:true},
+      real: "tangled   the run being timed: 301 ms\n          1. checkout did not throw\n          could NOT check the fee, because the number went into\n          the database and was never handed back\n\nclean     the run being timed: 158 microseconds\n          pass  fee charged = 5175\n          pass  gateway reference = CARD-T-1-ok\n          5 passed, 0 failed",
+      note: "About 1,900 times faster, which is the least interesting part. The tangled test cannot check the fee because the number went into a database. The clean test handed in fakes that wrote everything down, and each fake is nine lines."
+    }
+  };
+
+  function reqHtml(d){
+    return "<h6>" + d.h + "</h6>"
+      + "<p><span class='tag'>" + d.principle + "</span></p>"
+      + "<div class='cmp'>"
+      +   "<div class='side lose'><span class='cap'>" + d.a.lbl + "</span>"
+      +     "<span class='num'>" + d.a.num + "</span><p>" + d.a.p + "</p></div>"
+      +   "<div class='side win'><span class='cap'>" + d.b.lbl + "</span>"
+      +     "<span class='num'>" + d.b.num + "</span><p>" + d.b.p + "</p></div>"
+      + "</div>"
+      + "<div class='real'>" + d.real + "</div>"
+      + "<p>" + d.note + "</p>";
+  }
+  picker("[data-req]", "req", REQS, "#reqOut", reqHtml);
+
+  /* ---------- chapter 4: the fat interface grid ---------- */
+
+  var ISP = {
+    "card|charge":   {h:"card, charge", v:"works", p:"Returns a gateway reference. Nothing surprising."},
+    "card|refund":   {h:"card, refund", v:"works", p:"Cards support refunds through the same gateway."},
+    "card|schedule": {h:"card, schedule", v:"works", p:"A card can be stored and charged on a future date."},
+    "card|split":    {h:"card, split", v:"works", p:"Card is the only one of the three that can honestly do all four."},
+    "upi|charge":    {h:"upi, charge", v:"works", p:"Collects from the payer handle."},
+    "upi|refund":    {h:"upi, refund", v:"works", p:"Money can be sent back to the same handle."},
+    "upi|schedule":  {h:"upi, schedule", v:"throws", bad:true,
+      real:"UnsupportedOperationException: upi cannot schedule a future payment",
+      p:"UPI needs the payer to approve each payment as it happens, so there is nothing to schedule. The method exists only because the interface demanded it."},
+    "upi|split":     {h:"upi, split", v:"throws", bad:true,
+      real:"UnsupportedOperationException: upi cannot split one order across payers",
+      p:"This is the one that crashes the split the bill feature at run time. The compiler allowed it because UpiPayment does implement the method."},
+    "cash|charge":   {h:"cash on delivery, charge", v:"works", p:"Collected at the door. The only thing cash can really do."},
+    "cash|refund":   {h:"cash on delivery, refund", v:"throws", bad:true,
+      real:"UnsupportedOperationException: cash refunds are handled by the courier",
+      p:"There is no account to send money back to, so this cannot be done in code at all."},
+    "cash|schedule": {h:"cash on delivery, schedule", v:"throws", bad:true,
+      real:"UnsupportedOperationException: cash cannot be scheduled",
+      p:"Nothing to schedule when the money arrives with the parcel."},
+    "cash|split":    {h:"cash on delivery, split", v:"throws", bad:true,
+      real:"UnsupportedOperationException: cash cannot be split",
+      p:"Three of the four methods on this class exist only to fail. That is the clearest sign the interface is too big."}
+  };
+
+  function ispHtml(d){
+    return "<h6>" + d.h + "</h6>"
+      + "<p><span class='tag'>" + d.v + "</span></p>"
+      + (d.real ? "<div class='real'>" + d.real + "</div>" : "")
+      + "<p>" + d.p + "</p>";
+  }
+  picker("[data-isp]", "isp", ISP, "#ispOut", ispHtml);
+
+  /* ---------- chapter 6: which principle is this ---------- */
+
+  var SCEN = {
+    a: {lbl:"Correct", v:"Single responsibility",
+      n:"Two different teams can force a change to this one class. Finance owns the layout, the platform team owns where files are stored. That is two reasons to change, which is the definition. Split it into something that builds the report, something that stores it, and something that sends it.",
+      x:"Dependency inversion is also defensible, because ReportService almost certainly names a concrete file writer and cannot be tested without a disk. Say both, and say which you would fix first."},
+    b: {lbl:"Not the strongest answer", v:"Open for extension is not the main fault here",
+      n:"Nothing in the scenario says new kinds of report are arriving. The pain described is two teams editing the same file for unrelated reasons, which is a responsibility problem. Open for extension is about adding new behaviour without editing old behaviour, and no new behaviour was mentioned.",
+      x:"If the scenario had said the finance team keeps asking for new report formats, then this would be the right answer."},
+    c: {lbl:"No", v:"Liskov is about subclasses, and there are none here",
+      n:"This principle only applies where inheritance or an interface is in play, and code written for a parent type is handed a subclass. The scenario describes one class doing several jobs, with no subclassing mentioned at all.",
+      x:"It would apply if, say, someone wrote SummaryReportService extends ReportService and made one of the inherited methods throw."},
+    d: {lbl:"Defensible, but second", v:"Dependency inversion is a real fault here, just not the one described",
+      n:"ReportService writing to disk itself almost certainly means it names a concrete file writer, which makes it untestable without a real disk. That is a genuine problem and fixing it would help the S3 move.",
+      x:"But the pain the scenario actually describes is two teams editing one file for unrelated reasons. That is a responsibility problem. Naming both, and saying which comes first, is the strongest answer."}
+  };
+  picker("#scenOpts .opt", "sc", SCEN, "#scenOut", chooserHtml);
+
+  /* ---------- the quiz ---------- */
+
+  var Q = [
+    {c:1, q:"What does one reason to change actually mean, in a form you can apply to a real class?",
+     a:"A reason to change is a group of people who can independently ask you for something different. Name the humans. In our checkout method finance owns the fee percentages, marketing owns the email text, the platform team owns the database, and compliance owns the audit line. Four groups, one file. If you cannot name two different groups, you probably do not have two responsibilities and splitting will just create more files for nothing."},
+    {c:1, q:"A marketing wording change edited the payment logic file. What did measuring that change actually show?",
+     a:"That the line counts were identical: 3 added and 1 removed in the tangled version, 3 added and 2 removed in the clean one. The principle saved no keystrokes at all. What it changed is which file someone had to open. In the tangled version a wording request from marketing meant editing the file that also charges cards and connects to the production database, so it needed a payments review and carried a real chance of breaking how money moves."},
+    {c:2, q:"Adding UPI, the clean version wrote 18 lines against the tangled version's 10. Why is it still the better change?",
+     a:"Because the number that matters is not lines written but lines of existing, working code modified. Tangled edited 9 lines of live payment logic in three separate places inside the method that also opens the database. Clean edited 0. Twelve of its thirteen files came out byte identical, checked with cmp rather than trusted, so card payments provably could not have broken. The one file it did touch, Main.java, holds wiring and no logic."},
+    {c:2, q:"You still had to edit Main.java to add UPI. Why is that not a violation?",
+     a:"Because something somewhere has to learn that UPI exists, and no design avoids that. The goal is not zero edits, it is that the edit lands in a place holding wiring and no logic, so getting it wrong cannot break how money moves. Main.java is the composition root, the one place that knows which real classes are in use. If you break it the application will not start, which is the safest way to fail. In Spring even that edit disappears: annotate the class and ask for a List of PaymentMethod, and Spring finds every implementation."},
+    {c:3, q:"Complete and explain: a subclass may ask for ___ and give ___. It may never ___.",
+     a:"A subclass may ask for less and give more. It may never ask for more or give less. Asking for less means accepting at least everything the parent accepted, so a subclass that rejects amounts under 100 rupees when the parent took any positive amount has broken it. Giving more means delivering at least what the parent guaranteed, so a gift card that returns nothing where the parent promised the money comes back has broken it."},
+    {c:3, q:"Why is the gift card refund a design fault rather than a bug?",
+     a:"Because no individual piece of code is wrong. The gift card class is correct: gift cards genuinely are not refundable. The refund batch is reasonable: it was written against the parent type and calls the method the parent promised. The fault is that a subclass was allowed to claim it was a CardRefund while being unable to do what one does. The damage shows up as a batch that died after 1 of 3, with Rs 500.00 already gone and nothing rolled back."},
+    {c:4, q:"41 percent of what, and why could the compiler not warn anyone about it?",
+     a:"Of the method implementations forced by the fat interface: 5 of 12 exist only to throw, counted by the program rather than by hand. The compiler could not help, and had to stay quiet, because every class really does implement every method. You told the type system that a card, a UPI handle and cash on delivery are all the same kind of thing, and it believed you. Splitting the interface into four turns the same mistake into a compile error: incompatible types, UpiPayment cannot be converted to Splittable."},
+    {c:4, q:"Why is giving the interface a default method that throws worse than making each class write it?",
+     a:"Because it hides the problem instead of fixing it. The class gets shorter and looks cleaner, but the compiler still believes UPI is splittable, the split feature still crashes at run time, and now the throwing method is not written anywhere in the class that has it, so it is harder to find. Default methods are for behaviour that is genuinely correct for every implementer, or for adding a method to an existing interface without breaking implementers, which is how Collection.stream arrived. If the default body throws, you are hiding a design problem."},
+    {c:5, q:"What is the difference between dependency inversion, dependency injection and inversion of control?",
+     a:"Dependency inversion is the principle: important code depends on an interface, not a specific class. In our system CheckoutService names OrderRepository and never PostgresOrderRepository. Dependency injection is the technique: the specific thing is handed in from outside, usually through the constructor. Inversion of control is the broader idea that something else decides when and how your code runs, which is what Spring does when it builds the objects and calls you instead of your main driving everything."},
+    {c:5, q:"The tangled checkout test could make only one assertion. Why, and what did the clean one manage?",
+     a:"The tangled test could only assert that checkout did not throw, because the fee went into a database and was never handed back to anyone who could look at it, the email went to a mail server, and the audit line went to standard output. It also took 301 ms, wrote a real database row and sent a real email on every run. The clean test handed in fakes that wrote everything down, so it checked the fee, the method, the order id, the email address and the gateway reference: five real assertions in 158 microseconds with nothing connected."},
+    {c:6, q:"Give the honest summary of what SOLID cost and what it bought in this system, with numbers.",
+     a:"It cost 52 percent more code, 157 lines against 103, in 2.2 times the files, 13 against 6. It bought a change in where a change lands. Adding a payment method went from editing 9 lines of live payment logic to editing none. A wording change moved out of the payments file. A test went from 301 milliseconds, one weak assertion and a real database to 158 microseconds, five real assertions and nothing connected. It is a trade, not a free win, and it only pays where the code is going to change."},
+    {c:6, q:"Which principle does each of Strategy, Factory, Observer and Adapter naturally serve?",
+     a:"Strategy serves open for extension: one interface, one class per way of doing the job, so a new way is a new class and no existing one is edited. Factory serves dependency inversion, because the caller stops naming concrete classes and asks for what it wants instead. Observer serves single responsibility, because the thing that happened stops owning the email and the audit line and only announces that it happened. Adapter serves dependency inversion, because your code keeps its own interface and the third party class bends to fit it rather than the other way round."}
+  ];
+
+  /* open the two display panels on a real example, so the page shows what it
+     does before anyone clicks. The chapter 6 scenario stays unanswered on
+     purpose, because it is a question rather than a display. */
+  document.querySelector('[data-req="upi"]').click();
+  document.querySelector('[data-isp="upi|split"]').click();
+
+  wireQuiz(Q, {
+    1:"the class that does everything",
+    2:"adding UPI without touching what works",
+    3:"the subclass that breaks a promise",
+    4:"the interface nobody can implement",
+    5:"code that builds its own dependencies",
+    6:"the quick round"
+  });
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
