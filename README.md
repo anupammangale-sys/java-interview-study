@@ -14,6 +14,16 @@ the Claude artifact host, which supplies the doctype, charset and viewport meta 
 so serving them raw would leave them with no viewport meta and render at desktop width
 on a phone. The build adds those, plus a link back to the index.
 
+## What is in here
+
+- `epNN.html` one page per published episode, wrapped from `study/epNN.html`
+- `code/epNN.html` the runnable demos behind that episode, highlighted at build time
+- `code/raw/epNN/` the same files raw, one URL each, served as plain text
+- `code/epNN.zip` all of them, ready to run
+- `index.html`, `site.css`, `netlify.toml`, `robots.txt`
+
+Heap dumps and anything over 512 KB are never published. The build reports what it left out.
+
 ## Deploying
 
 Netlify builds from this repository. Pushing to the default branch deploys.

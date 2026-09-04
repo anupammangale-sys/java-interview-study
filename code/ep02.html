@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 2 of the Java interview study series.">
+<title>Reading a Thread Dump, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 02 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>Reading a Thread Dump</h1>
+<p class="tagline">Every number on the episode page came from running this. 7 files, 31.8 KB.</p>
+<p class="codeacts"><a class="dl" href="ep02.zip" download>Download all, 8.7 KB</a><a class="back2" href="../ep02.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">DeadlockDemo.java</span><span class="fmeta">1.5 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep02/DeadlockDemo.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * Two threads, two locks, taken in opposite order.
+ *
+ * Thread A takes lock 1, then wants lock 2.
+ * Thread B takes lock 2, then wants lock 1.
+ * Neither will ever let go. Both wait forever.
+ *
+ *   java DeadlockDemo
+ *   jstack &lt;pid&gt;        &lt;- look for "Found one Java-level deadlock"
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> DeadlockDemo {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> Object ACCOUNT_A = <span class="kw">new</span> Object();
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> Object ACCOUNT_B = <span class="kw">new</span> Object();
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        Thread t1 = <span class="kw">new</span> Thread(() -&gt; {
+            <span class="kw">synchronized</span> (ACCOUNT_A) {
+                sleep(<span class="nm">100</span>);                 <span class="cm">// give the other thread time to grab B</span>
+                <span class="kw">synchronized</span> (ACCOUNT_B) {  <span class="cm">// never gets here</span>
+                    System.out.println(<span class="st">"transfer A to B done"</span>);
+                }
+            }
+        }, <span class="st">"transfer-A-to-B"</span>);
+
+        Thread t2 = <span class="kw">new</span> Thread(() -&gt; {
+            <span class="kw">synchronized</span> (ACCOUNT_B) {
+                sleep(<span class="nm">100</span>);
+                <span class="kw">synchronized</span> (ACCOUNT_A) {  <span class="cm">// never gets here</span>
+                    System.out.println(<span class="st">"transfer B to A done"</span>);
+                }
+            }
+        }, <span class="st">"transfer-B-to-A"</span>);
+
+        t1.start();
+        t2.start();
+
+        System.out.println(<span class="st">"pid = "</span> + ProcessHandle.current().pid());
+        System.out.println(<span class="st">"both threads are now stuck. take a thread dump."</span>);
+
+        t1.join();
+        t2.join();
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> sleep(<span class="kw">long</span> ms) {
+        <span class="kw">try</span> {
+            Thread.sleep(ms);
+        } <span class="kw">catch</span> (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">HotCpuDemo.java</span><span class="fmeta">1.6 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep02/HotCpuDemo.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * One thread burning CPU in a tight loop. Three others doing nothing.
+ *
+ * This is the shape of a real "CPU is at 100 percent" incident: most threads
+ * are fine, one is spinning, and you have to find which one.
+ *
+ *   java HotCpuDemo
+ *   jstack &lt;pid&gt;     &lt;- the busy thread is RUNNABLE, the idle ones are TIMED_WAITING
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> HotCpuDemo {
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        <span class="cm">// the guilty one</span>
+        Thread hot = <span class="kw">new</span> Thread(HotCpuDemo::spin, <span class="st">"report-builder"</span>);
+        hot.setDaemon(<span class="kw">true</span>);
+        hot.start();
+
+        <span class="cm">// three innocent bystanders</span>
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">1</span>; i &lt;= <span class="nm">3</span>; i++) {
+            Thread idle = <span class="kw">new</span> Thread(HotCpuDemo::rest, <span class="st">"worker-"</span> + i);
+            idle.setDaemon(<span class="kw">true</span>);
+            idle.start();
+        }
+
+        System.out.println(<span class="st">"pid = "</span> + ProcessHandle.current().pid());
+        System.out.println(<span class="st">"one thread is burning CPU. take a thread dump."</span>);
+        Thread.sleep(<span class="nm">10</span> * <span class="nm">60</span> * <span class="nm">1000</span>);
+    }
+
+    <span class="cm">/** Looks harmless. Recomputes the same thing forever and never sleeps. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> spin() {
+        <span class="kw">long</span> total = <span class="nm">0</span>;
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">1_000_000</span>; i++) {
+                total += i % <span class="nm">7</span>;
+            }
+            <span class="kw">if</span> (total == Long.MIN_VALUE) {
+                System.out.println(<span class="st">"never happens, stops the compiler removing the loop"</span>);
+            }
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> rest() {
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            <span class="kw">try</span> {
+                Thread.sleep(<span class="nm">1000</span>);
+            } <span class="kw">catch</span> (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                <span class="kw">return</span>;
+            }
+        }
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">PoolStarvationDemo.java</span><span class="fmeta">1.9 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep02/PoolStarvationDemo.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.ThreadPoolExecutor;
+
+<span class="cm">/**
+ * A pool with 3 threads. Ten jobs arrive. Every job calls something slow.
+ *
+ * All 3 threads end up stuck in the same place, and the other 7 jobs sit in
+ * the queue waiting for a thread that is never coming back. The service looks
+ * frozen, but memory is completely fine.
+ *
+ * In the thread dump this is unmistakable: several threads with the SAME name
+ * pattern and the SAME stack trace, all in the same state.
+ *
+ *   java PoolStarvationDemo
+ *   jstack &lt;pid&gt;
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> PoolStarvationDemo {
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(<span class="nm">3</span>);
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">1</span>; i &lt;= <span class="nm">10</span>; i++) {
+            <span class="kw">int</span> job = i;
+            pool.submit(() -&gt; {
+                System.out.println(<span class="st">"job "</span> + job + <span class="st">" started on "</span> + Thread.currentThread().getName());
+                callSlowService();          <span class="cm">// never returns</span>
+            });
+        }
+
+        Thread.sleep(<span class="nm">2000</span>);
+        ThreadPoolExecutor tpe = (ThreadPoolExecutor) pool;
+
+        System.out.println();
+        System.out.println(<span class="st">"pid            = "</span> + ProcessHandle.current().pid());
+        System.out.println(<span class="st">"pool threads   = "</span> + tpe.getPoolSize());
+        System.out.println(<span class="st">"jobs running   = "</span> + tpe.getActiveCount());
+        System.out.println(<span class="st">"jobs waiting   = "</span> + tpe.getQueue().size());
+        System.out.println();
+        System.out.println(<span class="st">"3 threads stuck, 7 jobs queued. take a thread dump."</span>);
+
+        Thread.sleep(<span class="nm">10</span> * <span class="nm">60</span> * <span class="nm">1000</span>);
+    }
+
+    <span class="cm">/** Stands in for a payment gateway or a database with no timeout set. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> callSlowService() {
+        <span class="kw">try</span> {
+            Thread.sleep(Long.MAX_VALUE);
+        } <span class="kw">catch</span> (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">README.md</span><span class="fmeta">1.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep02/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 2 demos
+
+Needs Java 11+. The JDK tools live in your JDK bin folder. If `jstack` is not on
+your PATH, use the full path, for example:
+`"C:\Program Files\Java\jdk-24\bin\jstack.exe" &lt;pid&gt;`
+
+Each program prints its own process id when it starts.
+
+## 1. Deadlock
+```bash
+java DeadlockDemo.java
+jstack &lt;pid&gt; | grep -A 20 "Found one Java-level deadlock"
+```
+Two threads take two locks in opposite order. Java detects the circle itself and
+names both threads. Captured output is in `deadlock_dump.txt`.
+
+## 2. One thread burning CPU
+```bash
+java HotCpuDemo.java
+jstack &lt;pid&gt;
+```
+Compare `cpu=` against `elapsed=` in each entry. The busy thread showed
+`cpu=5500.00ms elapsed=5.76s`, about 95 percent of one core. The idle threads
+showed `cpu=0.00ms`. Captured output is in `cpu_dump.txt`.
+
+## 3. Thread pool starvation
+```bash
+java PoolStarvationDemo.java
+jstack &lt;pid&gt; | grep -A 3 "pool-1-thread"
+```
+Three threads, ten jobs, one slow call with no timeout. All three threads end up
+in the same place and seven jobs wait forever. Memory and CPU both look fine.
+Captured output is in `pool_dump.txt`.
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">cpu_dump.txt</span><span class="fmeta">8.3 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep02/cpu_dump.txt">raw file</a><button class="copy" type="button">copy</button></div><pre><code>2026-09-03 02:04:16
+Full thread dump Java HotSpot(TM) 64-Bit Server VM (24.0.2+12-54 mixed mode, sharing):
+
+Threads class SMR info:
+_java_thread_list=0x000002741de2d270, length=16, elements={
+0x00000273b61a0550, 0x000002741d008a10, 0x000002741d00b260, 0x000002741d00bff0,
+0x000002741d00ceb0, 0x000002741d00dc60, 0x000002741d0104e0, 0x000002741d029dd0,
+0x000002741d057b40, 0x000002741d21f8e0, 0x000002741d229af0, 0x000002741d056490,
+0x000002741dce2a60, 0x000002741dce3690, 0x000002741dce3dd0, 0x000002741dce4510
+}
+
+"main" #3 [8504] prio=5 os_prio=0 cpu=390.62ms elapsed=6.17s tid=0x00000273b61a0550 nid=8504 waiting on condition  [0x000000a2143fe000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at HotCpuDemo.main(HotCpuDemo.java:27)
+	at java.lang.invoke.LambdaForm$DMH/0x00000273d9020400.invokeStatic(java.base@24.0.2/LambdaForm$DMH)
+	at java.lang.invoke.LambdaForm$MH/0x00000273d9129400.invoke(java.base@24.0.2/LambdaForm$MH)
+	at java.lang.invoke.Invokers$Holder.invokeExact_MT(java.base@24.0.2/Invokers$Holder)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invokeImpl(java.base@24.0.2/DirectMethodHandleAccessor.java:155)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(java.base@24.0.2/DirectMethodHandleAccessor.java:104)
+	at java.lang.reflect.Method.invoke(java.base@24.0.2/Method.java:565)
+	at com.sun.tools.javac.launcher.SourceLauncher.execute(jdk.compiler@24.0.2/SourceLauncher.java:254)
+	at com.sun.tools.javac.launcher.SourceLauncher.run(jdk.compiler@24.0.2/SourceLauncher.java:138)
+	at com.sun.tools.javac.launcher.SourceLauncher.main(jdk.compiler@24.0.2/SourceLauncher.java:76)
+
+"Reference Handler" #14 [24840] daemon prio=10 os_prio=2 cpu=0.00ms elapsed=6.15s tid=0x000002741d008a10 nid=24840 waiting on condition  [0x000000a214bff000]
+   java.lang.Thread.State: RUNNABLE
+	at java.lang.ref.Reference.waitForReferencePendingList(java.base@24.0.2/Native Method)
+	at java.lang.ref.Reference.processPendingReferences(java.base@24.0.2/Reference.java:246)
+	at java.lang.ref.Reference$ReferenceHandler.run(java.base@24.0.2/Reference.java:208)
+
+"Finalizer" #15 [3744] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=6.15s tid=0x000002741d00b260 nid=3744 in Object.wait()  [0x000000a214cff000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on &lt;0x0000000712602330&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:351)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:138)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:229)
+	- locked &lt;0x0000000712602330&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.Finalizer$FinalizerThread.run(java.base@24.0.2/Finalizer.java:165)
+
+"Signal Dispatcher" #16 [16452] daemon prio=9 os_prio=2 cpu=0.00ms elapsed=6.15s tid=0x000002741d00bff0 nid=16452 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Attach Listener" #17 [14896] daemon prio=5 os_prio=2 cpu=0.00ms elapsed=6.15s tid=0x000002741d00ceb0 nid=14896 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Service Thread" #18 [5304] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=6.15s tid=0x000002741d00dc60 nid=5304 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Monitor Deflation Thread" #19 [21072] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=6.15s tid=0x000002741d0104e0 nid=21072 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"C2 CompilerThread0" #20 [4140] daemon prio=9 os_prio=2 cpu=140.62ms elapsed=6.15s tid=0x000002741d029dd0 nid=4140 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"C1 CompilerThread0" #23 [26956] daemon prio=9 os_prio=2 cpu=203.12ms elapsed=6.15s tid=0x000002741d057b40 nid=26956 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"Notification Thread" #24 [19856] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=6.13s tid=0x000002741d21f8e0 nid=19856 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Common-Cleaner" #25 [25132] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=6.13s tid=0x000002741d229af0 nid=25132 in Object.wait()  [0x000000a2154fe000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on &lt;0x000000071243d810&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:124)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:215)
+	- locked &lt;0x000000071243d810&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at jdk.internal.ref.CleanerImpl.run(java.base@24.0.2/CleanerImpl.java:140)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+	at jdk.internal.misc.InnocuousThread.run(java.base@24.0.2/InnocuousThread.java:148)
+
+"C2 CompilerThread1" #21 [14636] daemon prio=9 os_prio=2 cpu=93.75ms elapsed=5.90s tid=0x000002741d056490 nid=14636 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"report-builder" #26 [24068] daemon prio=5 os_prio=0 cpu=5500.00ms elapsed=5.76s tid=0x000002741dce2a60 nid=24068 runnable  [0x000000a2157fe000]
+   java.lang.Thread.State: RUNNABLE
+	at HotCpuDemo.spin(HotCpuDemo.java:34)
+	at HotCpuDemo$$Lambda/0x00000273d9128218.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"worker-1" #27 [24180] daemon prio=5 os_prio=0 cpu=0.00ms elapsed=5.76s tid=0x000002741dce3690 nid=24180 waiting on condition  [0x000000a2158ff000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at HotCpuDemo.rest(HotCpuDemo.java:46)
+	at HotCpuDemo$$Lambda/0x00000273d9128448.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"worker-2" #28 [17216] daemon prio=5 os_prio=0 cpu=0.00ms elapsed=5.76s tid=0x000002741dce3dd0 nid=17216 waiting on condition  [0x000000a2159ff000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at HotCpuDemo.rest(HotCpuDemo.java:46)
+	at HotCpuDemo$$Lambda/0x00000273d9128448.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"worker-3" #29 [11556] daemon prio=5 os_prio=0 cpu=0.00ms elapsed=5.76s tid=0x000002741dce4510 nid=11556 waiting on condition  [0x000000a215aff000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at HotCpuDemo.rest(HotCpuDemo.java:46)
+	at HotCpuDemo$$Lambda/0x00000273d9128448.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"VM Thread" os_prio=2 cpu=0.00ms elapsed=6.16s tid=0x00000273d55273c0 nid=18448 runnable  
+
+"VM Periodic Task Thread" os_prio=2 cpu=0.00ms elapsed=6.16s tid=0x00000273d5518f70 nid=25348 waiting on condition  
+
+"G1 Service" os_prio=2 cpu=0.00ms elapsed=6.17s tid=0x00000273d53d66c0 nid=26248 runnable  
+
+"G1 Refine#0" os_prio=2 cpu=0.00ms elapsed=6.17s tid=0x00000273d53d6090 nid=16532 runnable  
+
+"G1 Conc#0" os_prio=2 cpu=0.00ms elapsed=6.17s tid=0x00000273d5373b90 nid=21524 runnable  
+
+"G1 Main Marker" os_prio=2 cpu=0.00ms elapsed=6.17s tid=0x00000273b86864e0 nid=14068 runnable  
+
+"GC Thread#0" os_prio=2 cpu=0.00ms elapsed=6.17s tid=0x00000273b8678b20 nid=7024 runnable  
+
+JNI global refs: 8, weak refs: 0
+
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">deadlock_dump.txt</span><span class="fmeta">8.3 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep02/deadlock_dump.txt">raw file</a><button class="copy" type="button">copy</button></div><pre><code>2026-09-03 02:03:53
+Full thread dump Java HotSpot(TM) 64-Bit Server VM (24.0.2+12-54 mixed mode, sharing):
+
+Threads class SMR info:
+_java_thread_list=0x0000021f91027330, length=13, elements={
+0x0000021f2b657360, 0x0000021f4851c0f0, 0x0000021f4851d3a0, 0x0000021f48526290,
+0x0000021f48524ca0, 0x0000021f48523e00, 0x0000021f48525b40, 0x0000021f48559d90,
+0x0000021f4855f0a0, 0x0000021f485253f0, 0x0000021f48522f60, 0x0000021f48524550,
+0x0000021f91068d50
+}
+
+"main" #3 [11896] prio=5 os_prio=0 cpu=406.25ms elapsed=24.64s tid=0x0000021f2b657360 nid=11896 in Object.wait()  [0x000000a827bfe000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on &lt;0x0000000710a61730&gt; (a java.lang.Thread)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.Thread.join(java.base@24.0.2/Thread.java:1860)
+	- locked &lt;0x0000000710a61730&gt; (a java.lang.Thread)
+	at java.lang.Thread.join(java.base@24.0.2/Thread.java:1936)
+	at DeadlockDemo.main(DeadlockDemo.java:41)
+	at java.lang.invoke.LambdaForm$DMH/0x0000021f4d020400.invokeStatic(java.base@24.0.2/LambdaForm$DMH)
+	at java.lang.invoke.LambdaForm$MH/0x0000021f4d12d400.invoke(java.base@24.0.2/LambdaForm$MH)
+	at java.lang.invoke.Invokers$Holder.invokeExact_MT(java.base@24.0.2/Invokers$Holder)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invokeImpl(java.base@24.0.2/DirectMethodHandleAccessor.java:155)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(java.base@24.0.2/DirectMethodHandleAccessor.java:104)
+	at java.lang.reflect.Method.invoke(java.base@24.0.2/Method.java:565)
+	at com.sun.tools.javac.launcher.SourceLauncher.execute(jdk.compiler@24.0.2/SourceLauncher.java:254)
+	at com.sun.tools.javac.launcher.SourceLauncher.run(jdk.compiler@24.0.2/SourceLauncher.java:138)
+	at com.sun.tools.javac.launcher.SourceLauncher.main(jdk.compiler@24.0.2/SourceLauncher.java:76)
+
+"Reference Handler" #14 [20788] daemon prio=10 os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f4851c0f0 nid=20788 waiting on condition  [0x000000a8283ff000]
+   java.lang.Thread.State: RUNNABLE
+	at java.lang.ref.Reference.waitForReferencePendingList(java.base@24.0.2/Native Method)
+	at java.lang.ref.Reference.processPendingReferences(java.base@24.0.2/Reference.java:246)
+	at java.lang.ref.Reference$ReferenceHandler.run(java.base@24.0.2/Reference.java:208)
+
+"Finalizer" #15 [22080] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=24.63s tid=0x0000021f4851d3a0 nid=22080 in Object.wait()  [0x000000a8284ff000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on &lt;0x0000000712602330&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:351)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:138)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:229)
+	- locked &lt;0x0000000712602330&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.Finalizer$FinalizerThread.run(java.base@24.0.2/Finalizer.java:165)
+
+"Signal Dispatcher" #16 [4880] daemon prio=9 os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f48526290 nid=4880 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Attach Listener" #17 [9412] daemon prio=5 os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f48524ca0 nid=9412 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Service Thread" #18 [25824] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=24.63s tid=0x0000021f48523e00 nid=25824 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Monitor Deflation Thread" #19 [17448] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=24.63s tid=0x0000021f48525b40 nid=17448 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"C2 CompilerThread0" #20 [21024] daemon prio=9 os_prio=2 cpu=203.12ms elapsed=24.63s tid=0x0000021f48559d90 nid=21024 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"C1 CompilerThread0" #23 [6388] daemon prio=9 os_prio=2 cpu=250.00ms elapsed=24.63s tid=0x0000021f4855f0a0 nid=6388 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"Notification Thread" #24 [27696] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=24.61s tid=0x0000021f485253f0 nid=27696 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Common-Cleaner" #25 [21792] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=24.61s tid=0x0000021f48522f60 nid=21792 in Object.wait()  [0x000000a828cfe000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on &lt;0x000000071243d830&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:124)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:215)
+	- locked &lt;0x000000071243d830&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at jdk.internal.ref.CleanerImpl.run(java.base@24.0.2/CleanerImpl.java:140)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+	at jdk.internal.misc.InnocuousThread.run(java.base@24.0.2/InnocuousThread.java:148)
+
+"transfer-A-to-B" #26 [12416] prio=5 os_prio=0 cpu=0.00ms elapsed=24.25s tid=0x0000021f48524550 nid=12416 waiting for monitor entry  [0x000000a828fff000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at DeadlockDemo.lambda$main$0(DeadlockDemo.java:21)
+	- waiting to lock &lt;0x0000000710a40628&gt; (a java.lang.Object)
+	- locked &lt;0x0000000710a40618&gt; (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c218.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"transfer-B-to-A" #27 [22764] prio=5 os_prio=0 cpu=0.00ms elapsed=24.25s tid=0x0000021f91068d50 nid=22764 waiting for monitor entry  [0x000000a8290ff000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at DeadlockDemo.lambda$main$1(DeadlockDemo.java:30)
+	- waiting to lock &lt;0x0000000710a40618&gt; (a java.lang.Object)
+	- locked &lt;0x0000000710a40628&gt; (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c448.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"VM Thread" os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f4850f840 nid=17556 runnable  
+
+"VM Periodic Task Thread" os_prio=2 cpu=15.62ms elapsed=24.63s tid=0x0000021f4b0a09d0 nid=24112 waiting on condition  
+
+"G1 Service" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f4843ef60 nid=23884 runnable  
+
+"G1 Refine#0" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f4843e640 nid=13848 runnable  
+
+"G1 Conc#0" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f483c3900 nid=17248 runnable  
+
+"G1 Main Marker" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f2b6cab50 nid=18884 runnable  
+
+"GC Thread#0" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f2b6b9230 nid=22860 runnable  
+
+JNI global refs: 8, weak refs: 0
+
+
+Found one Java-level deadlock:
+=============================
+"transfer-A-to-B":
+  waiting to lock monitor 0x0000021f910ad680 (object 0x0000000710a40628, a java.lang.Object),
+  which is held by "transfer-B-to-A"
+
+"transfer-B-to-A":
+  waiting to lock monitor 0x0000021f4bd5ef90 (object 0x0000000710a40618, a java.lang.Object),
+  which is held by "transfer-A-to-B"
+
+Java stack information for the threads listed above:
+===================================================
+"transfer-A-to-B":
+	at DeadlockDemo.lambda$main$0(DeadlockDemo.java:21)
+	- waiting to lock &lt;0x0000000710a40628&gt; (a java.lang.Object)
+	- locked &lt;0x0000000710a40618&gt; (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c218.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+"transfer-B-to-A":
+	at DeadlockDemo.lambda$main$1(DeadlockDemo.java:30)
+	- waiting to lock &lt;0x0000000710a40618&gt; (a java.lang.Object)
+	- locked &lt;0x0000000710a40628&gt; (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c448.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+Found 1 deadlock.
+
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">pool_dump.txt</span><span class="fmeta">9.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep02/pool_dump.txt">raw file</a><button class="copy" type="button">copy</button></div><pre><code>2026-09-03 02:04:53
+Full thread dump Java HotSpot(TM) 64-Bit Server VM (24.0.2+12-54 mixed mode, sharing):
+
+Threads class SMR info:
+_java_thread_list=0x00000213465c2210, length=14, elements={
+0x0000021359fb1600, 0x0000021376e80850, 0x0000021376e82fa0, 0x0000021376e84630,
+0x0000021376e84d70, 0x0000021376e856c0, 0x0000021376e8c190, 0x0000021376ead200,
+0x0000021376eb1610, 0x0000021376e8aba0, 0x0000021376e8b2f0, 0x0000021376e8d780,
+0x0000021376e8ba40, 0x0000021376e8c8e0
+}
+
+"main" #3 [16324] prio=5 os_prio=0 cpu=437.50ms elapsed=7.18s tid=0x0000021359fb1600 nid=16324 waiting on condition  [0x0000009adebff000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at PoolStarvationDemo.main(PoolStarvationDemo.java:42)
+	at java.lang.invoke.LambdaForm$DMH/0x0000021301020400.invokeStatic(java.base@24.0.2/LambdaForm$DMH)
+	at java.lang.invoke.LambdaForm$MH/0x000002130112d400.invoke(java.base@24.0.2/LambdaForm$MH)
+	at java.lang.invoke.Invokers$Holder.invokeExact_MT(java.base@24.0.2/Invokers$Holder)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invokeImpl(java.base@24.0.2/DirectMethodHandleAccessor.java:155)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(java.base@24.0.2/DirectMethodHandleAccessor.java:104)
+	at java.lang.reflect.Method.invoke(java.base@24.0.2/Method.java:565)
+	at com.sun.tools.javac.launcher.SourceLauncher.execute(jdk.compiler@24.0.2/SourceLauncher.java:254)
+	at com.sun.tools.javac.launcher.SourceLauncher.run(jdk.compiler@24.0.2/SourceLauncher.java:138)
+	at com.sun.tools.javac.launcher.SourceLauncher.main(jdk.compiler@24.0.2/SourceLauncher.java:76)
+
+"Reference Handler" #14 [27728] daemon prio=10 os_prio=2 cpu=0.00ms elapsed=7.16s tid=0x0000021376e80850 nid=27728 waiting on condition  [0x0000009adf3ff000]
+   java.lang.Thread.State: RUNNABLE
+	at java.lang.ref.Reference.waitForReferencePendingList(java.base@24.0.2/Native Method)
+	at java.lang.ref.Reference.processPendingReferences(java.base@24.0.2/Reference.java:246)
+	at java.lang.ref.Reference$ReferenceHandler.run(java.base@24.0.2/Reference.java:208)
+
+"Finalizer" #15 [27176] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=7.16s tid=0x0000021376e82fa0 nid=27176 in Object.wait()  [0x0000009adf4ff000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on &lt;0x0000000712602330&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:351)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:138)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:229)
+	- locked &lt;0x0000000712602330&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.Finalizer$FinalizerThread.run(java.base@24.0.2/Finalizer.java:165)
+
+"Signal Dispatcher" #16 [8096] daemon prio=9 os_prio=2 cpu=0.00ms elapsed=7.16s tid=0x0000021376e84630 nid=8096 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Attach Listener" #17 [9156] daemon prio=5 os_prio=2 cpu=0.00ms elapsed=7.16s tid=0x0000021376e84d70 nid=9156 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Service Thread" #18 [2928] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=7.16s tid=0x0000021376e856c0 nid=2928 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Monitor Deflation Thread" #19 [26316] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=7.16s tid=0x0000021376e8c190 nid=26316 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"C2 CompilerThread0" #20 [9704] daemon prio=9 os_prio=2 cpu=296.88ms elapsed=7.16s tid=0x0000021376ead200 nid=9704 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"C1 CompilerThread0" #23 [2484] daemon prio=9 os_prio=2 cpu=250.00ms elapsed=7.16s tid=0x0000021376eb1610 nid=2484 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"Notification Thread" #24 [17972] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=7.15s tid=0x0000021376e8aba0 nid=17972 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Common-Cleaner" #25 [23164] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=7.14s tid=0x0000021376e8b2f0 nid=23164 in Object.wait()  [0x0000009adfcff000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on &lt;0x000000071243d830&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:124)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:215)
+	- locked &lt;0x000000071243d830&gt; (a java.lang.ref.ReferenceQueue$Lock)
+	at jdk.internal.ref.CleanerImpl.run(java.base@24.0.2/CleanerImpl.java:140)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+	at jdk.internal.misc.InnocuousThread.run(java.base@24.0.2/InnocuousThread.java:148)
+
+"pool-1-thread-1" #26 [2668] prio=5 os_prio=0 cpu=0.00ms elapsed=6.74s tid=0x0000021376e8d780 nid=2668 waiting on condition  [0x0000009adfffe000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at PoolStarvationDemo.callSlowService(PoolStarvationDemo.java:48)
+	at PoolStarvationDemo.lambda$main$0(PoolStarvationDemo.java:27)
+	at PoolStarvationDemo$$Lambda/0x000002130112c218.run(Unknown Source)
+	at java.util.concurrent.Executors$RunnableAdapter.call(java.base@24.0.2/Executors.java:545)
+	at java.util.concurrent.FutureTask.run(java.base@24.0.2/FutureTask.java:328)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@24.0.2/ThreadPoolExecutor.java:1095)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@24.0.2/ThreadPoolExecutor.java:619)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"pool-1-thread-2" #27 [20192] prio=5 os_prio=0 cpu=0.00ms elapsed=6.74s tid=0x0000021376e8ba40 nid=20192 waiting on condition  [0x0000009ae00ff000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at PoolStarvationDemo.callSlowService(PoolStarvationDemo.java:48)
+	at PoolStarvationDemo.lambda$main$0(PoolStarvationDemo.java:27)
+	at PoolStarvationDemo$$Lambda/0x000002130112c218.run(Unknown Source)
+	at java.util.concurrent.Executors$RunnableAdapter.call(java.base@24.0.2/Executors.java:545)
+	at java.util.concurrent.FutureTask.run(java.base@24.0.2/FutureTask.java:328)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@24.0.2/ThreadPoolExecutor.java:1095)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@24.0.2/ThreadPoolExecutor.java:619)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"pool-1-thread-3" #28 [15324] prio=5 os_prio=0 cpu=0.00ms elapsed=6.74s tid=0x0000021376e8c8e0 nid=15324 waiting on condition  [0x0000009ae01ff000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleepNanos0(java.base@24.0.2/Native Method)
+	at java.lang.Thread.sleepNanos(java.base@24.0.2/Thread.java:482)
+	at java.lang.Thread.sleep(java.base@24.0.2/Thread.java:513)
+	at PoolStarvationDemo.callSlowService(PoolStarvationDemo.java:48)
+	at PoolStarvationDemo.lambda$main$0(PoolStarvationDemo.java:27)
+	at PoolStarvationDemo$$Lambda/0x000002130112c218.run(Unknown Source)
+	at java.util.concurrent.Executors$RunnableAdapter.call(java.base@24.0.2/Executors.java:545)
+	at java.util.concurrent.FutureTask.run(java.base@24.0.2/FutureTask.java:328)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@24.0.2/ThreadPoolExecutor.java:1095)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@24.0.2/ThreadPoolExecutor.java:619)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"VM Thread" os_prio=2 cpu=0.00ms elapsed=7.17s tid=0x0000021376dbe550 nid=25336 runnable  
+
+"VM Periodic Task Thread" os_prio=2 cpu=0.00ms elapsed=7.17s tid=0x0000021376e65f80 nid=24812 waiting on condition  
+
+"G1 Service" os_prio=2 cpu=0.00ms elapsed=7.18s tid=0x0000021376da0c70 nid=23608 runnable  
+
+"G1 Refine#0" os_prio=2 cpu=0.00ms elapsed=7.18s tid=0x0000021376d9e820 nid=1392 runnable  
+
+"G1 Conc#0" os_prio=2 cpu=0.00ms elapsed=7.18s tid=0x000002135a02afe0 nid=1304 runnable  
+
+"G1 Main Marker" os_prio=2 cpu=0.00ms elapsed=7.18s tid=0x0000021376d22010 nid=8420 runnable  
+
+"GC Thread#0" os_prio=2 cpu=0.00ms elapsed=7.18s tid=0x000002135a019150 nid=24696 runnable  
+
+JNI global refs: 8, weak refs: 0
+
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

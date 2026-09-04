@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 9 of the Java interview study series.">
+<title>Breaking the Singleton, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 09 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>Breaking the Singleton</h1>
+<p class="tagline">Every number on the episode page came from running this. 4 files, 19.3 KB.</p>
+<p class="codeacts"><a class="dl" href="ep09.zip" download>Download all, 7.0 KB</a><a class="back2" href="../ep09.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">LazyInitRace.java</span><span class="fmeta">4.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep09/LazyInitRace.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.Collections;
+<span class="kw">import</span> java.util.IdentityHashMap;
+<span class="kw">import</span> java.util.Set;
+<span class="kw">import</span> java.util.concurrent.CountDownLatch;
+<span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+
+<span class="cm">/**
+ * Four ways to create a singleton lazily, hit by many threads at once.
+ * A correct one gives exactly ONE instance no matter how many threads ask.
+ *
+ * Honest note about what this does and does not show. It demonstrates the
+ * race everyone can reproduce: several threads passing the null check together
+ * and each building their own object. It does NOT demonstrate the subtler
+ * problem that `volatile` exists to fix, where one thread sees a reference to
+ * an object whose fields are not written yet. That needs a processor with
+ * weaker memory ordering than the usual desktop one, so claiming to have shown
+ * it here would be dishonest.
+ *
+ *   java LazyInitRace.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> LazyInitRace {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> THREADS = <span class="nm">32</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> ATTEMPTS = <span class="nm">5</span>;
+
+    <span class="kw">static</span> <span class="kw">class</span> Heavy {
+        Heavy() {
+            <span class="cm">// enough work that two threads can overlap inside the constructor</span>
+            <span class="kw">try</span> { Thread.sleep(<span class="nm">2</span>); } <span class="kw">catch</span> (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    <span class="cm">// 1. no protection at all</span>
+    <span class="kw">static</span> Heavy unsafe;
+    <span class="kw">static</span> Heavy getUnsafe() {
+        <span class="kw">if</span> (unsafe == <span class="kw">null</span>) unsafe = <span class="kw">new</span> Heavy();
+        <span class="kw">return</span> unsafe;
+    }
+
+    <span class="cm">// 2. synchronize the whole method</span>
+    <span class="kw">static</span> Heavy syncd;
+    <span class="kw">static</span> <span class="kw">synchronized</span> Heavy getSynchronized() {
+        <span class="kw">if</span> (syncd == <span class="kw">null</span>) syncd = <span class="kw">new</span> Heavy();
+        <span class="kw">return</span> syncd;
+    }
+
+    <span class="cm">// 3. double checked locking, with volatile</span>
+    <span class="kw">static</span> <span class="kw">volatile</span> Heavy dcl;
+    <span class="kw">static</span> Heavy getDoubleChecked() {
+        Heavy local = dcl;
+        <span class="kw">if</span> (local == <span class="kw">null</span>) {
+            <span class="kw">synchronized</span> (LazyInitRace.<span class="kw">class</span>) {
+                local = dcl;
+                <span class="kw">if</span> (local == <span class="kw">null</span>) {
+                    dcl = local = <span class="kw">new</span> Heavy();
+                }
+            }
+        }
+        <span class="kw">return</span> local;
+    }
+
+    <span class="cm">// 4. the holder idiom: the class loader does the work</span>
+    <span class="kw">static</span> <span class="kw">class</span> Holder {
+        <span class="kw">static</span> <span class="kw">final</span> Heavy INSTANCE = <span class="kw">new</span> Heavy();
+    }
+    <span class="kw">static</span> Heavy getHolder() {
+        <span class="kw">return</span> Holder.INSTANCE;
+    }
+
+    <span class="kw">interface</span> Getter { Heavy get(); }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.printf(<span class="st">"%d threads all calling getInstance at the same moment, %d attempts%n%n"</span>,
+                THREADS, ATTEMPTS);
+        System.out.printf(<span class="st">"%-34s %22s   %s%n"</span>, <span class="st">"how it is written"</span>, <span class="st">"distinct instances"</span>, <span class="st">"correct?"</span>);
+        System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">78</span>));
+
+        run(<span class="st">"no protection"</span>, () -&gt; { unsafe = <span class="kw">null</span>; }, LazyInitRace::getUnsafe);
+        run(<span class="st">"synchronized method"</span>, () -&gt; { syncd = <span class="kw">null</span>; }, LazyInitRace::getSynchronized);
+        run(<span class="st">"double checked + volatile"</span>, () -&gt; { dcl = <span class="kw">null</span>; }, LazyInitRace::getDoubleChecked);
+        run(<span class="st">"holder idiom"</span>, () -&gt; {}, LazyInitRace::getHolder);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> run(String label, Runnable reset, Getter getter) <span class="kw">throws</span> Exception {
+        StringBuilder counts = <span class="kw">new</span> StringBuilder();
+        <span class="kw">boolean</span> allCorrect = <span class="kw">true</span>;
+
+        <span class="kw">for</span> (<span class="kw">int</span> attempt = <span class="nm">0</span>; attempt &lt; ATTEMPTS; attempt++) {
+            reset.run();
+            Set&lt;Heavy&gt; distinct = Collections.newSetFromMap(<span class="kw">new</span> IdentityHashMap&lt;&gt;());
+            ExecutorService pool = Executors.newFixedThreadPool(THREADS);
+            CountDownLatch go = <span class="kw">new</span> CountDownLatch(<span class="nm">1</span>);
+            CountDownLatch done = <span class="kw">new</span> CountDownLatch(THREADS);
+
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; THREADS; i++) {
+                pool.submit(() -&gt; {
+                    <span class="kw">try</span> {
+                        go.await();
+                        Heavy h = getter.get();
+                        <span class="kw">synchronized</span> (distinct) { distinct.add(h); }
+                    } <span class="kw">catch</span> (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } <span class="kw">finally</span> {
+                        done.countDown();
+                    }
+                });
+            }
+            go.countDown();
+            done.await();
+            pool.shutdownNow();
+
+            <span class="kw">int</span> n = distinct.size();
+            <span class="kw">if</span> (n != <span class="nm">1</span>) allCorrect = <span class="kw">false</span>;
+            counts.append(n).append(attempt &lt; ATTEMPTS - <span class="nm">1</span> ? <span class="st">", "</span> : <span class="st">""</span>);
+        }
+
+        System.out.printf(<span class="st">"%-34s %22s   %s%n"</span>, label, counts,
+                allCorrect ? <span class="st">"yes"</span> : <span class="st">"NO, several objects created"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">PatternsInAction.java</span><span class="fmeta">8.3 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep09/PatternsInAction.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.*;
+<span class="kw">import</span> java.util.function.Function;
+<span class="kw">import</span> java.util.function.UnaryOperator;
+
+<span class="cm">/**
+ * Strategy, Factory, Builder, Observer, Decorator and Adapter, each small
+ * enough to read and each actually run.
+ *
+ *   java PatternsInAction.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> PatternsInAction {
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        strategy();
+        factory();
+        builder();
+        observer();
+        decorator();
+        adapter();
+    }
+
+    <span class="cm">// ================= STRATEGY =================</span>
+
+    <span class="cm">/** The version that grows a new branch every time the business changes. */</span>
+    <span class="kw">static</span> <span class="kw">double</span> feeIfElse(String method, <span class="kw">double</span> amount) {
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>))        <span class="kw">return</span> amount * <span class="nm">0.029</span> + <span class="nm">0.30</span>;
+        <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"bank"</span>))   <span class="kw">return</span> <span class="nm">0.25</span>;
+        <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"wallet"</span>)) <span class="kw">return</span> amount * <span class="nm">0.015</span>;
+        <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"crypto"</span>)) <span class="kw">return</span> amount * <span class="nm">0.01</span>;
+        <span class="kw">else</span> <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown method: "</span> + method);
+    }
+
+    <span class="cm">/** The same rules, as a lookup. Adding one means adding one entry. */</span>
+    <span class="kw">static</span> <span class="kw">final</span> Map&lt;String, Function&lt;Double, Double&gt;&gt; FEES = Map.of(
+            <span class="st">"card"</span>,   a -&gt; a * <span class="nm">0.029</span> + <span class="nm">0.30</span>,
+            <span class="st">"bank"</span>,   a -&gt; <span class="nm">0.25</span>,
+            <span class="st">"wallet"</span>, a -&gt; a * <span class="nm">0.015</span>,
+            <span class="st">"crypto"</span>, a -&gt; a * <span class="nm">0.01</span>);
+
+    <span class="kw">static</span> <span class="kw">double</span> feeStrategy(String method, <span class="kw">double</span> amount) {
+        Function&lt;Double, Double&gt; f = FEES.get(method);
+        <span class="kw">if</span> (f == <span class="kw">null</span>) <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown method: "</span> + method);
+        <span class="kw">return</span> f.apply(amount);
+    }
+
+    <span class="cm">/** When the set is fixed and known, an enum carries the behaviour itself. */</span>
+    <span class="kw">enum</span> Fee {
+        CARD   { <span class="kw">double</span> of(<span class="kw">double</span> a) { <span class="kw">return</span> a * <span class="nm">0.029</span> + <span class="nm">0.30</span>; } },
+        BANK   { <span class="kw">double</span> of(<span class="kw">double</span> a) { <span class="kw">return</span> <span class="nm">0.25</span>; } },
+        WALLET { <span class="kw">double</span> of(<span class="kw">double</span> a) { <span class="kw">return</span> a * <span class="nm">0.015</span>; } },
+        CRYPTO { <span class="kw">double</span> of(<span class="kw">double</span> a) { <span class="kw">return</span> a * <span class="nm">0.01</span>; } };
+        <span class="kw">abstract</span> <span class="kw">double</span> of(<span class="kw">double</span> amount);
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> strategy() {
+        head(<span class="st">"STRATEGY: replacing an if-else chain"</span>);
+        <span class="kw">double</span> amount = <span class="nm">100</span>;
+        <span class="kw">for</span> (String m : List.of(<span class="st">"card"</span>, <span class="st">"bank"</span>, <span class="st">"wallet"</span>, <span class="st">"crypto"</span>)) {
+            System.out.printf(<span class="st">"  %-7s if-else %.2f   map %.2f   enum %.2f%n"</span>,
+                    m, feeIfElse(m, amount), feeStrategy(m, amount),
+                    Fee.valueOf(m.toUpperCase()).of(amount));
+        }
+        System.out.println(<span class="st">"  all three agree. The difference is what happens when a fifth"</span>);
+        System.out.println(<span class="st">"  method arrives: the if-else needs editing, the map needs an entry."</span>);
+        System.out.println();
+    }
+
+    <span class="cm">// ================= FACTORY =================</span>
+
+    <span class="kw">interface</span> Report { String render(); }
+    <span class="kw">record</span> CsvReport(List&lt;String&gt; rows) <span class="kw">implements</span> Report {
+        <span class="kw">public</span> String render() { <span class="kw">return</span> String.join(<span class="st">","</span>, rows); }
+    }
+    <span class="kw">record</span> JsonReport(List&lt;String&gt; rows) <span class="kw">implements</span> Report {
+        <span class="kw">public</span> String render() { <span class="kw">return</span> <span class="st">"[\""</span> + String.join(<span class="st">"\",\""</span>, rows) + <span class="st">"\"]"</span>; }
+    }
+
+    <span class="kw">static</span> Report reportFor(String format, List&lt;String&gt; rows) {
+        <span class="kw">return</span> <span class="kw">switch</span> (format) {
+            <span class="kw">case</span> <span class="st">"csv"</span>  -&gt; <span class="kw">new</span> CsvReport(rows);
+            <span class="kw">case</span> <span class="st">"json"</span> -&gt; <span class="kw">new</span> JsonReport(rows);
+            <span class="kw">default</span> -&gt; <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"no such format: "</span> + format);
+        };
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> factory() {
+        head(<span class="st">"FACTORY: the caller asks for what it wants, not how to build it"</span>);
+        List&lt;String&gt; rows = List.of(<span class="st">"ann"</span>, <span class="st">"bob"</span>);
+        <span class="kw">for</span> (String f : List.of(<span class="st">"csv"</span>, <span class="st">"json"</span>)) {
+            System.out.println(<span class="st">"  "</span> + f + <span class="st">" -&gt; "</span> + reportFor(f, rows).render());
+        }
+        System.out.println(<span class="st">"  the caller never names CsvReport or JsonReport."</span>);
+        System.out.println();
+    }
+
+    <span class="cm">// ================= BUILDER =================</span>
+
+    <span class="kw">static</span> <span class="kw">class</span> Pizza {
+        <span class="kw">private</span> <span class="kw">final</span> String size;
+        <span class="kw">private</span> <span class="kw">final</span> List&lt;String&gt; toppings;
+        <span class="kw">private</span> <span class="kw">final</span> <span class="kw">boolean</span> extraCheese;
+
+        <span class="kw">private</span> Pizza(Builder b) {
+            <span class="kw">this</span>.size = b.size;
+            <span class="kw">this</span>.toppings = List.copyOf(b.toppings);
+            <span class="kw">this</span>.extraCheese = b.extraCheese;
+        }
+        <span class="an">@Override</span> <span class="kw">public</span> String toString() {
+            <span class="kw">return</span> size + <span class="st">" pizza with "</span> + toppings + (extraCheese ? <span class="st">" and extra cheese"</span> : <span class="st">""</span>);
+        }
+        <span class="kw">static</span> Builder of(String size) { <span class="kw">return</span> <span class="kw">new</span> Builder(size); }
+
+        <span class="kw">static</span> <span class="kw">class</span> Builder {
+            <span class="kw">private</span> <span class="kw">final</span> String size;
+            <span class="kw">private</span> <span class="kw">final</span> List&lt;String&gt; toppings = <span class="kw">new</span> ArrayList&lt;&gt;();
+            <span class="kw">private</span> <span class="kw">boolean</span> extraCheese;
+
+            Builder(String size) { <span class="kw">this</span>.size = size; }
+            Builder topping(String t) { toppings.add(t); <span class="kw">return</span> <span class="kw">this</span>; }
+            Builder extraCheese() { extraCheese = <span class="kw">true</span>; <span class="kw">return</span> <span class="kw">this</span>; }
+            Pizza build() {
+                <span class="kw">if</span> (toppings.isEmpty()) <span class="kw">throw</span> <span class="kw">new</span> IllegalStateException(<span class="st">"needs a topping"</span>);
+                <span class="kw">return</span> <span class="kw">new</span> Pizza(<span class="kw">this</span>);
+            }
+        }
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> builder() {
+        head(<span class="st">"BUILDER: many optional parts, and the object is immutable when done"</span>);
+        System.out.println(<span class="st">"  "</span> + Pizza.of(<span class="st">"large"</span>).topping(<span class="st">"ham"</span>).topping(<span class="st">"olive"</span>).extraCheese().build());
+        <span class="kw">try</span> {
+            Pizza.of(<span class="st">"small"</span>).build();
+        } <span class="kw">catch</span> (IllegalStateException e) {
+            System.out.println(<span class="st">"  validation happens in build(): "</span> + e.getMessage());
+        }
+        System.out.println();
+    }
+
+    <span class="cm">// ================= OBSERVER =================</span>
+
+    <span class="kw">interface</span> Listener { <span class="kw">void</span> onEvent(String event); }
+
+    <span class="kw">static</span> <span class="kw">class</span> Publisher {
+        <span class="kw">private</span> <span class="kw">final</span> List&lt;Listener&gt; listeners = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">void</span> subscribe(Listener l) { listeners.add(l); }
+        <span class="kw">void</span> unsubscribe(Listener l) { listeners.remove(l); }
+        <span class="kw">void</span> publish(String event) {
+            <span class="kw">for</span> (Listener l : List.copyOf(listeners)) l.onEvent(event);
+        }
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> observer() {
+        head(<span class="st">"OBSERVER: one thing happens, several parties care"</span>);
+        Publisher orders = <span class="kw">new</span> Publisher();
+        Listener email = e -&gt; System.out.println(<span class="st">"    email service saw "</span> + e);
+        Listener audit = e -&gt; System.out.println(<span class="st">"    audit log saw "</span> + e);
+        orders.subscribe(email);
+        orders.subscribe(audit);
+        orders.publish(<span class="st">"order-1 placed"</span>);
+        orders.unsubscribe(email);
+        System.out.println(<span class="st">"  after the email service unsubscribes:"</span>);
+        orders.publish(<span class="st">"order-2 placed"</span>);
+        System.out.println(<span class="st">"  forgetting to unsubscribe is the leak from Episode 1."</span>);
+        System.out.println();
+    }
+
+    <span class="cm">// ================= DECORATOR =================</span>
+
+    <span class="kw">static</span> <span class="kw">void</span> decorator() {
+        head(<span class="st">"DECORATOR: adding behaviour by wrapping, not by subclassing"</span>);
+        UnaryOperator&lt;String&gt; plain = s -&gt; s;
+        UnaryOperator&lt;String&gt; trimmed = wrap(plain, String::trim);
+        UnaryOperator&lt;String&gt; trimmedUpper = wrap(trimmed, String::toUpperCase);
+        UnaryOperator&lt;String&gt; full = wrap(trimmedUpper, s -&gt; <span class="st">"["</span> + s + <span class="st">"]"</span>);
+
+        String input = <span class="st">"  hello  "</span>;
+        System.out.println(<span class="st">"  plain        -&gt; '"</span> + plain.apply(input) + <span class="st">"'"</span>);
+        System.out.println(<span class="st">"  trimmed      -&gt; '"</span> + trimmed.apply(input) + <span class="st">"'"</span>);
+        System.out.println(<span class="st">"  + uppercase  -&gt; '"</span> + trimmedUpper.apply(input) + <span class="st">"'"</span>);
+        System.out.println(<span class="st">"  + brackets   -&gt; '"</span> + full.apply(input) + <span class="st">"'"</span>);
+        System.out.println(<span class="st">"  each layer wraps the one before. No subclass anywhere."</span>);
+        System.out.println();
+    }
+
+    <span class="kw">static</span> UnaryOperator&lt;String&gt; wrap(UnaryOperator&lt;String&gt; inner, UnaryOperator&lt;String&gt; extra) {
+        <span class="kw">return</span> s -&gt; extra.apply(inner.apply(s));
+    }
+
+    <span class="cm">// ================= ADAPTER =================</span>
+
+    <span class="cm">/** What our code wants to use. */</span>
+    <span class="kw">interface</span> Notifier { <span class="kw">void</span> notify(String who, String text); }
+
+    <span class="cm">/** What the third party library actually gives us. */</span>
+    <span class="kw">static</span> <span class="kw">class</span> LegacySms {
+        <span class="kw">void</span> dispatch(String payload) { System.out.println(<span class="st">"    LegacySms sent: "</span> + payload); }
+    }
+
+    <span class="cm">/** The adapter makes one look like the other. */</span>
+    <span class="kw">record</span> SmsAdapter(LegacySms sms) <span class="kw">implements</span> Notifier {
+        <span class="kw">public</span> <span class="kw">void</span> notify(String who, String text) {
+            sms.dispatch(who + <span class="st">"|"</span> + text);
+        }
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> adapter() {
+        head(<span class="st">"ADAPTER: making something you cannot change fit an interface you own"</span>);
+        Notifier n = <span class="kw">new</span> SmsAdapter(<span class="kw">new</span> LegacySms());
+        n.notify(<span class="st">"+44123"</span>, <span class="st">"your order shipped"</span>);
+        System.out.println(<span class="st">"  our code only knows Notifier. LegacySms never changed."</span>);
+        System.out.println();
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> head(String s) { System.out.println(<span class="st">"=== "</span> + s + <span class="st">" ==="</span>); }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">README.md</span><span class="fmeta">2.2 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep09/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 9 demos
+
+Captured on Java 24.0.2. The "broken" results are real, not claimed.
+
+## 1. Breaking a Singleton
+
+```bash
+java SingletonBreaking.java
+```
+
+Three attacks against a textbook Singleton, all successful:
+
+```
+reflection    -&gt; same instance? false   hash 45ca843 vs 11c9af63
+serialization -&gt; same instance? false   hash 45ca843 vs 2df9b86
+cloning       -&gt; same instance? false   hash 45ca843 vs 37654521
+```
+
+The defended version:
+
+```
+reflection    -&gt; blocked: IllegalStateException: already created, use getInstance()
+serialization -&gt; same instance? true    (readResolve did this)
+```
+
+The enum:
+
+```
+reflection    -&gt; blocked: IllegalArgumentException: Cannot reflectively create enum objects
+serialization -&gt; same instance? true    (the language guarantees this)
+cloning       -&gt; not possible, enums cannot be cloned
+```
+
+The enum's defences come from the runtime rather than from code you have to
+remember to write, which is the whole argument for it.
+
+## 2. The lazy initialisation race
+
+```bash
+java LazyInitRace.java
+```
+
+32 threads calling `getInstance()` at the same moment, five attempts:
+
+| How it is written | Distinct instances | Correct |
+|---|---|---|
+| no protection | 29, 30, 29, 29, 31 | no |
+| synchronized method | 1, 1, 1, 1, 1 | yes |
+| double checked + volatile | 1, 1, 1, 1, 1 | yes |
+| holder idiom | 1, 1, 1, 1, 1 | yes |
+
+**What this does not show.** It demonstrates the race anyone can reproduce:
+several threads passing the null check together. It does NOT demonstrate the
+subtler reordering problem that `volatile` exists to fix, where a thread sees a
+reference to a half constructed object. That needs weaker memory ordering than
+an ordinary desktop processor, so the demo says so rather than pretending.
+
+## 3. The other patterns
+
+```bash
+java PatternsInAction.java
+```
+
+Strategy as an if-else chain, a map of functions, and an enum, all producing
+identical results. Factory. Builder, including `build()` throwing
+`needs a topping`. Observer, including unsubscribing so the second event
+reaches only one listener. Decorator, wrapping `'  hello  '` through trim,
+uppercase and brackets to `'[HELLO]'`. Adapter, turning
+`Notifier.notify(who, text)` into `LegacySms.dispatch("+44123|your order shipped")`.
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">SingletonBreaking.java</span><span class="fmeta">4.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep09/SingletonBreaking.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.io.*;
+<span class="kw">import</span> java.lang.reflect.Constructor;
+
+<span class="cm">/**
+ * Three ways to break a Singleton, and what actually resists them.
+ * Everything here was run: the "broken" results are real, not claimed.
+ *
+ *   java SingletonBreaking.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> SingletonBreaking {
+
+    <span class="cm">// ---- the textbook Singleton ----</span>
+    <span class="kw">static</span> <span class="kw">class</span> Classic <span class="kw">implements</span> Serializable, Cloneable {
+        <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> Classic INSTANCE = <span class="kw">new</span> Classic();
+        <span class="kw">private</span> Classic() {}
+        <span class="kw">static</span> Classic getInstance() { <span class="kw">return</span> INSTANCE; }
+        <span class="an">@Override</span> <span class="kw">public</span> Object clone() <span class="kw">throws</span> CloneNotSupportedException {
+            <span class="kw">return</span> <span class="kw">super</span>.clone();
+        }
+    }
+
+    <span class="cm">// ---- the same thing, defended ----</span>
+    <span class="kw">static</span> <span class="kw">class</span> Defended <span class="kw">implements</span> Serializable {
+        <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> Defended INSTANCE = <span class="kw">new</span> Defended();
+        <span class="kw">private</span> Defended() {
+            <span class="kw">if</span> (INSTANCE != <span class="kw">null</span>) {                     <span class="cm">// stops reflection</span>
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalStateException(<span class="st">"already created, use getInstance()"</span>);
+            }
+        }
+        <span class="kw">static</span> Defended getInstance() { <span class="kw">return</span> INSTANCE; }
+        <span class="kw">private</span> Object readResolve() {                  <span class="cm">// stops serialization</span>
+            <span class="kw">return</span> INSTANCE;
+        }
+    }
+
+    <span class="cm">// ---- the enum ----</span>
+    <span class="kw">enum</span> Enum1 {
+        INSTANCE;
+        <span class="kw">int</span> value = <span class="nm">42</span>;
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.println(<span class="st">"=== 1. reflection against a classic singleton ==="</span>);
+        Classic a = Classic.getInstance();
+        Constructor&lt;Classic&gt; c = Classic.<span class="kw">class</span>.getDeclaredConstructor();
+        c.setAccessible(<span class="kw">true</span>);                          <span class="cm">// private no longer matters</span>
+        Classic b = c.newInstance();
+        report(<span class="st">"Classic"</span>, a, b);
+
+        System.out.println(<span class="st">"=== 2. serialization against a classic singleton ==="</span>);
+        Classic d = roundTrip(Classic.getInstance());
+        report(<span class="st">"Classic"</span>, Classic.getInstance(), d);
+
+        System.out.println(<span class="st">"=== 3. cloning against a classic singleton ==="</span>);
+        Classic e = (Classic) Classic.getInstance().clone();
+        report(<span class="st">"Classic"</span>, Classic.getInstance(), e);
+
+        System.out.println(<span class="st">"=== 4. the same attacks on the defended version ==="</span>);
+        <span class="kw">try</span> {
+            Constructor&lt;Defended&gt; dc = Defended.<span class="kw">class</span>.getDeclaredConstructor();
+            dc.setAccessible(<span class="kw">true</span>);
+            Defended extra = dc.newInstance();
+            report(<span class="st">"Defended"</span>, Defended.getInstance(), extra);
+        } <span class="kw">catch</span> (Exception ex) {
+            Throwable cause = ex.getCause() != <span class="kw">null</span> ? ex.getCause() : ex;
+            System.out.println(<span class="st">"  reflection    -&gt; blocked: "</span> + cause.getClass().getSimpleName()
+                    + <span class="st">": "</span> + cause.getMessage());
+        }
+        Defended ds = roundTrip(Defended.getInstance());
+        System.out.println(<span class="st">"  serialization -&gt; same instance? "</span>
+                + (Defended.getInstance() == ds) + <span class="st">"   (readResolve did this)"</span>);
+        System.out.println();
+
+        System.out.println(<span class="st">"=== 5. the same attacks on an enum ==="</span>);
+        <span class="kw">try</span> {
+            Constructor&lt;?&gt;[] ctors = Enum1.<span class="kw">class</span>.getDeclaredConstructors();
+            Constructor&lt;?&gt; ec = ctors[<span class="nm">0</span>];
+            ec.setAccessible(<span class="kw">true</span>);
+            ec.newInstance(<span class="st">"EXTRA"</span>, <span class="nm">1</span>);
+            System.out.println(<span class="st">"  reflection    -&gt; a second enum constant was created"</span>);
+        } <span class="kw">catch</span> (Exception ex) {
+            System.out.println(<span class="st">"  reflection    -&gt; blocked: "</span> + ex.getClass().getSimpleName()
+                    + <span class="st">": "</span> + ex.getMessage());
+        }
+        Enum1 es = roundTrip(Enum1.INSTANCE);
+        System.out.println(<span class="st">"  serialization -&gt; same instance? "</span> + (Enum1.INSTANCE == es)
+                + <span class="st">"   (the language guarantees this)"</span>);
+        System.out.println(<span class="st">"  cloning       -&gt; not possible, enums cannot be cloned"</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> report(String label, Object a, Object b) {
+        System.out.println(<span class="st">"  same instance? "</span> + (a == b)
+                + <span class="st">"   hash "</span> + Integer.toHexString(System.identityHashCode(a))
+                + <span class="st">" vs "</span> + Integer.toHexString(System.identityHashCode(b)));
+        System.out.println();
+    }
+
+    <span class="an">@SuppressWarnings</span>(<span class="st">"unchecked"</span>)
+    <span class="kw">private</span> <span class="kw">static</span> &lt;T&gt; T roundTrip(T obj) <span class="kw">throws</span> Exception {
+        ByteArrayOutputStream bytes = <span class="kw">new</span> ByteArrayOutputStream();
+        <span class="kw">try</span> (ObjectOutputStream out = <span class="kw">new</span> ObjectOutputStream(bytes)) {
+            out.writeObject(obj);
+        }
+        <span class="kw">try</span> (ObjectInputStream in = <span class="kw">new</span> ObjectInputStream(
+                <span class="kw">new</span> ByteArrayInputStream(bytes.toByteArray()))) {
+            <span class="kw">return</span> (T) in.readObject();
+        }
+    }
+}
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

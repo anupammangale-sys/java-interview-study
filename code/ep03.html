@@ -1,0 +1,1377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 3 of the Java interview study series.">
+<title>Where the Pauses Come From, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 03 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>Where the Pauses Come From</h1>
+<p class="tagline">Every number on the episode page came from running this. 11 files, 85.8 KB.</p>
+<p class="codeacts"><a class="dl" href="ep03.zip" download>Download all, 15.4 KB</a><a class="back2" href="../ep03.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">G1GC.log</span><span class="fmeta">8.3 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/G1GC.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.007s][info][gc] Using G1
+[0.441s][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 48M-&gt;3M(256M) 1.737ms
+[0.457s][info][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 114M-&gt;7M(256M) 2.292ms
+[0.469s][info][gc] GC(2) Pause Young (Normal) (G1 Evacuation Pause) 132M-&gt;11M(256M) 2.733ms
+[0.484s][info][gc] GC(3) Pause Young (Normal) (G1 Evacuation Pause) 151M-&gt;16M(256M) 3.805ms
+[0.495s][info][gc] GC(4) Pause Young (Normal) (G1 Evacuation Pause) 155M-&gt;20M(256M) 1.728ms
+[0.506s][info][gc] GC(5) Pause Young (Normal) (G1 Evacuation Pause) 158M-&gt;25M(256M) 1.992ms
+[0.517s][info][gc] GC(6) Pause Young (Normal) (G1 Evacuation Pause) 163M-&gt;29M(256M) 1.830ms
+[0.529s][info][gc] GC(7) Pause Young (Normal) (G1 Evacuation Pause) 167M-&gt;34M(256M) 2.094ms
+[0.543s][info][gc] GC(8) Pause Young (Normal) (G1 Evacuation Pause) 172M-&gt;38M(256M) 1.831ms
+[0.555s][info][gc] GC(9) Pause Young (Normal) (G1 Evacuation Pause) 176M-&gt;43M(256M) 2.227ms
+[0.568s][info][gc] GC(10) Pause Young (Normal) (G1 Evacuation Pause) 181M-&gt;47M(256M) 1.993ms
+[0.580s][info][gc] GC(11) Pause Young (Normal) (G1 Evacuation Pause) 185M-&gt;52M(256M) 1.909ms
+[0.594s][info][gc] GC(12) Pause Young (Normal) (G1 Evacuation Pause) 190M-&gt;56M(256M) 1.729ms
+[0.606s][info][gc] GC(13) Pause Young (Normal) (G1 Evacuation Pause) 194M-&gt;61M(256M) 1.737ms
+[0.624s][info][gc] GC(14) Pause Young (Normal) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 199M-&gt;161M(256M) 8.942ms
+[0.630s][info][gc] GC(15) Pause Young (Concurrent Start) (G1 Evacuation Pause) 222M-&gt;143M(256M) 1.889ms
+[0.630s][info][gc] GC(16) Concurrent Mark Cycle
+[0.633s][info][gc] GC(16) Pause Remark 163M-&gt;163M(256M) 0.492ms
+[0.633s][info][gc] GC(16) Pause Cleanup 173M-&gt;173M(256M) 0.008ms
+[0.634s][info][gc] GC(16) Concurrent Mark Cycle 4.032ms
+[0.638s][info][gc] GC(17) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 223M-&gt;146M(256M) 0.571ms
+[0.644s][info][gc] GC(18) Pause Young (Mixed) (G1 Evacuation Pause) 227M-&gt;148M(256M) 0.890ms
+[0.651s][info][gc] GC(19) Pause Young (Concurrent Start) (G1 Evacuation Pause) 230M-&gt;151M(256M) 1.180ms
+[0.651s][info][gc] GC(20) Concurrent Mark Cycle
+[0.654s][info][gc] GC(20) Pause Remark 176M-&gt;169M(256M) 0.656ms
+[0.655s][info][gc] GC(20) Pause Cleanup 179M-&gt;179M(256M) 0.008ms
+[0.655s][info][gc] GC(20) Concurrent Mark Cycle 4.441ms
+[0.660s][info][gc] GC(21) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 226M-&gt;147M(256M) 1.039ms
+[0.668s][info][gc] GC(22) Pause Young (Mixed) (G1 Evacuation Pause) 233M-&gt;148M(256M) 1.058ms
+[0.675s][info][gc] GC(23) Pause Young (Concurrent Start) (G1 Evacuation Pause) 232M-&gt;150M(256M) 0.947ms
+[0.675s][info][gc] GC(24) Concurrent Mark Cycle
+[0.678s][info][gc] GC(24) Pause Remark 176M-&gt;168M(256M) 0.469ms
+[0.679s][info][gc] GC(24) Pause Cleanup 175M-&gt;175M(256M) 0.010ms
+[0.679s][info][gc] GC(24) Concurrent Mark Cycle 3.643ms
+[0.683s][info][gc] GC(25) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 223M-&gt;145M(256M) 0.910ms
+[0.691s][info][gc] GC(26) Pause Young (Mixed) (G1 Evacuation Pause) 231M-&gt;146M(256M) 1.046ms
+[0.698s][info][gc] GC(27) Pause Young (Concurrent Start) (G1 Evacuation Pause) 231M-&gt;149M(256M) 1.032ms
+[0.698s][info][gc] GC(28) Concurrent Mark Cycle
+[0.700s][info][gc] GC(28) Pause Remark 167M-&gt;160M(256M) 0.432ms
+[0.701s][info][gc] GC(28) Pause Cleanup 167M-&gt;167M(256M) 0.010ms
+[0.701s][info][gc] GC(28) Concurrent Mark Cycle 3.416ms
+[0.706s][info][gc] GC(29) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 225M-&gt;144M(256M) 1.070ms
+[0.715s][info][gc] GC(30) Pause Young (Mixed) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 231M-&gt;194M(256M) 1.932ms
+[0.719s][info][gc] GC(31) Pause Young (Concurrent Start) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 229M-&gt;233M(256M) 1.874ms
+[0.719s][info][gc] GC(32) Concurrent Mark Cycle
+[0.722s][info][gc] GC(32) Pause Remark 236M-&gt;150M(256M) 0.464ms
+[0.723s][info][gc] GC(33) Pause Young (Normal) (G1 Evacuation Pause) 153M-&gt;148M(256M) 1.131ms
+[0.724s][info][gc] GC(32) Pause Cleanup 151M-&gt;151M(256M) 0.009ms
+[0.724s][info][gc] GC(32) Concurrent Mark Cycle 4.663ms
+[0.732s][info][gc] GC(34) Pause Young (Prepare Mixed) (G1 Evacuation Pause) (Evacuation Failure: Allocation) 222M-&gt;223M(256M) 2.436ms
+[0.734s][info][gc] GC(35) Pause Young (Mixed) (G1 Evacuation Pause) 231M-&gt;229M(256M) 1.510ms
+[0.736s][info][gc] GC(36) Pause Young (Concurrent Start) (G1 Evacuation Pause) 238M-&gt;238M(256M) 0.966ms
+[0.736s][info][gc] GC(37) Concurrent Mark Cycle
+[0.739s][info][gc] GC(37) Pause Remark 241M-&gt;157M(256M) 0.461ms
+[0.740s][info][gc] GC(38) Pause Young (Normal) (G1 Evacuation Pause) 164M-&gt;164M(256M) 0.820ms
+[0.740s][info][gc] GC(37) Pause Cleanup 166M-&gt;166M(256M) 0.008ms
+[0.741s][info][gc] GC(37) Concurrent Mark Cycle 4.655ms
+[0.746s][info][gc] GC(39) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 199M-&gt;199M(256M) 2.537ms
+[0.749s][info][gc] GC(40) Pause Young (Mixed) (G1 Evacuation Pause) 218M-&gt;215M(256M) 1.751ms
+[0.751s][info][gc] GC(41) Pause Young (Concurrent Start) (G1 Evacuation Pause) 227M-&gt;227M(256M) 1.017ms
+[0.751s][info][gc] GC(42) Concurrent Mark Cycle
+[0.753s][info][gc] GC(42) Pause Remark 230M-&gt;163M(256M) 0.462ms
+[0.754s][info][gc] GC(42) Pause Cleanup 171M-&gt;171M(256M) 0.013ms
+[0.756s][info][gc] GC(43) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 172M-&gt;172M(256M) 1.262ms
+[0.756s][info][gc] GC(42) Concurrent Mark Cycle 5.025ms
+[0.760s][info][gc] GC(44) Pause Young (Mixed) (G1 Evacuation Pause) 198M-&gt;187M(256M) 2.080ms
+[0.764s][info][gc] GC(45) Pause Young (Concurrent Start) (G1 Evacuation Pause) 208M-&gt;208M(256M) 1.820ms
+[0.764s][info][gc] GC(46) Concurrent Mark Cycle
+[0.766s][info][gc] GC(46) Pause Remark 211M-&gt;143M(256M) 0.433ms
+[0.767s][info][gc] GC(46) Pause Cleanup 152M-&gt;152M(256M) 0.011ms
+[0.767s][info][gc] GC(46) Concurrent Mark Cycle 3.022ms
+[0.769s][info][gc] GC(47) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 154M-&gt;154M(256M) 1.307ms
+[0.773s][info][gc] GC(48) Pause Young (Mixed) (G1 Evacuation Pause) 185M-&gt;184M(256M) 2.075ms
+[0.777s][info][gc] GC(49) Pause Young (Concurrent Start) (G1 Evacuation Pause) 206M-&gt;206M(256M) 2.069ms
+[0.777s][info][gc] GC(50) Concurrent Mark Cycle
+[0.780s][info][gc] GC(50) Pause Remark 209M-&gt;148M(256M) 0.459ms
+[0.780s][info][gc] GC(50) Pause Cleanup 157M-&gt;157M(256M) 0.010ms
+[0.781s][info][gc] GC(50) Concurrent Mark Cycle 3.775ms
+[0.782s][info][gc] GC(51) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 160M-&gt;160M(256M) 1.328ms
+[0.786s][info][gc] GC(52) Pause Young (Mixed) (G1 Evacuation Pause) 189M-&gt;186M(256M) 1.926ms
+[0.790s][info][gc] GC(53) Pause Young (Concurrent Start) (G1 Evacuation Pause) 207M-&gt;207M(256M) 1.731ms
+[0.790s][info][gc] GC(54) Concurrent Mark Cycle
+[0.793s][info][gc] GC(54) Pause Remark 210M-&gt;159M(256M) 0.616ms
+[0.793s][info][gc] GC(54) Pause Cleanup 167M-&gt;167M(256M) 0.014ms
+[0.794s][info][gc] GC(54) Concurrent Mark Cycle 3.855ms
+[0.795s][info][gc] GC(55) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 171M-&gt;171M(256M) 1.279ms
+[0.799s][info][gc] GC(56) Pause Young (Mixed) (G1 Evacuation Pause) 197M-&gt;191M(256M) 1.736ms
+[0.802s][info][gc] GC(57) Pause Young (Concurrent Start) (G1 Evacuation Pause) 211M-&gt;211M(256M) 1.522ms
+[0.802s][info][gc] GC(58) Concurrent Mark Cycle
+[0.804s][info][gc] GC(58) Pause Remark 213M-&gt;152M(256M) 0.489ms
+[0.805s][info][gc] GC(58) Pause Cleanup 160M-&gt;160M(256M) 0.010ms
+[0.805s][info][gc] GC(58) Concurrent Mark Cycle 3.306ms
+[0.806s][info][gc] GC(59) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 163M-&gt;163M(256M) 1.106ms
+[0.811s][info][gc] GC(60) Pause Young (Mixed) (G1 Evacuation Pause) 192M-&gt;190M(256M) 2.153ms
+[0.814s][info][gc] GC(61) Pause Young (Concurrent Start) (G1 Evacuation Pause) 210M-&gt;210M(256M) 1.530ms
+[0.814s][info][gc] GC(62) Concurrent Mark Cycle
+[0.816s][info][gc] GC(62) Pause Remark 213M-&gt;150M(256M) 0.454ms
+[0.817s][info][gc] GC(62) Pause Cleanup 159M-&gt;159M(256M) 0.012ms
+[0.817s][info][gc] GC(62) Concurrent Mark Cycle 3.273ms
+[0.819s][info][gc] GC(63) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 161M-&gt;161M(256M) 1.263ms
+[0.823s][info][gc] GC(64) Pause Young (Mixed) (G1 Evacuation Pause) 190M-&gt;188M(256M) 2.014ms
+[0.826s][info][gc] GC(65) Pause Young (Concurrent Start) (G1 Evacuation Pause) 209M-&gt;209M(256M) 1.652ms
+[0.826s][info][gc] GC(66) Concurrent Mark Cycle
+[0.828s][info][gc] GC(66) Pause Remark 211M-&gt;152M(256M) 0.442ms
+[0.829s][info][gc] GC(66) Pause Cleanup 155M-&gt;155M(256M) 0.010ms
+[0.829s][info][gc] GC(66) Concurrent Mark Cycle 2.986ms
+finished in 393 ms, still holding 4200 objects
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">G1GC_512.log</span><span class="fmeta">3.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/G1GC_512.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.006s][info][gc] Using G1
+[0.437s][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 48M-&gt;4M(256M) 2.064ms
+[0.453s][info][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 115M-&gt;7M(256M) 2.109ms
+[0.465s][info][gc] GC(2) Pause Young (Normal) (G1 Evacuation Pause) 132M-&gt;11M(256M) 2.756ms
+[0.479s][info][gc] GC(3) Pause Young (Normal) (G1 Evacuation Pause) 151M-&gt;17M(256M) 2.994ms
+[0.491s][info][gc] GC(4) Pause Young (Normal) (G1 Evacuation Pause) 155M-&gt;22M(256M) 1.651ms
+[0.502s][info][gc] GC(5) Pause Young (Normal) (G1 Evacuation Pause) 159M-&gt;27M(308M) 1.886ms
+[0.520s][info][gc] GC(6) Pause Young (Normal) (G1 Evacuation Pause) 195M-&gt;32M(308M) 1.742ms
+[0.533s][info][gc] GC(7) Pause Young (Normal) (G1 Evacuation Pause) 200M-&gt;38M(308M) 2.048ms
+[0.546s][info][gc] GC(8) Pause Young (Normal) (G1 Evacuation Pause) 204M-&gt;42M(308M) 1.816ms
+[0.560s][info][gc] GC(9) Pause Young (Normal) (G1 Evacuation Pause) 208M-&gt;48M(339M) 2.051ms
+[0.578s][info][gc] GC(10) Pause Young (Normal) (G1 Evacuation Pause) 233M-&gt;55M(339M) 2.075ms
+[0.592s][info][gc] GC(11) Pause Young (Normal) (G1 Evacuation Pause) 239M-&gt;61M(339M) 1.929ms
+[0.616s][info][gc] GC(12) Pause Young (Normal) (G1 Evacuation Pause) 244M-&gt;129M(339M) 11.364ms
+[0.627s][info][gc] GC(13) Pause Young (Normal) (G1 Evacuation Pause) 252M-&gt;144M(379M) 2.641ms
+[0.643s][info][gc] GC(14) Pause Young (Normal) (G1 Evacuation Pause) 281M-&gt;148M(379M) 1.497ms
+[0.654s][info][gc] GC(15) Pause Young (Normal) (G1 Evacuation Pause) 293M-&gt;152M(379M) 0.832ms
+[0.665s][info][gc] GC(16) Pause Young (Normal) (G1 Evacuation Pause) 303M-&gt;156M(379M) 1.137ms
+[0.678s][info][gc] GC(17) Pause Young (Normal) (G1 Evacuation Pause) 312M-&gt;162M(379M) 1.509ms
+[0.691s][info][gc] GC(18) Pause Young (Normal) (G1 Evacuation Pause) 322M-&gt;167M(399M) 1.680ms
+[0.722s][info][gc] GC(19) Pause Young (Normal) (G1 Evacuation Pause) 344M-&gt;265M(460M) 15.544ms
+[0.735s][info][gc] GC(20) Pause Young (Concurrent Start) (G1 Evacuation Pause) 352M-&gt;335M(460M) 5.488ms
+[0.735s][info][gc] GC(21) Concurrent Mark Cycle
+[0.737s][info][gc] GC(21) Pause Remark 338M-&gt;188M(460M) 0.632ms
+[0.738s][info][gc] GC(21) Pause Cleanup 197M-&gt;197M(460M) 0.013ms
+[0.739s][info][gc] GC(21) Concurrent Mark Cycle 4.113ms
+[0.745s][info][gc] GC(22) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 231M-&gt;231M(460M) 3.514ms
+[0.756s][info][gc] GC(23) Pause Young (Mixed) (G1 Evacuation Pause) 308M-&gt;282M(460M) 5.321ms
+[0.764s][info][gc] GC(24) Pause Young (Concurrent Start) (G1 Evacuation Pause) 339M-&gt;339M(481M) 3.971ms
+[0.765s][info][gc] GC(25) Concurrent Mark Cycle
+[0.767s][info][gc] GC(25) Pause Remark 342M-&gt;149M(481M) 0.642ms
+[0.768s][info][gc] GC(25) Pause Cleanup 155M-&gt;155M(481M) 0.012ms
+[0.768s][info][gc] GC(25) Concurrent Mark Cycle 3.390ms
+[0.773s][info][gc] GC(26) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 190M-&gt;190M(481M) 3.149ms
+[0.789s][info][gc] GC(27) Pause Young (Mixed) (G1 Evacuation Pause) 281M-&gt;279M(481M) 5.565ms
+[0.798s][info][gc] GC(28) Pause Young (Concurrent Start) (G1 Evacuation Pause) 341M-&gt;336M(481M) 4.268ms
+[0.798s][info][gc] GC(29) Concurrent Mark Cycle
+[0.800s][info][gc] GC(29) Pause Remark 339M-&gt;162M(481M) 0.475ms
+[0.801s][info][gc] GC(29) Pause Cleanup 170M-&gt;170M(481M) 0.013ms
+[0.801s][info][gc] GC(29) Concurrent Mark Cycle 3.344ms
+[0.807s][info][gc] GC(30) Pause Young (Prepare Mixed) (G1 Evacuation Pause) 204M-&gt;204M(481M) 3.209ms
+finished in 378 ms, still holding 4200 objects
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">GcDemo.java</span><span class="fmeta">1.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/GcDemo.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * A workload shaped like a real service: a lot of short-lived garbage, plus a
+ * smaller set of objects that stick around for a while.
+ *
+ * The short-lived objects are what the young collection is designed for. The
+ * surviving ones are what gets promoted to the old generation, which is where
+ * the expensive collections come from.
+ *
+ * Run it under different collectors and compare:
+ *   java -Xmx512m -XX:+UseSerialGC   -Xlog:gc GcDemo.java
+ *   java -Xmx512m -XX:+UseParallelGC -Xlog:gc GcDemo.java
+ *   java -Xmx512m -XX:+UseG1GC       -Xlog:gc GcDemo.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> GcDemo {
+
+    <span class="cm">/** Objects that survive long enough to be promoted out of the young area. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> List&lt;<span class="kw">byte</span>[]&gt; liveSet = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> LIVE_SET_MAX = <span class="nm">4200</span>;   <span class="cm">// roughly 135 MB held</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> ITERATIONS = <span class="nm">1_500_000</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        <span class="kw">long</span> start = System.currentTimeMillis();
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; ITERATIONS; i++) {
+            <span class="cm">// Dies immediately. This is what a young collection cleans up cheaply.</span>
+            <span class="kw">byte</span>[] garbage = <span class="kw">new</span> <span class="kw">byte</span>[<span class="nm">16</span> * <span class="nm">1024</span>];
+            garbage[<span class="nm">0</span>] = (<span class="kw">byte</span>) i;
+
+            <span class="cm">// One in sixty survives for a while, so the live set keeps turning over.</span>
+            <span class="kw">if</span> (i % <span class="nm">60</span> == <span class="nm">0</span>) {
+                liveSet.add(<span class="kw">new</span> <span class="kw">byte</span>[<span class="nm">32</span> * <span class="nm">1024</span>]);
+                <span class="kw">if</span> (liveSet.size() &gt; LIVE_SET_MAX) {
+                    liveSet.remove(<span class="nm">0</span>);
+                }
+            }
+        }
+
+        <span class="kw">long</span> ms = System.currentTimeMillis() - start;
+        System.out.println(<span class="st">"finished in "</span> + ms + <span class="st">" ms, still holding "</span> + liveSet.size() + <span class="st">" objects"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ParallelGC.log</span><span class="fmeta">4.9 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/ParallelGC.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.008s][info][gc] Using Parallel
+[0.449s][info][gc] GC(0) Pause Young (Allocation Failure) 64M-&gt;4M(243M) 1.909ms
+[0.458s][info][gc] GC(1) Pause Young (Allocation Failure) 67M-&gt;6M(243M) 1.812ms
+[0.464s][info][gc] GC(2) Pause Young (Allocation Failure) 69M-&gt;8M(243M) 1.684ms
+[0.472s][info][gc] GC(3) Pause Young (Allocation Failure) 71M-&gt;10M(244M) 1.621ms
+[0.479s][info][gc] GC(4) Pause Young (Allocation Failure) 74M-&gt;12M(244M) 1.932ms
+[0.487s][info][gc] GC(5) Pause Young (Allocation Failure) 76M-&gt;14M(237M) 2.212ms
+[0.495s][info][gc] GC(6) Pause Young (Allocation Failure) 71M-&gt;16M(240M) 2.066ms
+[0.500s][info][gc] GC(7) Pause Young (Allocation Failure) 73M-&gt;18M(239M) 1.095ms
+[0.507s][info][gc] GC(8) Pause Young (Allocation Failure) 75M-&gt;20M(240M) 0.677ms
+[0.512s][info][gc] GC(9) Pause Young (Allocation Failure) 77M-&gt;21M(241M) 0.874ms
+[0.518s][info][gc] GC(10) Pause Young (Allocation Failure) 80M-&gt;23M(241M) 0.819ms
+[0.524s][info][gc] GC(11) Pause Young (Allocation Failure) 82M-&gt;25M(241M) 0.545ms
+[0.530s][info][gc] GC(12) Pause Young (Allocation Failure) 84M-&gt;27M(241M) 0.677ms
+[0.535s][info][gc] GC(13) Pause Young (Allocation Failure) 86M-&gt;30M(241M) 0.784ms
+[0.541s][info][gc] GC(14) Pause Young (Allocation Failure) 89M-&gt;32M(241M) 0.686ms
+[0.547s][info][gc] GC(15) Pause Young (Allocation Failure) 91M-&gt;34M(240M) 0.555ms
+[0.552s][info][gc] GC(16) Pause Young (Allocation Failure) 93M-&gt;35M(241M) 0.513ms
+[0.557s][info][gc] GC(17) Pause Young (Allocation Failure) 94M-&gt;37M(242M) 0.494ms
+[0.563s][info][gc] GC(18) Pause Young (Allocation Failure) 98M-&gt;39M(242M) 0.607ms
+[0.568s][info][gc] GC(19) Pause Young (Allocation Failure) 100M-&gt;41M(242M) 0.515ms
+[0.573s][info][gc] GC(20) Pause Young (Allocation Failure) 103M-&gt;44M(242M) 0.711ms
+[0.578s][info][gc] GC(21) Pause Young (Allocation Failure) 105M-&gt;46M(243M) 0.655ms
+[0.583s][info][gc] GC(22) Pause Young (Allocation Failure) 109M-&gt;48M(243M) 0.643ms
+[0.588s][info][gc] GC(23) Pause Young (Allocation Failure) 111M-&gt;50M(244M) 0.619ms
+[0.594s][info][gc] GC(24) Pause Young (Allocation Failure) 116M-&gt;52M(244M) 0.555ms
+[0.599s][info][gc] GC(25) Pause Young (Allocation Failure) 118M-&gt;54M(244M) 0.565ms
+[0.604s][info][gc] GC(26) Pause Young (Allocation Failure) 121M-&gt;56M(245M) 0.556ms
+[0.610s][info][gc] GC(27) Pause Young (Allocation Failure) 123M-&gt;59M(245M) 0.602ms
+[0.615s][info][gc] GC(28) Pause Young (Allocation Failure) 127M-&gt;61M(245M) 0.625ms
+[0.626s][info][gc] GC(29) Pause Young (Allocation Failure) 129M-&gt;88M(244M) 5.413ms
+[0.641s][info][gc] GC(30) Pause Young (Allocation Failure) 156M-&gt;137M(246M) 9.858ms
+[0.647s][info][gc] GC(31) Pause Young (Allocation Failure) 205M-&gt;140M(244M) 1.974ms
+[0.653s][info][gc] GC(32) Pause Young (Allocation Failure) 206M-&gt;142M(245M) 0.609ms
+[0.658s][info][gc] GC(33) Pause Young (Allocation Failure) 208M-&gt;144M(244M) 0.628ms
+[0.664s][info][gc] GC(34) Pause Young (Allocation Failure) 210M-&gt;146M(245M) 0.742ms
+[0.670s][info][gc] GC(35) Pause Young (Allocation Failure) 212M-&gt;148M(244M) 0.878ms
+[0.676s][info][gc] GC(36) Pause Young (Allocation Failure) 216M-&gt;150M(245M) 0.877ms
+[0.683s][info][gc] GC(37) Pause Young (Allocation Failure) 218M-&gt;152M(245M) 0.804ms
+[0.689s][info][gc] GC(38) Pause Young (Allocation Failure) 221M-&gt;155M(246M) 0.747ms
+[0.710s][info][gc] GC(39) Pause Full (Allocation Failure) 224M-&gt;142M(248M) 14.451ms
+[0.718s][info][gc] GC(40) Pause Young (Allocation Failure) 213M-&gt;145M(248M) 0.390ms
+[0.724s][info][gc] GC(41) Pause Young (Allocation Failure) 215M-&gt;147M(248M) 0.591ms
+[0.732s][info][gc] GC(42) Pause Young (Allocation Failure) 218M-&gt;149M(248M) 0.541ms
+[0.739s][info][gc] GC(43) Pause Young (Allocation Failure) 220M-&gt;151M(248M) 0.554ms
+[0.751s][info][gc] GC(44) Pause Young (Allocation Failure) 223M-&gt;245M(248M) 4.696ms
+[0.765s][info][gc] GC(45) Pause Full (Allocation Failure) 245M-&gt;142M(249M) 13.972ms
+[0.775s][info][gc] GC(46) Pause Young (Allocation Failure) 214M-&gt;242M(249M) 3.089ms
+[0.788s][info][gc] GC(47) Pause Full (Allocation Failure) 242M-&gt;142M(250M) 13.395ms
+[0.798s][info][gc] GC(48) Pause Young (Allocation Failure) 215M-&gt;243M(250M) 2.668ms
+[0.810s][info][gc] GC(49) Pause Full (Allocation Failure) 243M-&gt;142M(250M) 12.277ms
+[0.819s][info][gc] GC(50) Pause Young (Allocation Failure) 215M-&gt;243M(250M) 2.420ms
+[0.831s][info][gc] GC(51) Pause Full (Allocation Failure) 243M-&gt;142M(250M) 11.931ms
+[0.841s][info][gc] GC(52) Pause Young (Allocation Failure) 215M-&gt;243M(250M) 2.410ms
+[0.853s][info][gc] GC(53) Pause Full (Allocation Failure) 243M-&gt;142M(250M) 12.257ms
+[0.862s][info][gc] GC(54) Pause Young (Allocation Failure) 215M-&gt;243M(250M) 2.612ms
+[0.875s][info][gc] GC(55) Pause Full (Allocation Failure) 243M-&gt;142M(250M) 12.267ms
+[0.884s][info][gc] GC(56) Pause Young (Allocation Failure) 215M-&gt;243M(250M) 2.647ms
+[0.896s][info][gc] GC(57) Pause Full (Allocation Failure) 243M-&gt;142M(250M) 11.586ms
+[0.904s][info][gc] GC(58) Pause Young (Allocation Failure) 215M-&gt;243M(250M) 2.202ms
+[0.915s][info][gc] GC(59) Pause Full (Allocation Failure) 243M-&gt;142M(250M) 10.654ms
+finished in 477 ms, still holding 4200 objects
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ParallelGC_512.log</span><span class="fmeta">2.3 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/ParallelGC_512.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.006s][info][gc] Using Parallel
+[0.438s][info][gc] GC(0) Pause Young (Allocation Failure) 64M-&gt;4M(243M) 1.721ms
+[0.446s][info][gc] GC(1) Pause Young (Allocation Failure) 67M-&gt;6M(243M) 1.570ms
+[0.451s][info][gc] GC(2) Pause Young (Allocation Failure) 69M-&gt;8M(243M) 1.481ms
+[0.458s][info][gc] GC(3) Pause Young (Allocation Failure) 71M-&gt;10M(307M) 2.506ms
+[0.476s][info][gc] GC(4) Pause Young (Allocation Failure) 137M-&gt;14M(307M) 3.177ms
+[0.489s][info][gc] GC(5) Pause Young (Allocation Failure) 141M-&gt;18M(322M) 3.223ms
+[0.501s][info][gc] GC(6) Pause Young (Allocation Failure) 158M-&gt;23M(321M) 2.431ms
+[0.515s][info][gc] GC(7) Pause Young (Allocation Failure) 162M-&gt;27M(321M) 1.721ms
+[0.526s][info][gc] GC(8) Pause Young (Allocation Failure) 163M-&gt;31M(318M) 1.515ms
+[0.538s][info][gc] GC(9) Pause Young (Allocation Failure) 167M-&gt;36M(322M) 2.290ms
+[0.551s][info][gc] GC(10) Pause Young (Allocation Failure) 171M-&gt;40M(322M) 1.973ms
+[0.562s][info][gc] GC(11) Pause Young (Allocation Failure) 175M-&gt;45M(322M) 1.445ms
+[0.573s][info][gc] GC(12) Pause Young (Allocation Failure) 180M-&gt;50M(322M) 1.185ms
+[0.585s][info][gc] GC(13) Pause Young (Allocation Failure) 185M-&gt;54M(321M) 1.107ms
+[0.596s][info][gc] GC(14) Pause Young (Allocation Failure) 190M-&gt;59M(322M) 1.077ms
+[0.613s][info][gc] GC(15) Pause Young (Allocation Failure) 194M-&gt;102M(318M) 6.810ms
+[0.631s][info][gc] GC(16) Pause Young (Allocation Failure) 233M-&gt;140M(320M) 8.119ms
+[0.644s][info][gc] GC(17) Pause Young (Allocation Failure) 272M-&gt;144M(315M) 4.146ms
+[0.654s][info][gc] GC(18) Pause Young (Allocation Failure) 271M-&gt;149M(318M) 1.129ms
+[0.664s][info][gc] GC(19) Pause Young (Allocation Failure) 275M-&gt;153M(316M) 1.304ms
+[0.674s][info][gc] GC(20) Pause Young (Allocation Failure) 280M-&gt;157M(317M) 1.025ms
+[0.684s][info][gc] GC(21) Pause Young (Allocation Failure) 284M-&gt;161M(317M) 1.150ms
+[0.694s][info][gc] GC(22) Pause Young (Allocation Failure) 290M-&gt;165M(318M) 1.109ms
+[0.715s][info][gc] GC(23) Pause Young (Allocation Failure) 294M-&gt;230M(356M) 12.268ms
+[0.749s][info][gc] GC(24) Pause Young (Allocation Failure) 356M-&gt;343M(469M) 23.454ms
+[0.772s][info][gc] GC(25) Pause Full (Allocation Failure) 468M-&gt;150M(429M) 13.343ms
+[0.788s][info][gc] GC(26) Pause Young (Allocation Failure) 267M-&gt;267M(433M) 7.062ms
+[0.812s][info][gc] GC(27) Pause Young (Allocation Failure) 385M-&gt;362M(464M) 15.511ms
+finished in 386 ms, still holding 4200 objects
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">README.md</span><span class="fmeta">1.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 3 demos
+
+Needs Java 11+ for single-file source launch. Captured on Java 24.
+
+## Compare the collectors
+
+```bash
+java -Xmx512m -XX:+UseSerialGC   -Xlog:gc GcDemo.java
+java -Xmx512m -XX:+UseParallelGC -Xlog:gc GcDemo.java
+java -Xmx512m -XX:+UseG1GC       -Xlog:gc GcDemo.java
+java -Xmx512m -XX:+UseZGC        -Xlog:gc,gc+phases GcDemo.java
+```
+
+ZGC needs the extra `gc+phases` logging, because at plain `gc` level it prints
+cycle durations rather than actual freeze times. Comparing a ZGC cycle against a
+G1 pause is not a like-for-like comparison and makes ZGC look far worse than it is.
+
+## What was measured (512 MB heap, same workload)
+
+| Collector | Stops | Full | Total freeze | Worst freeze | Wall time |
+|---|---|---|---|---|---|
+| Serial   | 50  | 2 | 214.4 ms | 22.62 ms | 487 ms |
+| Parallel | 28  | 1 | 124.9 ms | 23.45 ms | 386 ms |
+| G1       | 34  | 0 |  97.6 ms | 15.54 ms | 378 ms |
+| ZGC      | 109 | 0 |   0.64 ms |  0.020 ms | 438 ms |
+
+## Under pressure
+
+At `-Xmx256m` with the same workload, Serial and Parallel both hit full
+collections and ZGC stalled and aborted outright, because it had no room to work
+in. That is worth knowing: shorter pauses cost memory as well as throughput.
+
+## Container heap sizing
+
+```bash
+java -XX:MaxRAMPercentage=70 -XX:+PrintFlagsFinal -version | grep MaxHeapSize
+```
+
+On a 16 GB machine this printed 4054 MB at 25 percent (the default), 8108 MB at
+50 percent and 11352 MB at 70 percent.
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">SerialGC.log</span><span class="fmeta">4.9 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/SerialGC.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.007s][info][gc] Using Serial
+[0.425s][info][gc] GC(0) Pause Young (Allocation Failure) 68M-&gt;4M(245M) 3.805ms
+[0.434s][info][gc] GC(1) Pause Young (Allocation Failure) 72M-&gt;6M(245M) 3.255ms
+[0.443s][info][gc] GC(2) Pause Young (Allocation Failure) 74M-&gt;8M(245M) 3.282ms
+[0.449s][info][gc] GC(3) Pause Young (Allocation Failure) 76M-&gt;10M(245M) 0.865ms
+[0.455s][info][gc] GC(4) Pause Young (Allocation Failure) 78M-&gt;13M(245M) 0.995ms
+[0.460s][info][gc] GC(5) Pause Young (Allocation Failure) 80M-&gt;15M(245M) 1.008ms
+[0.465s][info][gc] GC(6) Pause Young (Allocation Failure) 83M-&gt;17M(245M) 0.915ms
+[0.471s][info][gc] GC(7) Pause Young (Allocation Failure) 85M-&gt;19M(245M) 0.879ms
+[0.476s][info][gc] GC(8) Pause Young (Allocation Failure) 87M-&gt;21M(245M) 0.881ms
+[0.482s][info][gc] GC(9) Pause Young (Allocation Failure) 89M-&gt;23M(245M) 1.157ms
+[0.488s][info][gc] GC(10) Pause Young (Allocation Failure) 91M-&gt;26M(245M) 0.899ms
+[0.493s][info][gc] GC(11) Pause Young (Allocation Failure) 93M-&gt;28M(245M) 0.963ms
+[0.499s][info][gc] GC(12) Pause Young (Allocation Failure) 96M-&gt;30M(245M) 0.908ms
+[0.505s][info][gc] GC(13) Pause Young (Allocation Failure) 98M-&gt;32M(245M) 0.886ms
+[0.510s][info][gc] GC(14) Pause Young (Allocation Failure) 100M-&gt;34M(245M) 0.864ms
+[0.516s][info][gc] GC(15) Pause Young (Allocation Failure) 102M-&gt;36M(245M) 1.039ms
+[0.522s][info][gc] GC(16) Pause Young (Allocation Failure) 104M-&gt;39M(245M) 0.894ms
+[0.527s][info][gc] GC(17) Pause Young (Allocation Failure) 106M-&gt;41M(245M) 0.895ms
+[0.533s][info][gc] GC(18) Pause Young (Allocation Failure) 109M-&gt;43M(245M) 0.879ms
+[0.538s][info][gc] GC(19) Pause Young (Allocation Failure) 111M-&gt;45M(245M) 0.892ms
+[0.544s][info][gc] GC(20) Pause Young (Allocation Failure) 113M-&gt;47M(245M) 1.416ms
+[0.550s][info][gc] GC(21) Pause Young (Allocation Failure) 115M-&gt;49M(245M) 1.122ms
+[0.557s][info][gc] GC(22) Pause Young (Allocation Failure) 117M-&gt;52M(245M) 1.015ms
+[0.564s][info][gc] GC(23) Pause Young (Allocation Failure) 119M-&gt;54M(245M) 1.215ms
+[0.571s][info][gc] GC(24) Pause Young (Allocation Failure) 122M-&gt;56M(245M) 1.006ms
+[0.579s][info][gc] GC(25) Pause Young (Allocation Failure) 124M-&gt;58M(245M) 1.541ms
+[0.586s][info][gc] GC(26) Pause Young (Allocation Failure) 126M-&gt;60M(245M) 1.408ms
+[0.607s][info][gc] GC(27) Pause Young (Allocation Failure) 128M-&gt;119M(245M) 14.069ms
+[0.619s][info][gc] GC(28) Pause Young (Allocation Failure) 187M-&gt;136M(245M) 5.493ms
+[0.627s][info][gc] GC(29) Pause Young (Allocation Failure) 204M-&gt;138M(245M) 2.849ms
+[0.635s][info][gc] GC(30) Pause Young (Allocation Failure) 206M-&gt;140M(245M) 0.636ms
+[0.642s][info][gc] GC(31) Pause Young (Allocation Failure) 208M-&gt;142M(245M) 1.295ms
+[0.649s][info][gc] GC(32) Pause Young (Allocation Failure) 210M-&gt;145M(245M) 1.094ms
+[0.657s][info][gc] GC(33) Pause Young (Allocation Failure) 212M-&gt;147M(245M) 1.360ms
+[0.664s][info][gc] GC(34) Pause Young (Allocation Failure) 214M-&gt;149M(245M) 1.069ms
+[0.672s][info][gc] GC(35) Pause Young (Allocation Failure) 217M-&gt;151M(245M) 1.183ms
+[0.679s][info][gc] GC(36) Pause Young (Allocation Failure) 219M-&gt;153M(245M) 1.322ms
+[0.686s][info][gc] GC(37) Pause Young (Allocation Failure) 221M-&gt;155M(245M) 1.077ms
+[0.694s][info][gc] GC(38) Pause Young (Allocation Failure) 223M-&gt;158M(245M) 1.086ms
+[0.702s][info][gc] GC(39) Pause Young (Allocation Failure) 225M-&gt;160M(245M) 1.205ms
+[0.732s][info][gc] GC(40) Pause Full (Allocation Failure) 227M-&gt;134M(247M) 22.581ms
+[0.737s][info][gc] GC(41) Pause Young (Allocation Failure) 202M-&gt;136M(247M) 0.335ms
+[0.749s][info][gc] GC(42) Pause Young (Allocation Failure) 205M-&gt;241M(247M) 6.206ms
+[0.767s][info][gc] GC(43) Pause Full (Allocation Failure) 241M-&gt;134M(247M) 18.312ms
+[0.776s][info][gc] GC(44) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 4.601ms
+[0.794s][info][gc] GC(45) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 18.112ms
+[0.804s][info][gc] GC(46) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 4.985ms
+[0.823s][info][gc] GC(47) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 18.858ms
+[0.833s][info][gc] GC(48) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 5.444ms
+[0.853s][info][gc] GC(49) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 19.780ms
+[0.866s][info][gc] GC(50) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 6.543ms
+[0.888s][info][gc] GC(51) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 21.385ms
+[0.900s][info][gc] GC(52) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 5.275ms
+[0.922s][info][gc] GC(53) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 21.880ms
+[0.934s][info][gc] GC(54) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 5.804ms
+[0.955s][info][gc] GC(55) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 20.908ms
+[0.965s][info][gc] GC(56) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 4.583ms
+[0.983s][info][gc] GC(57) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 17.786ms
+[0.992s][info][gc] GC(58) Pause Young (Allocation Failure) 202M-&gt;238M(247M) 4.622ms
+[1.011s][info][gc] GC(59) Pause Full (Allocation Failure) 238M-&gt;134M(247M) 18.459ms
+finished in 596 ms, still holding 4200 objects
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">SerialGC_512.log</span><span class="fmeta">4.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/SerialGC_512.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.007s][info][gc] Using Serial
+[0.422s][info][gc] GC(0) Pause Young (Allocation Failure) 68M-&gt;4M(245M) 3.782ms
+[0.430s][info][gc] GC(1) Pause Young (Allocation Failure) 72M-&gt;6M(245M) 3.014ms
+[0.438s][info][gc] GC(2) Pause Young (Allocation Failure) 74M-&gt;8M(245M) 3.219ms
+[0.444s][info][gc] GC(3) Pause Young (Allocation Failure) 76M-&gt;10M(245M) 0.865ms
+[0.449s][info][gc] GC(4) Pause Young (Allocation Failure) 78M-&gt;13M(245M) 0.995ms
+[0.454s][info][gc] GC(5) Pause Young (Allocation Failure) 80M-&gt;15M(245M) 0.867ms
+[0.460s][info][gc] GC(6) Pause Young (Allocation Failure) 83M-&gt;17M(245M) 0.870ms
+[0.467s][info][gc] GC(7) Pause Young (Allocation Failure) 85M-&gt;19M(245M) 1.085ms
+[0.473s][info][gc] GC(8) Pause Young (Allocation Failure) 87M-&gt;21M(245M) 1.079ms
+[0.479s][info][gc] GC(9) Pause Young (Allocation Failure) 89M-&gt;23M(245M) 0.884ms
+[0.484s][info][gc] GC(10) Pause Young (Allocation Failure) 91M-&gt;26M(245M) 0.977ms
+[0.490s][info][gc] GC(11) Pause Young (Allocation Failure) 93M-&gt;28M(245M) 0.915ms
+[0.495s][info][gc] GC(12) Pause Young (Allocation Failure) 96M-&gt;30M(245M) 1.130ms
+[0.501s][info][gc] GC(13) Pause Young (Allocation Failure) 98M-&gt;32M(245M) 0.864ms
+[0.507s][info][gc] GC(14) Pause Young (Allocation Failure) 100M-&gt;34M(245M) 1.118ms
+[0.513s][info][gc] GC(15) Pause Young (Allocation Failure) 102M-&gt;36M(245M) 1.097ms
+[0.518s][info][gc] GC(16) Pause Young (Allocation Failure) 104M-&gt;39M(245M) 0.881ms
+[0.524s][info][gc] GC(17) Pause Young (Allocation Failure) 106M-&gt;41M(245M) 0.924ms
+[0.530s][info][gc] GC(18) Pause Young (Allocation Failure) 108M-&gt;43M(245M) 0.895ms
+[0.535s][info][gc] GC(19) Pause Young (Allocation Failure) 111M-&gt;45M(245M) 0.898ms
+[0.541s][info][gc] GC(20) Pause Young (Allocation Failure) 113M-&gt;47M(245M) 0.932ms
+[0.547s][info][gc] GC(21) Pause Young (Allocation Failure) 115M-&gt;49M(245M) 1.256ms
+[0.552s][info][gc] GC(22) Pause Young (Allocation Failure) 117M-&gt;52M(245M) 1.023ms
+[0.558s][info][gc] GC(23) Pause Young (Allocation Failure) 119M-&gt;54M(245M) 0.923ms
+[0.563s][info][gc] GC(24) Pause Young (Allocation Failure) 121M-&gt;56M(245M) 0.881ms
+[0.569s][info][gc] GC(25) Pause Young (Allocation Failure) 124M-&gt;58M(245M) 0.948ms
+[0.574s][info][gc] GC(26) Pause Young (Allocation Failure) 126M-&gt;60M(245M) 1.171ms
+[0.594s][info][gc] GC(27) Pause Young (Allocation Failure) 128M-&gt;119M(245M) 14.623ms
+[0.606s][info][gc] GC(28) Pause Young (Allocation Failure) 187M-&gt;136M(245M) 5.839ms
+[0.613s][info][gc] GC(29) Pause Young (Allocation Failure) 204M-&gt;138M(245M) 2.572ms
+[0.620s][info][gc] GC(30) Pause Young (Allocation Failure) 206M-&gt;140M(245M) 0.549ms
+[0.627s][info][gc] GC(31) Pause Young (Allocation Failure) 208M-&gt;142M(245M) 1.040ms
+[0.633s][info][gc] GC(32) Pause Young (Allocation Failure) 210M-&gt;145M(245M) 1.005ms
+[0.640s][info][gc] GC(33) Pause Young (Allocation Failure) 212M-&gt;147M(245M) 1.124ms
+[0.647s][info][gc] GC(34) Pause Young (Allocation Failure) 214M-&gt;149M(245M) 0.997ms
+[0.653s][info][gc] GC(35) Pause Young (Allocation Failure) 217M-&gt;151M(245M) 0.999ms
+[0.660s][info][gc] GC(36) Pause Young (Allocation Failure) 219M-&gt;153M(245M) 1.183ms
+[0.667s][info][gc] GC(37) Pause Young (Allocation Failure) 221M-&gt;155M(245M) 1.113ms
+[0.673s][info][gc] GC(38) Pause Young (Allocation Failure) 223M-&gt;158M(245M) 1.200ms
+[0.680s][info][gc] GC(39) Pause Young (Allocation Failure) 225M-&gt;160M(245M) 1.168ms
+[0.686s][info][gc] GC(40) Pause Young (Allocation Failure) 227M-&gt;162M(245M) 1.170ms
+[0.692s][info][gc] GC(41) Pause Young (Allocation Failure) 230M-&gt;164M(245M) 1.534ms
+[0.713s][info][gc] GC(42) Pause Young (Allocation Failure) 232M-&gt;230M(298M) 14.759ms
+[0.739s][info][gc] GC(43) Pause Young (Allocation Failure) 297M-&gt;293M(361M) 20.693ms
+[0.762s][info][gc] GC(44) Pause Young (Allocation Failure) 361M-&gt;417M(417M) 17.299ms
+[0.784s][info][gc] GC(45) Pause Full (Allocation Failure) 417M-&gt;134M(494M) 22.616ms
+[0.824s][info][gc] GC(46) Pause Young (Allocation Failure) 271M-&gt;265M(494M) 18.282ms
+[0.853s][info][gc] GC(47) Pause Young (Allocation Failure) 402M-&gt;494M(494M) 16.550ms
+[0.874s][info][gc] GC(48) Pause Full (Allocation Failure) 494M-&gt;134M(494M) 20.752ms
+[0.899s][info][gc] GC(49) Pause Young (Allocation Failure) 271M-&gt;265M(494M) 13.883ms
+finished in 487 ms, still holding 4200 objects
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ZGC.log</span><span class="fmeta">17.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/ZGC.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.013s][info][gc] Using The Z Garbage Collector
+[0.333s][info][gc] GC(0) Major Collection (Warmup)
+[0.402s][info][gc] GC(0) Major Collection (Warmup) 26M(10%)-&gt;32M(12%) 0.069s
+[0.493s][info][gc] GC(1) Major Collection (Warmup)
+[0.553s][info][gc] GC(2) Minor Collection (Allocation Rate)
+[0.559s][info][gc] GC(2) Minor Collection (Allocation Rate) 212M(83%)-&gt;52M(20%) 0.006s
+[0.559s][info][gc] GC(1) Major Collection (Warmup) 52M(20%)-&gt;54M(21%) 0.066s
+[0.559s][info][gc] GC(3) Minor Collection (Allocation Rate)
+[0.566s][info][gc] GC(3) Minor Collection (Allocation Rate) 56M(22%)-&gt;84M(33%) 0.007s
+[0.566s][info][gc] GC(4) Major Collection (Warmup)
+[0.570s][info][gc] GC(5) Minor Collection (Allocation Rate)
+[0.574s][info][gc] GC(5) Minor Collection (Allocation Rate) 72M(28%)-&gt;68M(27%) 0.004s
+[0.576s][info][gc] GC(6) Minor Collection (Allocation Rate)
+[0.581s][info][gc] GC(6) Minor Collection (Allocation Rate) 84M(33%)-&gt;70M(27%) 0.006s
+[0.581s][info][gc] GC(7) Minor Collection (Allocation Rate)
+[0.585s][info][gc] GC(7) Minor Collection (Allocation Rate) 70M(27%)-&gt;78M(30%) 0.004s
+[0.585s][info][gc] GC(8) Minor Collection (Allocation Rate)
+[0.589s][info][gc] GC(8) Minor Collection (Allocation Rate) 80M(31%)-&gt;78M(30%) 0.004s
+[0.589s][info][gc] GC(9) Minor Collection (Allocation Rate)
+[0.593s][info][gc] GC(9) Minor Collection (Allocation Rate) 78M(30%)-&gt;78M(30%) 0.004s
+[0.644s][info][gc] GC(10) Minor Collection (Allocation Rate)
+[0.645s][info][gc] Relocation Stall (main) 0.406ms
+[0.645s][info][gc] GC(10) y: Relocation Stall (ZWorkerYoung#0) 0.912ms
+[0.645s][info][gc] Allocation Stall (main) 29.508ms
+[0.645s][info][gc] GC(10) y: Relocation Stall (ZWorkerYoung#1) 0.912ms
+[0.646s][info][gc] Allocation Stall (main) 0.478ms
+[0.646s][info][gc] GC(10) y: Relocation Stall (ZWorkerYoung#0) 0.616ms
+[0.646s][info][gc] GC(10) y: Relocation Stall (ZWorkerYoung#1) 0.590ms
+[0.648s][info][gc] Allocation Stall (main) 2.415ms
+[0.650s][info][gc] GC(10) Minor Collection (Allocation Rate) 256M(100%)-&gt;62M(24%) 0.006s
+[0.650s][info][gc] GC(4) Major Collection (Warmup) 86M(34%)-&gt;64M(25%) 0.084s
+[0.650s][info][gc] GC(11) Minor Collection (Allocation Rate)
+[0.655s][info][gc] GC(11) Minor Collection (Allocation Rate) 66M(26%)-&gt;88M(34%) 0.005s
+[0.655s][info][gc] GC(12) Minor Collection (Allocation Rate)
+[0.658s][info][gc] GC(12) Minor Collection (Allocation Rate) 90M(35%)-&gt;86M(34%) 0.003s
+[0.658s][info][gc] GC(13) Minor Collection (Allocation Rate)
+[0.662s][info][gc] GC(13) Minor Collection (Allocation Rate) 88M(34%)-&gt;96M(38%) 0.004s
+[0.662s][info][gc] GC(14) Minor Collection (Allocation Rate)
+[0.666s][info][gc] GC(14) Minor Collection (Allocation Rate) 96M(38%)-&gt;94M(37%) 0.004s
+[0.669s][info][gc] GC(15) Minor Collection (Allocation Rate)
+[0.673s][info][gc] GC(15) Minor Collection (Allocation Rate) 130M(51%)-&gt;96M(38%) 0.004s
+[0.673s][info][gc] GC(16) Minor Collection (Allocation Rate)
+[0.677s][info][gc] GC(16) Minor Collection (Allocation Rate) 96M(38%)-&gt;100M(39%) 0.005s
+[0.677s][info][gc] GC(17) Minor Collection (Allocation Rate)
+[0.682s][info][gc] GC(17) Minor Collection (Allocation Rate) 100M(39%)-&gt;104M(41%) 0.004s
+[0.682s][info][gc] GC(18) Minor Collection (Allocation Rate)
+[0.686s][info][gc] GC(18) Minor Collection (Allocation Rate) 106M(41%)-&gt;108M(42%) 0.004s
+[0.686s][info][gc] GC(19) Minor Collection (Allocation Rate)
+[0.689s][info][gc] GC(19) Minor Collection (Allocation Rate) 108M(42%)-&gt;110M(43%) 0.004s
+[0.692s][info][gc] GC(20) Minor Collection (Allocation Rate)
+[0.696s][info][gc] GC(20) Minor Collection (Allocation Rate) 140M(55%)-&gt;108M(42%) 0.004s
+[0.698s][info][gc] GC(21) Minor Collection (Allocation Rate)
+[0.701s][info][gc] GC(21) Minor Collection (Allocation Rate) 134M(52%)-&gt;114M(45%) 0.004s
+[0.703s][info][gc] GC(22) Minor Collection (Allocation Rate)
+[0.707s][info][gc] GC(22) Minor Collection (Allocation Rate) 132M(52%)-&gt;120M(47%) 0.004s
+[0.708s][info][gc] GC(23) Minor Collection (Allocation Rate)
+[0.712s][info][gc] GC(23) Minor Collection (Allocation Rate) 126M(49%)-&gt;126M(49%) 0.004s
+[0.712s][info][gc] GC(24) Major Collection (Allocation Rate)
+[0.716s][info][gc] GC(25) Minor Collection (Allocation Rate)
+[0.720s][info][gc] GC(25) Minor Collection (Allocation Rate) 130M(51%)-&gt;130M(51%) 0.004s
+[0.720s][info][gc] GC(26) Minor Collection (Allocation Rate)
+[0.725s][info][gc] GC(26) Minor Collection (Allocation Rate) 130M(51%)-&gt;142M(55%) 0.005s
+[0.725s][info][gc] GC(27) Minor Collection (Allocation Rate)
+[0.728s][info][gc] GC(27) Minor Collection (Allocation Rate) 142M(55%)-&gt;124M(48%) 0.003s
+[0.772s][info][gc] GC(28) Minor Collection (Allocation Rate)
+[0.773s][info][gc] Relocation Stall (main) 0.729ms
+[0.773s][info][gc] Allocation Stall (main) 35.044ms
+[0.774s][info][gc] GC(28) y: Relocation Stall (ZWorkerYoung#0) 0.848ms
+[0.774s][info][gc] Allocation Stall (main) 0.677ms
+[0.775s][info][gc] Allocation Stall (main) 0.324ms
+[0.775s][info][gc] GC(28) y: Relocation Stall (ZWorkerYoung#0) 0.464ms
+[0.775s][info][gc] Allocation Stall (main) 0.035ms
+[0.776s][info][gc] Allocation Stall (main) 0.185ms
+[0.776s][info][gc] Allocation Stall (main) 0.104ms
+[0.777s][info][gc] Allocation Stall (main) 0.135ms
+[0.777s][info][gc] Allocation Stall (main) 0.156ms
+[0.778s][info][gc] Allocation Stall (main) 0.729ms
+[0.779s][info][gc] GC(28) Minor Collection (Allocation Rate) 256M(100%)-&gt;102M(40%) 0.006s
+[0.779s][info][gc] GC(24) Major Collection (Allocation Rate) 126M(49%)-&gt;102M(40%) 0.067s
+[0.779s][info][gc] GC(29) Minor Collection (Allocation Rate)
+[0.782s][info][gc] GC(29) Minor Collection (Allocation Rate) 104M(41%)-&gt;104M(41%) 0.003s
+[0.782s][info][gc] GC(30) Minor Collection (Allocation Rate)
+[0.785s][info][gc] GC(30) Minor Collection (Allocation Rate) 104M(41%)-&gt;104M(41%) 0.003s
+[0.785s][info][gc] GC(31) Minor Collection (Allocation Rate)
+[0.788s][info][gc] GC(31) Minor Collection (Allocation Rate) 104M(41%)-&gt;104M(41%) 0.003s
+[0.788s][info][gc] GC(32) Minor Collection (Allocation Rate)
+[0.791s][info][gc] GC(32) Minor Collection (Allocation Rate) 106M(41%)-&gt;108M(42%) 0.003s
+[0.793s][info][gc] GC(33) Minor Collection (Allocation Rate)
+[0.797s][info][gc] GC(33) Minor Collection (Allocation Rate) 148M(58%)-&gt;114M(45%) 0.003s
+[0.797s][info][gc] GC(34) Minor Collection (Allocation Rate)
+[0.800s][info][gc] GC(34) Minor Collection (Allocation Rate) 114M(45%)-&gt;126M(49%) 0.003s
+[0.800s][info][gc] GC(35) Minor Collection (Allocation Rate)
+[0.803s][info][gc] GC(35) Minor Collection (Allocation Rate) 126M(49%)-&gt;164M(64%) 0.003s
+[0.803s][info][gc] GC(36) Minor Collection (Allocation Rate)
+[0.807s][info][gc] GC(36) Minor Collection (Allocation Rate) 166M(65%)-&gt;200M(78%) 0.004s
+[0.807s][info][gc] GC(37) Major Collection (Allocation Rate)
+[0.810s][info][gc] GC(38) Minor Collection (Allocation Rate)
+[0.813s][info][gc] GC(38) Minor Collection (Allocation Rate) 206M(80%)-&gt;204M(80%) 0.003s
+[0.813s][info][gc] GC(39) Minor Collection (Allocation Rate)
+[0.817s][info][gc] GC(39) Minor Collection (Allocation Rate) 204M(80%)-&gt;208M(81%) 0.003s
+[0.817s][info][gc] GC(40) Minor Collection (Allocation Rate)
+[0.820s][info][gc] GC(40) Minor Collection (Allocation Rate) 208M(81%)-&gt;210M(82%) 0.004s
+[0.820s][info][gc] GC(41) Minor Collection (Allocation Rate)
+[0.823s][info][gc] GC(41) Minor Collection (Allocation Rate) 210M(82%)-&gt;214M(84%) 0.003s
+[0.823s][info][gc] GC(42) Minor Collection (Allocation Rate)
+[0.827s][info][gc] GC(42) Minor Collection (Allocation Rate) 214M(84%)-&gt;220M(86%) 0.003s
+[0.827s][info][gc] GC(43) Minor Collection (Allocation Rate)
+[0.830s][info][gc] GC(43) Minor Collection (Allocation Rate) 220M(86%)-&gt;222M(87%) 0.003s
+[0.830s][info][gc] GC(44) Minor Collection (Allocation Rate)
+[0.833s][info][gc] Allocation Stall (main) 0.105ms
+[0.833s][info][gc] GC(44) Minor Collection (Allocation Rate) 222M(87%)-&gt;226M(88%) 0.003s
+[0.833s][info][gc] GC(45) Minor Collection (Allocation Rate)
+[0.836s][info][gc] Allocation Stall (main) 0.245ms
+[0.836s][info][gc] GC(45) Minor Collection (Allocation Rate) 226M(88%)-&gt;224M(88%) 0.003s
+[0.836s][info][gc] GC(46) Minor Collection (Allocation Rate)
+[0.839s][info][gc] Allocation Stall (main) 0.280ms
+[0.839s][info][gc] GC(46) Minor Collection (Allocation Rate) 224M(88%)-&gt;228M(89%) 0.003s
+[0.839s][info][gc] GC(47) Minor Collection (Allocation Rate)
+[0.842s][info][gc] Allocation Stall (main) 0.367ms
+[0.843s][info][gc] GC(47) Minor Collection (Allocation Rate) 228M(89%)-&gt;226M(88%) 0.003s
+[0.843s][info][gc] GC(48) Minor Collection (Allocation Rate)
+[0.845s][info][gc] Allocation Stall (main) 0.351ms
+[0.846s][info][gc] GC(48) Minor Collection (Allocation Rate) 226M(88%)-&gt;232M(91%) 0.003s
+[0.846s][info][gc] GC(49) Minor Collection (Allocation Rate)
+[0.848s][info][gc] Allocation Stall (main) 0.656ms
+[0.849s][info][gc] GC(49) Minor Collection (Allocation Rate) 232M(91%)-&gt;226M(88%) 0.003s
+[0.893s][info][gc] GC(50) Minor Collection (Allocation Rate)
+[0.893s][info][gc] Allocation Stall (main) 42.505ms
+[0.896s][info][gc] Relocation Stall (main) 0.551ms
+[0.898s][info][gc] Allocation Stall (main) 0.525ms
+[0.898s][info][gc] GC(50) Minor Collection (Allocation Rate) 256M(100%)-&gt;208M(81%) 0.005s
+[0.898s][info][gc] GC(37) Major Collection (Allocation Rate) 200M(78%)-&gt;208M(81%) 0.091s
+[0.898s][info][gc] GC(51) Minor Collection (Allocation Rate)
+[0.901s][info][gc] GC(51) Minor Collection (Allocation Rate) 210M(82%)-&gt;224M(88%) 0.003s
+[0.901s][info][gc] GC(52) Major Collection (Allocation Rate)
+[0.904s][info][gc] Allocation Stall (main) 0.155ms
+[0.904s][info][gc] GC(53) Minor Collection (Allocation Stall)
+[0.907s][info][gc] Allocation Stall (main) 0.199ms
+[0.907s][info][gc] GC(53) Minor Collection (Allocation Stall) 228M(89%)-&gt;228M(89%) 0.003s
+[0.907s][info][gc] GC(54) Minor Collection (Allocation Rate)
+[0.910s][info][gc] Allocation Stall (main) 0.530ms
+[0.911s][info][gc] GC(54) Minor Collection (Allocation Rate) 228M(89%)-&gt;228M(89%) 0.004s
+[0.911s][info][gc] GC(55) Minor Collection (Allocation Rate)
+[0.914s][info][gc] Allocation Stall (main) 1.450ms
+[0.915s][info][gc] GC(55) Minor Collection (Allocation Rate) 228M(89%)-&gt;218M(85%) 0.004s
+[0.915s][info][gc] GC(56) Minor Collection (Allocation Rate)
+[0.918s][info][gc] Allocation Stall (main) 0.193ms
+[0.918s][info][gc] GC(56) Minor Collection (Allocation Rate) 218M(85%)-&gt;230M(90%) 0.004s
+[0.918s][info][gc] GC(57) Minor Collection (Allocation Rate)
+[0.921s][info][gc] Allocation Stall (main) 0.650ms
+[0.921s][info][gc] GC(57) Minor Collection (Allocation Rate) 232M(91%)-&gt;220M(86%) 0.003s
+[0.921s][info][gc] GC(58) Minor Collection (Allocation Rate)
+[0.925s][info][gc] GC(58) Minor Collection (Allocation Rate) 220M(86%)-&gt;230M(90%) 0.003s
+[0.925s][info][gc] GC(59) Minor Collection (Allocation Rate)
+[0.927s][info][gc] Allocation Stall (main) 0.679ms
+[0.928s][info][gc] GC(59) Minor Collection (Allocation Rate) 232M(91%)-&gt;224M(88%) 0.003s
+[0.928s][info][gc] GC(60) Minor Collection (Allocation Rate)
+[0.931s][info][gc] Allocation Stall (main) 0.598ms
+[0.932s][info][gc] GC(60) Minor Collection (Allocation Rate) 224M(88%)-&gt;236M(92%) 0.004s
+[0.932s][info][gc] GC(61) Minor Collection (Allocation Rate)
+[0.935s][info][gc] Allocation Stall (main) 1.223ms
+[0.935s][info][gc] GC(61) Minor Collection (Allocation Rate) 236M(92%)-&gt;226M(88%) 0.003s
+[0.980s][info][gc] GC(62) Minor Collection (Allocation Rate)
+[0.981s][info][gc] Allocation Stall (main) 42.080ms
+[0.985s][info][gc] Allocation Stall (main) 0.251ms
+[0.985s][info][gc] GC(62) Minor Collection (Allocation Rate) 256M(100%)-&gt;216M(84%) 0.005s
+[0.985s][info][gc] GC(52) Major Collection (Allocation Rate) 226M(88%)-&gt;216M(84%) 0.084s
+[0.985s][info][gc] GC(63) Minor Collection (Allocation Rate)
+[0.989s][info][gc] GC(63) Minor Collection (Allocation Rate) 218M(85%)-&gt;224M(88%) 0.004s
+[0.989s][info][gc] GC(64) Minor Collection (Allocation Rate)
+[0.993s][info][gc] Allocation Stall (main) 0.120ms
+[0.993s][info][gc] GC(64) Minor Collection (Allocation Rate) 224M(88%)-&gt;218M(85%) 0.004s
+[0.993s][info][gc] GC(65) Minor Collection (Allocation Rate)
+[0.997s][info][gc] GC(65) Minor Collection (Allocation Rate) 218M(85%)-&gt;224M(88%) 0.004s
+[0.997s][info][gc] GC(66) Minor Collection (Allocation Rate)
+[1.000s][info][gc] GC(66) Minor Collection (Allocation Rate) 226M(88%)-&gt;224M(88%) 0.003s
+[1.000s][info][gc] GC(67) Minor Collection (Allocation Rate)
+[1.004s][info][gc] Relocation Stall (main) 0.105ms
+[1.004s][info][gc] GC(67) Minor Collection (Allocation Rate) 224M(88%)-&gt;254M(99%) 0.004s
+[1.004s][info][gc] GC(68) Major Collection (Allocation Rate)
+[1.007s][info][gc] Allocation Stall (main) 2.289ms
+[1.007s][info][gc] GC(69) Minor Collection (Allocation Stall)
+[1.011s][info][gc] Allocation Stall (main) 3.787ms
+[1.011s][info][gc] Relocation Stall (main) 0.127ms
+[1.011s][info][gc] Relocation Stall (main) 0.065ms
+[1.011s][info][gc] GC(69) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.005s
+[1.011s][info][gc] GC(70) Minor Collection (Allocation Stall)
+[1.014s][info][gc] GC(70) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.002s
+[1.016s][info][gc] Allocation Stall (main) 4.938ms
+[1.017s][info][gc] GC(71) Minor Collection (Allocation Rate)
+[1.021s][info][gc] GC(71) Minor Collection (Allocation Rate) 216M(84%)-&gt;252M(98%) 0.004s
+[1.067s][info][gc] GC(72) Minor Collection (Allocation Rate)
+[1.067s][info][gc] Allocation Stall (main) 44.908ms
+[1.072s][info][gc] GC(72) Minor Collection (Allocation Rate) 256M(100%)-&gt;242M(95%) 0.005s
+[1.072s][info][gc] GC(68) Major Collection (Allocation Rate) 254M(99%)-&gt;242M(95%) 0.068s
+[1.072s][info][gc] GC(73) Major Collection (Allocation Rate)
+[1.075s][info][gc] Allocation Stall (main) 1.501ms
+[1.075s][info][gc] GC(74) Minor Collection (Allocation Stall)
+[1.078s][info][gc] GC(74) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.003s
+[1.078s][info][gc] GC(75) Minor Collection (Allocation Stall)
+[1.080s][info][gc] GC(75) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.002s
+[1.080s][info][gc] GC(76) Minor Collection (High Usage)
+[1.083s][info][gc] GC(76) Minor Collection (High Usage) 256M(100%)-&gt;256M(100%) 0.002s
+[1.083s][info][gc] GC(77) Minor Collection (High Usage)
+[1.084s][info][gc] Allocation Stall (main) 8.425ms
+[1.087s][info][gc] GC(77) Minor Collection (High Usage) 256M(100%)-&gt;214M(84%) 0.004s
+[1.087s][info][gc] GC(78) Minor Collection (Allocation Rate)
+[1.090s][info][gc] GC(78) Minor Collection (Allocation Rate) 216M(84%)-&gt;250M(98%) 0.004s
+[1.090s][info][gc] GC(79) Minor Collection (Allocation Rate)
+[1.093s][info][gc] GC(79) Minor Collection (Allocation Rate) 250M(98%)-&gt;256M(100%) 0.003s
+[1.093s][info][gc] GC(80) Minor Collection (Allocation Stall)
+[1.096s][info][gc] GC(80) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.002s
+[1.147s][info][gc] Allocation Stall (main) 55.370ms
+[1.147s][info][gc] GC(81) Minor Collection (Allocation Rate)
+[1.150s][info][gc] GC(81) Minor Collection (Allocation Rate) 250M(98%)-&gt;256M(100%) 0.003s
+[1.150s][info][gc] GC(82) Minor Collection (Allocation Stall)
+[1.152s][info][gc] GC(82) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.002s
+[1.152s][info][gc] GC(73) Major Collection (Allocation Rate) 244M(95%)-&gt;256M(100%) 0.080s
+[1.152s][info][gc] GC(83) Major Collection (Allocation Stall)
+[1.161s][info][gc] Allocation Stall (main) 13.191ms
+[1.207s][info][gc] GC(84) Minor Collection (Allocation Rate)
+[1.208s][info][gc] GC(84) y: Relocation Stall (ZWorkerYoung#0) 1.269ms
+[1.208s][info][gc] Allocation Stall (main) 38.728ms
+[1.208s][info][gc] Relocation Stall (main) 0.157ms
+[1.210s][info][gc] Allocation Stall (main) 0.903ms
+[1.212s][info][gc] GC(84) Minor Collection (Allocation Rate) 256M(100%)-&gt;256M(100%) 0.005s
+[1.212s][info][gc] GC(85) Minor Collection (Allocation Stall)
+[1.215s][info][gc] GC(85) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.003s
+[1.215s][info][gc] GC(83) Major Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.063s
+[1.215s][info][gc] GC(86) Major Collection (Allocation Stall)
+[1.226s][info][gc] Allocation Stall (main) 15.399ms
+[1.277s][info][gc] GC(87) Minor Collection (Allocation Rate)
+[1.277s][info][gc] Allocation Stall (main) 42.155ms
+[1.281s][info][gc] GC(87) Minor Collection (Allocation Rate) 256M(100%)-&gt;256M(100%) 0.004s
+[1.281s][info][gc] GC(88) Minor Collection (Allocation Stall)
+[1.284s][info][gc] GC(88) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.003s
+[1.284s][info][gc] GC(86) Major Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.069s
+[1.284s][info][gc] GC(89) Major Collection (Allocation Stall)
+[1.295s][info][gc] Allocation Stall (main) 16.623ms
+[1.364s][info][gc] GC(90) Minor Collection (Allocation Rate)
+[1.365s][info][gc] Allocation Stall (main) 60.354ms
+[1.366s][info][gc] Allocation Stall (main) 0.846ms
+[1.368s][info][gc] GC(90) Minor Collection (Allocation Rate) 256M(100%)-&gt;256M(100%) 0.004s
+[1.368s][info][gc] GC(91) Minor Collection (Allocation Stall)
+[1.372s][info][gc] GC(91) Minor Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.004s
+[1.372s][info][gc] GC(89) Major Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.088s
+[1.372s][info][gc] GC(92) Major Collection (Allocation Stall)
+[1.382s][info][gc] Allocation Stall (main) 16.195ms
+[1.428s][info][gc] GC(93) Minor Collection (Allocation Rate)
+[1.433s][info][gc] GC(93) Minor Collection (Allocation Rate) 256M(100%)-&gt;256M(100%) 0.005s
+[1.433s][info][gc] GC(92) Major Collection (Allocation Stall) 256M(100%)-&gt;256M(100%) 0.061s
+[1.433s][info][gc] GC(94) Major Collection (Allocation Stall)
+[1.444s][info][gc] Allocation Stall (main) 50.095ms
+finished in 966 ms, still holding 4200 objects
+[1.502s][info][gc] GC(95) Minor Collection (Allocation Rate)
+[1.503s][info][gc] GC(95) Minor Collection (Allocation Rate) Aborted
+[1.503s][info][gc] GC(94) Major Collection (Allocation Stall) Aborted
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ZGC_512.log</span><span class="fmeta">5.5 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/ZGC_512.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.011s][info][gc] Using The Z Garbage Collector
+[0.367s][info][gc] GC(0) Major Collection (Warmup)
+[0.419s][info][gc] GC(0) Major Collection (Warmup) 52M(10%)-&gt;36M(7%) 0.052s
+[0.458s][info][gc] GC(1) Major Collection (Warmup)
+[0.501s][info][gc] GC(1) Major Collection (Warmup) 104M(20%)-&gt;202M(39%) 0.043s
+[0.502s][info][gc] GC(2) Major Collection (Warmup)
+[0.544s][info][gc] GC(3) Minor Collection (Allocation Rate)
+[0.552s][info][gc] GC(3) Minor Collection (Allocation Rate) 286M(56%)-&gt;70M(14%) 0.008s
+[0.552s][info][gc] GC(2) Major Collection (Warmup) 206M(40%)-&gt;72M(14%) 0.050s
+[0.552s][info][gc] GC(4) Minor Collection (Allocation Rate)
+[0.562s][info][gc] GC(4) Minor Collection (Allocation Rate) 74M(14%)-&gt;144M(28%) 0.010s
+[0.562s][info][gc] GC(5) Minor Collection (Allocation Rate)
+[0.566s][info][gc] GC(5) Minor Collection (Allocation Rate) 148M(29%)-&gt;82M(16%) 0.004s
+[0.566s][info][gc] GC(6) Minor Collection (Allocation Rate)
+[0.569s][info][gc] GC(6) Minor Collection (Allocation Rate) 82M(16%)-&gt;74M(14%) 0.003s
+[0.578s][info][gc] GC(7) Minor Collection (Allocation Rate)
+[0.583s][info][gc] GC(7) Minor Collection (Allocation Rate) 218M(43%)-&gt;98M(19%) 0.004s
+[0.587s][info][gc] GC(8) Minor Collection (Allocation Rate)
+[0.591s][info][gc] GC(8) Minor Collection (Allocation Rate) 160M(31%)-&gt;94M(18%) 0.004s
+[0.598s][info][gc] GC(9) Minor Collection (Allocation Rate)
+[0.602s][info][gc] GC(9) Minor Collection (Allocation Rate) 202M(39%)-&gt;100M(20%) 0.004s
+[0.616s][info][gc] GC(10) Minor Collection (Allocation Rate)
+[0.620s][info][gc] GC(10) Minor Collection (Allocation Rate) 304M(59%)-&gt;92M(18%) 0.004s
+[0.636s][info][gc] GC(11) Minor Collection (Allocation Rate)
+[0.640s][info][gc] GC(11) Minor Collection (Allocation Rate) 318M(62%)-&gt;94M(18%) 0.004s
+[0.652s][info][gc] GC(12) Minor Collection (Allocation Rate)
+[0.657s][info][gc] GC(12) Minor Collection (Allocation Rate) 260M(51%)-&gt;142M(28%) 0.005s
+[0.664s][info][gc] GC(13) Minor Collection (Allocation Rate)
+[0.669s][info][gc] GC(13) Minor Collection (Allocation Rate) 246M(48%)-&gt;194M(38%) 0.005s
+[0.674s][info][gc] GC(14) Minor Collection (Allocation Rate)
+[0.680s][info][gc] GC(14) Minor Collection (Allocation Rate) 272M(53%)-&gt;226M(44%) 0.006s
+[0.683s][info][gc] GC(15) Major Collection (Allocation Rate)
+[0.690s][info][gc] GC(16) Minor Collection (Allocation Rate)
+[0.695s][info][gc] GC(16) Minor Collection (Allocation Rate) 256M(50%)-&gt;220M(43%) 0.005s
+[0.744s][info][gc] GC(17) Minor Collection (Allocation Rate)
+[0.750s][info][gc] GC(17) Minor Collection (Allocation Rate) 462M(90%)-&gt;198M(39%) 0.006s
+[0.750s][info][gc] GC(15) Major Collection (Allocation Rate) 260M(51%)-&gt;198M(39%) 0.068s
+[0.751s][info][gc] GC(18) Minor Collection (Allocation Rate)
+[0.754s][info][gc] GC(18) Minor Collection (Allocation Rate) 202M(39%)-&gt;210M(41%) 0.003s
+[0.757s][info][gc] GC(19) Minor Collection (Allocation Rate)
+[0.760s][info][gc] GC(19) Minor Collection (Allocation Rate) 262M(51%)-&gt;212M(41%) 0.003s
+[0.772s][info][gc] GC(20) Minor Collection (Allocation Rate)
+[0.776s][info][gc] GC(20) Minor Collection (Allocation Rate) 384M(75%)-&gt;220M(43%) 0.004s
+[0.780s][info][gc] GC(21) Minor Collection (Allocation Rate)
+[0.783s][info][gc] GC(21) Minor Collection (Allocation Rate) 282M(55%)-&gt;218M(43%) 0.003s
+[0.786s][info][gc] GC(22) Minor Collection (Allocation Rate)
+[0.790s][info][gc] GC(22) Minor Collection (Allocation Rate) 254M(50%)-&gt;268M(52%) 0.004s
+[0.790s][info][gc] GC(23) Minor Collection (Allocation Rate)
+[0.794s][info][gc] GC(23) Minor Collection (Allocation Rate) 268M(52%)-&gt;296M(58%) 0.003s
+[0.794s][info][gc] GC(24) Major Collection (Allocation Rate)
+[0.797s][info][gc] GC(25) Minor Collection (Allocation Rate)
+[0.800s][info][gc] GC(25) Minor Collection (Allocation Rate) 326M(64%)-&gt;358M(70%) 0.003s
+[0.800s][info][gc] GC(26) Minor Collection (Allocation Rate)
+[0.804s][info][gc] GC(26) Minor Collection (Allocation Rate) 358M(70%)-&gt;388M(76%) 0.004s
+[0.804s][info][gc] GC(27) Minor Collection (Allocation Rate)
+[0.809s][info][gc] GC(27) Minor Collection (Allocation Rate) 390M(76%)-&gt;320M(62%) 0.005s
+[0.809s][info][gc] GC(28) Minor Collection (Allocation Rate)
+[0.812s][info][gc] GC(28) Minor Collection (Allocation Rate) 320M(62%)-&gt;358M(70%) 0.004s
+[0.812s][info][gc] GC(29) Minor Collection (Allocation Rate)
+[0.816s][info][gc] GC(29) Minor Collection (Allocation Rate) 360M(70%)-&gt;390M(76%) 0.003s
+[0.847s][info][gc] GC(30) Minor Collection (Allocation Rate)
+[0.847s][info][gc] Allocation Stall (main) 5.916ms
+[0.847s][info][gc] GC(30) y: Relocation Stall (ZWorkerYoung#2) 0.101ms
+[0.851s][info][gc] Allocation Stall (main) 0.828ms
+[0.852s][info][gc] Allocation Stall (main) 1.107ms
+[0.853s][info][gc] GC(30) Minor Collection (Allocation Rate) 512M(100%)-&gt;480M(94%) 0.006s
+[0.853s][info][gc] GC(24) Major Collection (Allocation Rate) 296M(58%)-&gt;480M(94%) 0.059s
+[0.853s][info][gc] GC(31) Major Collection (Allocation Rate)
+[0.858s][info][gc] GC(32) Minor Collection (Allocation Rate)
+[0.861s][info][gc] GC(32) Minor Collection (Allocation Rate) 492M(96%)-&gt;512M(100%) 0.003s
+[0.861s][info][gc] GC(33) Minor Collection (Allocation Stall)
+[0.863s][info][gc] GC(33) Minor Collection (Allocation Stall) 512M(100%)-&gt;512M(100%) 0.002s
+[0.863s][info][gc] GC(34) Minor Collection (High Usage)
+[0.865s][info][gc] Allocation Stall (main) 4.782ms
+[0.867s][info][gc] GC(34) Minor Collection (High Usage) 512M(100%)-&gt;250M(49%) 0.004s
+finished in 438 ms, still holding 4200 objects
+[0.906s][info][gc] GC(35) Minor Collection (Allocation Rate)
+[0.907s][info][gc] GC(35) Minor Collection (Allocation Rate) Aborted
+[0.907s][info][gc] GC(31) Major Collection (Allocation Rate) Aborted
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ZGC_phases.log</span><span class="fmeta">31.8 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep03/ZGC_phases.log">raw file</a><button class="copy" type="button">copy</button></div><pre><code>[0.012s][info][gc] Using The Z Garbage Collector
+[0.354s][info][gc] GC(0) Major Collection (Warmup)
+[0.354s][info][gc,phases] GC(0) Y: Young Generation
+[0.355s][info][gc,phases] GC(0) Y: Pause Mark Start (Major) 0.008ms
+[0.359s][info][gc,phases] GC(0) Y: Concurrent Mark 4.450ms
+[0.359s][info][gc,phases] GC(0) Y: Pause Mark End 0.011ms
+[0.359s][info][gc,phases] GC(0) Y: Concurrent Mark Free 0.000ms
+[0.359s][info][gc,phases] GC(0) Y: Concurrent Reset Relocation Set 0.003ms
+[0.363s][info][gc,phases] GC(0) Y: Concurrent Select Relocation Set 3.451ms
+[0.363s][info][gc,phases] GC(0) Y: Pause Relocate Start 0.006ms
+[0.366s][info][gc,phases] GC(0) Y: Concurrent Relocate 2.868ms
+[0.366s][info][gc,phases] GC(0) Y: Young Generation 52M(10%)-&gt;40M(8%) 0.011s
+[0.366s][info][gc,phases] GC(0) O: Old Generation
+[0.366s][info][gc,phases] GC(0) O: Concurrent Mark 0.326ms
+[0.366s][info][gc,phases] GC(0) O: Pause Mark End 0.010ms
+[0.366s][info][gc,phases] GC(0) O: Concurrent Mark Free 0.120ms
+[0.367s][info][gc,phases] GC(0) O: Concurrent Process Non-Strong 1.049ms
+[0.367s][info][gc,phases] GC(0) O: Concurrent Reset Relocation Set 0.000ms
+[0.368s][info][gc,phases] GC(0) O: Concurrent Select Relocation Set 0.988ms
+[0.407s][info][gc,phases] GC(0) O: Concurrent Remap Roots 38.490ms
+[0.407s][info][gc,phases] GC(0) O: Pause Relocate Start 0.007ms
+[0.407s][info][gc,phases] GC(0) O: Concurrent Relocate 0.045ms
+[0.407s][info][gc,phases] GC(0) O: Old Generation 40M(8%)-&gt;44M(9%) 0.041s
+[0.407s][info][gc       ] GC(0) Major Collection (Warmup) 52M(10%)-&gt;44M(9%) 0.053s
+[0.448s][info][gc       ] GC(1) Major Collection (Warmup)
+[0.448s][info][gc,phases] GC(1) Y: Young Generation
+[0.448s][info][gc,phases] GC(1) Y: Pause Mark Start (Major) 0.008ms
+[0.452s][info][gc,phases] GC(1) Y: Concurrent Mark 3.601ms
+[0.452s][info][gc,phases] GC(1) Y: Pause Mark End 0.006ms
+[0.452s][info][gc,phases] GC(1) Y: Concurrent Mark Free 0.000ms
+[0.452s][info][gc,phases] GC(1) Y: Concurrent Reset Relocation Set 0.001ms
+[0.453s][info][gc,phases] GC(1) Y: Concurrent Select Relocation Set 1.372ms
+[0.453s][info][gc,phases] GC(1) Y: Pause Relocate Start 0.006ms
+[0.455s][info][gc,phases] GC(1) Y: Concurrent Relocate 2.109ms
+[0.455s][info][gc,phases] GC(1) Y: Young Generation 104M(20%)-&gt;46M(9%) 0.007s
+[0.455s][info][gc,phases] GC(1) O: Old Generation
+[0.455s][info][gc,phases] GC(1) O: Concurrent Mark 0.134ms
+[0.456s][info][gc,phases] GC(1) O: Pause Mark End 0.008ms
+[0.456s][info][gc,phases] GC(1) O: Concurrent Mark Free 0.001ms
+[0.457s][info][gc,phases] GC(1) O: Concurrent Process Non-Strong 1.774ms
+[0.457s][info][gc,phases] GC(1) O: Concurrent Reset Relocation Set 0.000ms
+[0.459s][info][gc,phases] GC(1) O: Concurrent Select Relocation Set 1.514ms
+[0.496s][info][gc,phases] GC(1) O: Concurrent Remap Roots 37.315ms
+[0.496s][info][gc,phases] GC(1) O: Pause Relocate Start 0.009ms
+[0.496s][info][gc,phases] GC(1) O: Concurrent Relocate 0.033ms
+[0.496s][info][gc,phases] GC(1) O: Old Generation 46M(9%)-&gt;216M(42%) 0.041s
+[0.496s][info][gc       ] GC(1) Major Collection (Warmup) 104M(20%)-&gt;216M(42%) 0.048s
+[0.497s][info][gc       ] GC(2) Major Collection (Warmup)
+[0.497s][info][gc,phases] GC(2) Y: Young Generation
+[0.497s][info][gc,phases] GC(2) Y: Pause Mark Start (Major) 0.007ms
+[0.501s][info][gc,phases] GC(2) Y: Concurrent Mark 3.160ms
+[0.501s][info][gc,phases] GC(2) Y: Pause Mark End 0.007ms
+[0.501s][info][gc,phases] GC(2) Y: Concurrent Mark Free 0.000ms
+[0.501s][info][gc,phases] GC(2) Y: Concurrent Reset Relocation Set 0.002ms
+[0.502s][info][gc,phases] GC(2) Y: Concurrent Select Relocation Set 1.444ms
+[0.502s][info][gc,phases] GC(2) Y: Pause Relocate Start 0.005ms
+[0.505s][info][gc,phases] GC(2) Y: Concurrent Relocate 2.838ms
+[0.505s][info][gc,phases] GC(2) Y: Young Generation 220M(43%)-&gt;56M(11%) 0.008s
+[0.505s][info][gc,phases] GC(2) O: Old Generation
+[0.505s][info][gc,phases] GC(2) O: Concurrent Mark 0.133ms
+[0.505s][info][gc,phases] GC(2) O: Pause Mark End 0.008ms
+[0.505s][info][gc,phases] GC(2) O: Concurrent Mark Free 0.000ms
+[0.507s][info][gc,phases] GC(2) O: Concurrent Process Non-Strong 1.520ms
+[0.507s][info][gc,phases] GC(2) O: Concurrent Reset Relocation Set 0.000ms
+[0.508s][info][gc,phases] GC(2) O: Concurrent Select Relocation Set 1.512ms
+[0.544s][info][gc,phases] GC(2) O: Concurrent Remap Roots 35.931ms
+[0.544s][info][gc,phases] GC(2) O: Pause Relocate Start 0.007ms
+[0.544s][info][gc       ] GC(3) Minor Collection (Allocation Rate)
+[0.544s][info][gc,phases] GC(3) y: Young Generation
+[0.544s][info][gc,phases] GC(2) O: Concurrent Relocate 0.083ms
+[0.545s][info][gc,phases] GC(3) y: Pause Mark Start 0.005ms
+[0.547s][info][gc,phases] GC(3) y: Concurrent Mark 2.912ms
+[0.548s][info][gc,phases] GC(3) y: Pause Mark End 0.020ms
+[0.548s][info][gc,phases] GC(3) y: Concurrent Mark Free 0.001ms
+[0.548s][info][gc,phases] GC(3) y: Concurrent Reset Relocation Set 0.003ms
+[0.549s][info][gc,phases] GC(3) y: Concurrent Select Relocation Set 1.707ms
+[0.549s][info][gc,phases] GC(3) y: Pause Relocate Start 0.004ms
+[0.552s][info][gc,phases] GC(3) y: Concurrent Relocate 2.975ms
+[0.552s][info][gc,phases] GC(3) y: Young Generation 298M(58%)-&gt;72M(14%) 0.008s
+[0.552s][info][gc       ] GC(3) Minor Collection (Allocation Rate) 298M(58%)-&gt;72M(14%) 0.008s
+[0.552s][info][gc,phases] GC(2) O: Old Generation 56M(11%)-&gt;298M(58%) 0.047s
+[0.552s][info][gc       ] GC(2) Major Collection (Warmup) 220M(43%)-&gt;72M(14%) 0.055s
+[0.560s][info][gc       ] GC(4) Minor Collection (Allocation Rate)
+[0.560s][info][gc,phases] GC(4) y: Young Generation
+[0.560s][info][gc,phases] GC(4) y: Pause Mark Start 0.007ms
+[0.563s][info][gc,phases] GC(4) y: Concurrent Mark 3.201ms
+[0.563s][info][gc,phases] GC(4) y: Pause Mark End 0.007ms
+[0.563s][info][gc,phases] GC(4) y: Concurrent Mark Free 0.000ms
+[0.563s][info][gc,phases] GC(4) y: Concurrent Reset Relocation Set 0.002ms
+[0.566s][info][gc,phases] GC(4) y: Concurrent Select Relocation Set 2.966ms
+[0.566s][info][gc,phases] GC(4) y: Pause Relocate Start 0.007ms
+[0.569s][info][gc,phases] GC(4) y: Concurrent Relocate 2.534ms
+[0.569s][info][gc,phases] GC(4) y: Young Generation 184M(36%)-&gt;152M(30%) 0.009s
+[0.569s][info][gc       ] GC(4) Minor Collection (Allocation Rate) 184M(36%)-&gt;152M(30%) 0.009s
+[0.574s][info][gc       ] GC(5) Minor Collection (Allocation Rate)
+[0.574s][info][gc,phases] GC(5) y: Young Generation
+[0.574s][info][gc,phases] GC(5) y: Pause Mark Start 0.009ms
+[0.575s][info][gc,phases] GC(5) y: Concurrent Mark 1.095ms
+[0.576s][info][gc,phases] GC(5) y: Pause Mark End 0.006ms
+[0.576s][info][gc,phases] GC(5) y: Concurrent Mark Free 0.000ms
+[0.576s][info][gc,phases] GC(5) y: Concurrent Reset Relocation Set 0.009ms
+[0.577s][info][gc,phases] GC(5) y: Concurrent Select Relocation Set 1.649ms
+[0.577s][info][gc,phases] GC(5) y: Pause Relocate Start 0.005ms
+[0.578s][info][gc,phases] GC(5) y: Concurrent Relocate 0.788ms
+[0.578s][info][gc,phases] GC(5) y: Young Generation 234M(46%)-&gt;94M(18%) 0.004s
+[0.578s][info][gc       ] GC(5) Minor Collection (Allocation Rate) 234M(46%)-&gt;94M(18%) 0.004s
+[0.579s][info][gc       ] GC(6) Minor Collection (Allocation Rate)
+[0.579s][info][gc,phases] GC(6) y: Young Generation
+[0.579s][info][gc,phases] GC(6) y: Pause Mark Start 0.005ms
+[0.580s][info][gc,phases] GC(6) y: Concurrent Mark 0.933ms
+[0.580s][info][gc,phases] GC(6) y: Pause Mark End 0.005ms
+[0.580s][info][gc,phases] GC(6) y: Concurrent Mark Free 0.001ms
+[0.580s][info][gc,phases] GC(6) y: Concurrent Reset Relocation Set 0.001ms
+[0.582s][info][gc,phases] GC(6) y: Concurrent Select Relocation Set 1.800ms
+[0.582s][info][gc,phases] GC(6) y: Pause Relocate Start 0.006ms
+[0.583s][info][gc,phases] GC(6) y: Concurrent Relocate 0.676ms
+[0.583s][info][gc,phases] GC(6) y: Young Generation 104M(20%)-&gt;90M(18%) 0.004s
+[0.583s][info][gc       ] GC(6) Minor Collection (Allocation Rate) 104M(20%)-&gt;90M(18%) 0.004s
+[0.584s][info][gc       ] GC(7) Minor Collection (Allocation Rate)
+[0.584s][info][gc,phases] GC(7) y: Young Generation
+[0.584s][info][gc,phases] GC(7) y: Pause Mark Start 0.004ms
+[0.584s][info][gc,phases] GC(7) y: Concurrent Mark 0.695ms
+[0.585s][info][gc,phases] GC(7) y: Pause Mark End 0.004ms
+[0.585s][info][gc,phases] GC(7) y: Concurrent Mark Free 0.000ms
+[0.585s][info][gc,phases] GC(7) y: Concurrent Reset Relocation Set 0.007ms
+[0.586s][info][gc,phases] GC(7) y: Concurrent Select Relocation Set 1.705ms
+[0.586s][info][gc,phases] GC(7) y: Pause Relocate Start 0.005ms
+[0.587s][info][gc,phases] GC(7) y: Concurrent Relocate 0.505ms
+[0.587s][info][gc,phases] GC(7) y: Young Generation 108M(21%)-&gt;92M(18%) 0.003s
+[0.587s][info][gc       ] GC(7) Minor Collection (Allocation Rate) 108M(21%)-&gt;92M(18%) 0.003s
+[0.591s][info][gc       ] GC(8) Minor Collection (Allocation Rate)
+[0.591s][info][gc,phases] GC(8) y: Young Generation
+[0.591s][info][gc,phases] GC(8) y: Pause Mark Start 0.006ms
+[0.592s][info][gc,phases] GC(8) y: Concurrent Mark 0.754ms
+[0.592s][info][gc,phases] GC(8) y: Pause Mark End 0.005ms
+[0.592s][info][gc,phases] GC(8) y: Concurrent Mark Free 0.000ms
+[0.592s][info][gc,phases] GC(8) y: Concurrent Reset Relocation Set 0.005ms
+[0.594s][info][gc,phases] GC(8) y: Concurrent Select Relocation Set 2.005ms
+[0.594s][info][gc,phases] GC(8) y: Pause Relocate Start 0.005ms
+[0.595s][info][gc,phases] GC(8) y: Concurrent Relocate 0.747ms
+[0.595s][info][gc,phases] GC(8) y: Young Generation 160M(31%)-&gt;98M(19%) 0.004s
+[0.595s][info][gc       ] GC(8) Minor Collection (Allocation Rate) 160M(31%)-&gt;98M(19%) 0.004s
+[0.609s][info][gc       ] GC(9) Minor Collection (Allocation Rate)
+[0.609s][info][gc,phases] GC(9) y: Young Generation
+[0.609s][info][gc,phases] GC(9) y: Pause Mark Start 0.011ms
+[0.610s][info][gc,phases] GC(9) y: Concurrent Mark 0.851ms
+[0.610s][info][gc,phases] GC(9) y: Pause Mark End 0.005ms
+[0.610s][info][gc,phases] GC(9) y: Concurrent Mark Free 0.001ms
+[0.610s][info][gc,phases] GC(9) y: Concurrent Reset Relocation Set 0.001ms
+[0.611s][info][gc,phases] GC(9) y: Concurrent Select Relocation Set 1.065ms
+[0.611s][info][gc,phases] GC(9) y: Pause Relocate Start 0.003ms
+[0.614s][info][gc,phases] GC(9) y: Concurrent Relocate 2.257ms
+[0.614s][info][gc,phases] GC(9) y: Young Generation 314M(61%)-&gt;88M(17%) 0.004s
+[0.614s][info][gc       ] GC(9) Minor Collection (Allocation Rate) 314M(61%)-&gt;88M(17%) 0.004s
+[0.619s][info][gc       ] GC(10) Minor Collection (Allocation Rate)
+[0.619s][info][gc,phases] GC(10) y: Young Generation
+[0.619s][info][gc,phases] GC(10) y: Pause Mark Start 0.007ms
+[0.620s][info][gc,phases] GC(10) y: Concurrent Mark 0.932ms
+[0.620s][info][gc,phases] GC(10) y: Pause Mark End 0.006ms
+[0.620s][info][gc,phases] GC(10) y: Concurrent Mark Free 0.000ms
+[0.620s][info][gc,phases] GC(10) y: Concurrent Reset Relocation Set 0.003ms
+[0.622s][info][gc,phases] GC(10) y: Concurrent Select Relocation Set 1.641ms
+[0.622s][info][gc,phases] GC(10) y: Pause Relocate Start 0.005ms
+[0.623s][info][gc,phases] GC(10) y: Concurrent Relocate 1.423ms
+[0.623s][info][gc,phases] GC(10) y: Young Generation 170M(33%)-&gt;118M(23%) 0.004s
+[0.623s][info][gc       ] GC(10) Minor Collection (Allocation Rate) 170M(33%)-&gt;118M(23%) 0.004s
+[0.630s][info][gc       ] GC(11) Minor Collection (Allocation Rate)
+[0.630s][info][gc,phases] GC(11) y: Young Generation
+[0.630s][info][gc,phases] GC(11) y: Pause Mark Start 0.007ms
+[0.631s][info][gc,phases] GC(11) y: Concurrent Mark 0.910ms
+[0.631s][info][gc,phases] GC(11) y: Pause Mark End 0.005ms
+[0.631s][info][gc,phases] GC(11) y: Concurrent Mark Free 0.000ms
+[0.631s][info][gc,phases] GC(11) y: Concurrent Reset Relocation Set 0.001ms
+[0.633s][info][gc,phases] GC(11) y: Concurrent Select Relocation Set 1.593ms
+[0.633s][info][gc,phases] GC(11) y: Pause Relocate Start 0.003ms
+[0.634s][info][gc,phases] GC(11) y: Concurrent Relocate 1.090ms
+[0.634s][info][gc,phases] GC(11) y: Young Generation 228M(45%)-&gt;122M(24%) 0.004s
+[0.634s][info][gc       ] GC(11) Minor Collection (Allocation Rate) 228M(45%)-&gt;122M(24%) 0.004s
+[0.645s][info][gc       ] GC(12) Minor Collection (Allocation Rate)
+[0.645s][info][gc,phases] GC(12) y: Young Generation
+[0.645s][info][gc,phases] GC(12) y: Pause Mark Start 0.007ms
+[0.646s][info][gc,phases] GC(12) y: Concurrent Mark 0.899ms
+[0.646s][info][gc,phases] GC(12) y: Pause Mark End 0.006ms
+[0.646s][info][gc,phases] GC(12) y: Concurrent Mark Free 0.000ms
+[0.646s][info][gc,phases] GC(12) y: Concurrent Reset Relocation Set 0.002ms
+[0.647s][info][gc,phases] GC(12) y: Concurrent Select Relocation Set 1.633ms
+[0.647s][info][gc,phases] GC(12) y: Pause Relocate Start 0.005ms
+[0.648s][info][gc,phases] GC(12) y: Concurrent Relocate 0.827ms
+[0.648s][info][gc,phases] GC(12) y: Young Generation 286M(56%)-&gt;130M(25%) 0.004s
+[0.648s][info][gc       ] GC(12) Minor Collection (Allocation Rate) 286M(56%)-&gt;130M(25%) 0.004s
+[0.660s][info][gc       ] GC(13) Minor Collection (Allocation Rate)
+[0.660s][info][gc,phases] GC(13) y: Young Generation
+[0.660s][info][gc,phases] GC(13) y: Pause Mark Start 0.008ms
+[0.662s][info][gc,phases] GC(13) y: Concurrent Mark 1.232ms
+[0.662s][info][gc,phases] GC(13) y: Pause Mark End 0.006ms
+[0.662s][info][gc,phases] GC(13) y: Concurrent Mark Free 0.001ms
+[0.662s][info][gc,phases] GC(13) y: Concurrent Reset Relocation Set 0.005ms
+[0.664s][info][gc,phases] GC(13) y: Concurrent Select Relocation Set 1.898ms
+[0.664s][info][gc,phases] GC(13) y: Pause Relocate Start 0.005ms
+[0.665s][info][gc,phases] GC(13) y: Concurrent Relocate 1.117ms
+[0.665s][info][gc,phases] GC(13) y: Young Generation 302M(59%)-&gt;198M(39%) 0.005s
+[0.665s][info][gc       ] GC(13) Minor Collection (Allocation Rate) 302M(59%)-&gt;198M(39%) 0.005s
+[0.673s][info][gc       ] GC(14) Minor Collection (Allocation Rate)
+[0.673s][info][gc,phases] GC(14) y: Young Generation
+[0.673s][info][gc,phases] GC(14) y: Pause Mark Start 0.008ms
+[0.674s][info][gc,phases] GC(14) y: Concurrent Mark 1.187ms
+[0.674s][info][gc,phases] GC(14) y: Pause Mark End 0.005ms
+[0.675s][info][gc,phases] GC(14) y: Concurrent Mark Free 0.000ms
+[0.675s][info][gc,phases] GC(14) y: Concurrent Reset Relocation Set 0.009ms
+[0.677s][info][gc,phases] GC(14) y: Concurrent Select Relocation Set 2.683ms
+[0.677s][info][gc,phases] GC(14) y: Pause Relocate Start 0.005ms
+[0.679s][info][gc,phases] GC(14) y: Concurrent Relocate 1.264ms
+[0.679s][info][gc,phases] GC(14) y: Young Generation 306M(60%)-&gt;202M(39%) 0.005s
+[0.679s][info][gc       ] GC(14) Minor Collection (Allocation Rate) 306M(60%)-&gt;202M(39%) 0.005s
+[0.682s][info][gc       ] GC(15) Major Collection (Allocation Rate)
+[0.682s][info][gc,phases] GC(15) Y: Young Generation
+[0.682s][info][gc,phases] GC(15) Y: Pause Mark Start (Major) 0.006ms
+[0.683s][info][gc,phases] GC(15) Y: Concurrent Mark 1.192ms
+[0.683s][info][gc,phases] GC(15) Y: Pause Mark End 0.005ms
+[0.683s][info][gc,phases] GC(15) Y: Concurrent Mark Free 0.000ms
+[0.684s][info][gc,phases] GC(15) Y: Concurrent Reset Relocation Set 0.317ms
+[0.685s][info][gc,phases] GC(15) Y: Concurrent Select Relocation Set 1.743ms
+[0.685s][info][gc,phases] GC(15) Y: Pause Relocate Start 0.005ms
+[0.686s][info][gc,phases] GC(15) Y: Concurrent Relocate 0.385ms
+[0.686s][info][gc,phases] GC(15) Y: Young Generation 248M(48%)-&gt;212M(41%) 0.004s
+[0.686s][info][gc,phases] GC(15) O: Old Generation
+[0.687s][info][gc       ] GC(16) Minor Collection (Allocation Rate)
+[0.687s][info][gc,phases] GC(16) y: Young Generation
+[0.687s][info][gc,phases] GC(16) y: Pause Mark Start 0.006ms
+[0.688s][info][gc,phases] GC(16) y: Concurrent Mark 1.011ms
+[0.688s][info][gc,phases] GC(16) y: Pause Mark End 0.005ms
+[0.688s][info][gc,phases] GC(16) y: Concurrent Mark Free 0.000ms
+[0.688s][info][gc,phases] GC(16) y: Concurrent Reset Relocation Set 0.001ms
+[0.690s][info][gc,phases] GC(16) y: Concurrent Select Relocation Set 1.853ms
+[0.690s][info][gc,phases] GC(16) y: Pause Relocate Start 0.004ms
+[0.691s][info][gc,phases] GC(16) y: Concurrent Relocate 0.750ms
+[0.691s][info][gc,phases] GC(16) y: Young Generation 230M(45%)-&gt;214M(42%) 0.004s
+[0.691s][info][gc       ] GC(16) Minor Collection (Allocation Rate) 230M(45%)-&gt;214M(42%) 0.004s
+[0.693s][info][gc,phases] GC(15) O: Concurrent Mark 6.650ms
+[0.693s][info][gc,phases] GC(15) O: Pause Mark End 0.006ms
+[0.693s][info][gc,phases] GC(15) O: Concurrent Mark Free 0.001ms
+[0.694s][info][gc,phases] GC(15) O: Concurrent Process Non-Strong 1.556ms
+[0.694s][info][gc,phases] GC(15) O: Concurrent Reset Relocation Set 0.000ms
+[0.696s][info][gc,phases] GC(15) O: Concurrent Select Relocation Set 2.000ms
+[0.728s][info][gc,phases] GC(15) O: Concurrent Remap Roots 31.790ms
+[0.728s][info][gc,phases] GC(15) O: Pause Relocate Start 0.008ms
+[0.728s][info][gc       ] GC(17) Minor Collection (Allocation Rate)
+[0.728s][info][gc,phases] GC(17) y: Young Generation
+[0.728s][info][gc,phases] GC(17) y: Pause Mark Start 0.006ms
+[0.731s][info][gc,phases] GC(17) y: Concurrent Mark 2.487ms
+[0.732s][info][gc,phases] GC(17) y: Pause Mark End 0.012ms
+[0.732s][info][gc,phases] GC(17) y: Concurrent Mark Free 0.001ms
+[0.732s][info][gc,phases] GC(17) y: Concurrent Reset Relocation Set 0.001ms
+[0.732s][info][gc,phases] GC(15) O: Concurrent Relocate 3.663ms
+[0.733s][info][gc,phases] GC(17) y: Concurrent Select Relocation Set 1.755ms
+[0.734s][info][gc,phases] GC(17) y: Pause Relocate Start 0.007ms
+[0.735s][info][gc,phases] GC(17) y: Concurrent Relocate 1.578ms
+[0.735s][info][gc,phases] GC(17) y: Young Generation 412M(80%)-&gt;196M(38%) 0.007s
+[0.735s][info][gc       ] GC(17) Minor Collection (Allocation Rate) 412M(80%)-&gt;196M(38%) 0.007s
+[0.735s][info][gc,phases] GC(15) O: Old Generation 212M(41%)-&gt;418M(82%) 0.049s
+[0.735s][info][gc       ] GC(15) Major Collection (Allocation Rate) 248M(48%)-&gt;198M(39%) 0.053s
+[0.736s][info][gc       ] GC(18) Minor Collection (Allocation Rate)
+[0.736s][info][gc,phases] GC(18) y: Young Generation
+[0.736s][info][gc,phases] GC(18) y: Pause Mark Start 0.009ms
+[0.737s][info][gc,phases] GC(18) y: Concurrent Mark 0.898ms
+[0.737s][info][gc,phases] GC(18) y: Pause Mark End 0.005ms
+[0.737s][info][gc,phases] GC(18) y: Concurrent Mark Free 0.000ms
+[0.737s][info][gc,phases] GC(18) y: Concurrent Reset Relocation Set 0.008ms
+[0.739s][info][gc,phases] GC(18) y: Concurrent Select Relocation Set 1.478ms
+[0.739s][info][gc,phases] GC(18) y: Pause Relocate Start 0.004ms
+[0.739s][info][gc,phases] GC(18) y: Concurrent Relocate 0.399ms
+[0.739s][info][gc,phases] GC(18) y: Young Generation 214M(42%)-&gt;206M(40%) 0.003s
+[0.739s][info][gc       ] GC(18) Minor Collection (Allocation Rate) 214M(42%)-&gt;206M(40%) 0.003s
+[0.744s][info][gc       ] GC(19) Minor Collection (Allocation Rate)
+[0.744s][info][gc,phases] GC(19) y: Young Generation
+[0.744s][info][gc,phases] GC(19) y: Pause Mark Start 0.009ms
+[0.745s][info][gc,phases] GC(19) y: Concurrent Mark 1.010ms
+[0.745s][info][gc,phases] GC(19) y: Pause Mark End 0.005ms
+[0.745s][info][gc,phases] GC(19) y: Concurrent Mark Free 0.000ms
+[0.745s][info][gc,phases] GC(19) y: Concurrent Reset Relocation Set 0.005ms
+[0.747s][info][gc,phases] GC(19) y: Concurrent Select Relocation Set 1.819ms
+[0.747s][info][gc,phases] GC(19) y: Pause Relocate Start 0.005ms
+[0.747s][info][gc,phases] GC(19) y: Concurrent Relocate 0.548ms
+[0.747s][info][gc,phases] GC(19) y: Young Generation 266M(52%)-&gt;210M(41%) 0.004s
+[0.747s][info][gc       ] GC(19) Minor Collection (Allocation Rate) 266M(52%)-&gt;210M(41%) 0.004s
+[0.753s][info][gc       ] GC(20) Minor Collection (Allocation Rate)
+[0.753s][info][gc,phases] GC(20) y: Young Generation
+[0.754s][info][gc,phases] GC(20) y: Pause Mark Start 0.006ms
+[0.755s][info][gc,phases] GC(20) y: Concurrent Mark 1.028ms
+[0.755s][info][gc,phases] GC(20) y: Pause Mark End 0.005ms
+[0.755s][info][gc,phases] GC(20) y: Concurrent Mark Free 0.001ms
+[0.755s][info][gc,phases] GC(20) y: Concurrent Reset Relocation Set 0.008ms
+[0.757s][info][gc,phases] GC(20) y: Concurrent Select Relocation Set 1.921ms
+[0.757s][info][gc,phases] GC(20) y: Pause Relocate Start 0.004ms
+[0.757s][info][gc,phases] GC(20) y: Concurrent Relocate 0.530ms
+[0.757s][info][gc,phases] GC(20) y: Young Generation 310M(61%)-&gt;220M(43%) 0.004s
+[0.757s][info][gc       ] GC(20) Minor Collection (Allocation Rate) 310M(61%)-&gt;220M(43%) 0.004s
+[0.764s][info][gc       ] GC(21) Minor Collection (Allocation Rate)
+[0.764s][info][gc,phases] GC(21) y: Young Generation
+[0.764s][info][gc,phases] GC(21) y: Pause Mark Start 0.007ms
+[0.765s][info][gc,phases] GC(21) y: Concurrent Mark 1.040ms
+[0.765s][info][gc,phases] GC(21) y: Pause Mark End 0.005ms
+[0.765s][info][gc,phases] GC(21) y: Concurrent Mark Free 0.000ms
+[0.765s][info][gc,phases] GC(21) y: Concurrent Reset Relocation Set 0.001ms
+[0.766s][info][gc,phases] GC(21) y: Concurrent Select Relocation Set 1.552ms
+[0.766s][info][gc,phases] GC(21) y: Pause Relocate Start 0.003ms
+[0.767s][info][gc,phases] GC(21) y: Concurrent Relocate 0.459ms
+[0.767s][info][gc,phases] GC(21) y: Young Generation 316M(62%)-&gt;224M(44%) 0.003s
+[0.767s][info][gc       ] GC(21) Minor Collection (Allocation Rate) 316M(62%)-&gt;226M(44%) 0.003s
+[0.770s][info][gc       ] GC(22) Minor Collection (Allocation Rate)
+[0.770s][info][gc,phases] GC(22) y: Young Generation
+[0.770s][info][gc,phases] GC(22) y: Pause Mark Start 0.007ms
+[0.771s][info][gc,phases] GC(22) y: Concurrent Mark 1.044ms
+[0.771s][info][gc,phases] GC(22) y: Pause Mark End 0.004ms
+[0.771s][info][gc,phases] GC(22) y: Concurrent Mark Free 0.000ms
+[0.771s][info][gc,phases] GC(22) y: Concurrent Reset Relocation Set 0.001ms
+[0.772s][info][gc,phases] GC(22) y: Concurrent Select Relocation Set 1.415ms
+[0.772s][info][gc,phases] GC(22) y: Pause Relocate Start 0.003ms
+[0.772s][info][gc,phases] GC(22) y: Concurrent Relocate 0.276ms
+[0.772s][info][gc,phases] GC(22) y: Young Generation 266M(52%)-&gt;226M(44%) 0.003s
+[0.772s][info][gc       ] GC(22) Minor Collection (Allocation Rate) 266M(52%)-&gt;226M(44%) 0.003s
+[0.776s][info][gc       ] GC(23) Minor Collection (Allocation Rate)
+[0.776s][info][gc,phases] GC(23) y: Young Generation
+[0.776s][info][gc,phases] GC(23) y: Pause Mark Start 0.006ms
+[0.778s][info][gc,phases] GC(23) y: Concurrent Mark 1.175ms
+[0.778s][info][gc,phases] GC(23) y: Pause Mark End 0.004ms
+[0.778s][info][gc,phases] GC(23) y: Concurrent Mark Free 0.000ms
+[0.778s][info][gc,phases] GC(23) y: Concurrent Reset Relocation Set 0.001ms
+[0.779s][info][gc,phases] GC(23) y: Concurrent Select Relocation Set 1.397ms
+[0.779s][info][gc,phases] GC(23) y: Pause Relocate Start 0.003ms
+[0.779s][info][gc,phases] GC(23) y: Concurrent Relocate 0.291ms
+[0.779s][info][gc,phases] GC(23) y: Young Generation 272M(53%)-&gt;284M(55%) 0.003s
+[0.779s][info][gc       ] GC(23) Minor Collection (Allocation Rate) 272M(53%)-&gt;284M(55%) 0.003s
+[0.780s][info][gc       ] GC(24) Minor Collection (Allocation Rate)
+[0.780s][info][gc,phases] GC(24) y: Young Generation
+[0.780s][info][gc,phases] GC(24) y: Pause Mark Start 0.004ms
+[0.782s][info][gc,phases] GC(24) y: Concurrent Mark 1.400ms
+[0.782s][info][gc,phases] GC(24) y: Pause Mark End 0.006ms
+[0.782s][info][gc,phases] GC(24) y: Concurrent Mark Free 0.000ms
+[0.782s][info][gc,phases] GC(24) y: Concurrent Reset Relocation Set 0.004ms
+[0.784s][info][gc,phases] GC(24) y: Concurrent Select Relocation Set 1.983ms
+[0.784s][info][gc,phases] GC(24) y: Pause Relocate Start 0.004ms
+[0.784s][info][gc,phases] GC(24) y: Concurrent Relocate 0.645ms
+[0.784s][info][gc,phases] GC(24) y: Young Generation 294M(57%)-&gt;318M(62%) 0.004s
+[0.784s][info][gc       ] GC(24) Minor Collection (Allocation Rate) 294M(57%)-&gt;318M(62%) 0.004s
+[0.784s][info][gc       ] GC(25) Major Collection (Allocation Rate)
+[0.784s][info][gc,phases] GC(25) Y: Young Generation
+[0.784s][info][gc,phases] GC(25) Y: Pause Mark Start (Major) 0.004ms
+[0.785s][info][gc,phases] GC(25) Y: Concurrent Mark 1.027ms
+[0.785s][info][gc,phases] GC(25) Y: Pause Mark End 0.004ms
+[0.786s][info][gc,phases] GC(25) Y: Concurrent Mark Free 0.000ms
+[0.786s][info][gc,phases] GC(25) Y: Concurrent Reset Relocation Set 0.011ms
+[0.787s][info][gc,phases] GC(25) Y: Concurrent Select Relocation Set 1.555ms
+[0.787s][info][gc,phases] GC(25) Y: Pause Relocate Start 0.003ms
+[0.787s][info][gc,phases] GC(25) Y: Concurrent Relocate 0.171ms
+[0.787s][info][gc,phases] GC(25) Y: Young Generation 320M(62%)-&gt;350M(68%) 0.003s
+[0.787s][info][gc,phases] GC(25) O: Old Generation
+[0.788s][info][gc       ] GC(26) Minor Collection (Allocation Rate)
+[0.788s][info][gc,phases] GC(26) y: Young Generation
+[0.788s][info][gc,phases] GC(26) y: Pause Mark Start 0.005ms
+[0.789s][info][gc,phases] GC(26) y: Concurrent Mark 1.430ms
+[0.789s][info][gc,phases] GC(26) y: Pause Mark End 0.005ms
+[0.789s][info][gc,phases] GC(26) y: Concurrent Mark Free 0.000ms
+[0.789s][info][gc,phases] GC(26) y: Concurrent Reset Relocation Set 0.015ms
+[0.791s][info][gc,phases] GC(26) y: Concurrent Select Relocation Set 1.891ms
+[0.791s][info][gc,phases] GC(26) y: Pause Relocate Start 0.005ms
+[0.791s][info][gc,phases] GC(26) y: Concurrent Relocate 0.185ms
+[0.791s][info][gc,phases] GC(26) y: Young Generation 354M(69%)-&gt;386M(75%) 0.004s
+[0.791s][info][gc       ] GC(26) Minor Collection (Allocation Rate) 354M(69%)-&gt;386M(75%) 0.004s
+[0.791s][info][gc       ] GC(27) Minor Collection (Allocation Rate)
+[0.791s][info][gc,phases] GC(27) y: Young Generation
+[0.791s][info][gc,phases] GC(27) y: Pause Mark Start 0.004ms
+[0.793s][info][gc,phases] GC(27) y: Concurrent Mark 1.278ms
+[0.793s][info][gc,phases] GC(27) y: Pause Mark End 0.005ms
+[0.793s][info][gc,phases] GC(27) y: Concurrent Mark Free 0.000ms
+[0.793s][info][gc,phases] GC(27) y: Concurrent Reset Relocation Set 0.009ms
+[0.795s][info][gc,phases] GC(27) y: Concurrent Select Relocation Set 1.925ms
+[0.795s][info][gc,phases] GC(27) y: Pause Relocate Start 0.004ms
+[0.795s][info][gc,phases] GC(27) y: Concurrent Relocate 0.330ms
+[0.795s][info][gc,phases] GC(27) y: Young Generation 388M(76%)-&gt;424M(83%) 0.004s
+[0.795s][info][gc       ] GC(27) Minor Collection (Allocation Rate) 388M(76%)-&gt;424M(83%) 0.004s
+[0.795s][info][gc       ] GC(28) Minor Collection (Allocation Rate)
+[0.795s][info][gc,phases] GC(28) y: Young Generation
+[0.795s][info][gc,phases] GC(28) y: Pause Mark Start 0.005ms
+[0.796s][info][gc,phases] GC(28) y: Concurrent Mark 1.210ms
+[0.797s][info][gc,phases] GC(28) y: Pause Mark End 0.006ms
+[0.797s][info][gc,phases] GC(28) y: Concurrent Mark Free 0.001ms
+[0.797s][info][gc,phases] GC(28) y: Concurrent Reset Relocation Set 0.009ms
+[0.797s][info][gc,phases] GC(25) O: Concurrent Mark 9.710ms
+[0.797s][info][gc,phases] GC(25) O: Pause Mark End 0.004ms
+[0.797s][info][gc,phases] GC(25) O: Concurrent Mark Free 0.000ms
+[0.798s][info][gc,phases] GC(28) y: Concurrent Select Relocation Set 1.482ms
+[0.798s][info][gc,phases] GC(28) y: Pause Relocate Start 0.005ms
+[0.798s][info][gc,phases] GC(25) O: Concurrent Process Non-Strong 1.364ms
+[0.798s][info][gc,phases] GC(25) O: Concurrent Reset Relocation Set 0.001ms
+[0.799s][info][gc,phases] GC(28) y: Concurrent Relocate 0.616ms
+[0.799s][info][gc,phases] GC(28) y: Young Generation 424M(83%)-&gt;304M(59%) 0.004s
+[0.799s][info][gc       ] GC(28) Minor Collection (Allocation Rate) 424M(83%)-&gt;304M(59%) 0.004s
+[0.801s][info][gc,phases] GC(25) O: Concurrent Select Relocation Set 2.034ms
+[0.832s][info][gc,phases] GC(25) O: Concurrent Remap Roots 31.616ms
+[0.832s][info][gc,phases] GC(25) O: Pause Relocate Start 0.007ms
+[0.832s][info][gc       ] GC(29) Minor Collection (Allocation Rate)
+[0.832s][info][gc,phases] GC(29) y: Young Generation
+[0.832s][info][gc,phases] GC(29) y: Pause Mark Start 0.004ms
+[0.835s][info][gc,phases] GC(29) y: Concurrent Mark 2.253ms
+[0.835s][info][gc,phases] GC(29) y: Pause Mark End 0.006ms
+[0.835s][info][gc,phases] GC(29) y: Concurrent Mark Free 0.001ms
+[0.835s][info][gc,phases] GC(29) y: Concurrent Reset Relocation Set 0.027ms
+[0.836s][info][gc,phases] GC(29) y: Concurrent Select Relocation Set 1.589ms
+[0.837s][info][gc,phases] GC(29) y: Pause Relocate Start 0.005ms
+[0.837s][info][gc,phases] GC(25) O: Concurrent Relocate 4.326ms
+[0.837s][info][gc,phases] GC(29) y: Concurrent Relocate 0.038ms
+[0.837s][info][gc,phases] GC(29) y: Young Generation 480M(94%)-&gt;408M(80%) 0.004s
+[0.837s][info][gc       ] GC(29) Minor Collection (Allocation Rate) 480M(94%)-&gt;408M(80%) 0.004s
+[0.837s][info][gc,phases] GC(25) O: Old Generation 352M(69%)-&gt;408M(80%) 0.049s
+[0.837s][info][gc       ] GC(25) Major Collection (Allocation Rate) 318M(62%)-&gt;408M(80%) 0.052s
+[0.837s][info][gc       ] GC(30) Minor Collection (Allocation Rate)
+[0.837s][info][gc,phases] GC(30) y: Young Generation
+[0.837s][info][gc,phases] GC(30) y: Pause Mark Start 0.004ms
+[0.839s][info][gc,phases] GC(30) y: Concurrent Mark 1.330ms
+[0.839s][info][gc,phases] GC(30) y: Pause Mark End 0.005ms
+[0.839s][info][gc,phases] GC(30) y: Concurrent Mark Free 0.000ms
+[0.839s][info][gc,phases] GC(30) y: Concurrent Reset Relocation Set 0.000ms
+[0.841s][info][gc,phases] GC(30) y: Concurrent Select Relocation Set 2.550ms
+[0.841s][info][gc,phases] GC(30) y: Pause Relocate Start 0.005ms
+[0.842s][info][gc,phases] GC(30) y: Concurrent Relocate 0.452ms
+[0.842s][info][gc,phases] GC(30) y: Young Generation 412M(80%)-&gt;428M(84%) 0.005s
+[0.842s][info][gc       ] GC(30) Minor Collection (Allocation Rate) 412M(80%)-&gt;428M(84%) 0.005s
+[0.842s][info][gc       ] GC(31) Major Collection (Allocation Rate)
+[0.842s][info][gc,phases] GC(31) Y: Young Generation
+[0.842s][info][gc,phases] GC(31) Y: Pause Mark Start (Major) 0.006ms
+[0.843s][info][gc,phases] GC(31) Y: Concurrent Mark 1.445ms
+[0.843s][info][gc,phases] GC(31) Y: Pause Mark End 0.006ms
+[0.843s][info][gc,phases] GC(31) Y: Concurrent Mark Free 0.001ms
+[0.844s][info][gc,phases] GC(31) Y: Concurrent Reset Relocation Set 0.450ms
+[0.845s][info][gc,phases] GC(31) Y: Concurrent Select Relocation Set 1.351ms
+[0.845s][info][gc,phases] GC(31) Y: Pause Relocate Start 0.005ms
+[0.845s][info][gc,phases] GC(31) Y: Concurrent Relocate 0.106ms
+[0.845s][info][gc,phases] GC(31) Y: Young Generation 428M(84%)-&gt;464M(91%) 0.004s
+[0.845s][info][gc,phases] GC(31) O: Old Generation
+[0.845s][info][gc       ] GC(32) Minor Collection (Allocation Rate)
+[0.845s][info][gc,phases] GC(32) y: Young Generation
+[0.846s][info][gc,phases] GC(32) y: Pause Mark Start 0.004ms
+[0.848s][info][gc,phases] GC(32) y: Concurrent Mark 2.138ms
+[0.848s][info][gc,phases] GC(32) y: Pause Mark End 0.005ms
+[0.848s][info][gc,phases] GC(32) y: Concurrent Mark Free 0.000ms
+[0.848s][info][gc,phases] GC(32) y: Concurrent Reset Relocation Set 0.000ms
+[0.850s][info][gc,phases] GC(31) O: Concurrent Mark 4.184ms
+[0.850s][info][gc,phases] GC(31) O: Pause Mark End 0.006ms
+[0.850s][info][gc,phases] GC(31) O: Concurrent Mark Free 0.000ms
+[0.850s][info][gc,phases] GC(32) y: Concurrent Select Relocation Set 2.553ms
+[0.851s][info][gc,phases] GC(32) y: Pause Relocate Start 0.007ms
+[0.851s][info][gc,phases] GC(31) O: Concurrent Process Non-Strong 1.538ms
+[0.851s][info][gc,phases] GC(31) O: Concurrent Reset Relocation Set 0.001ms
+[0.851s][info][gc,phases] GC(32) y: Concurrent Relocate 0.711ms
+[0.851s][info][gc,phases] GC(32) y: Young Generation 466M(91%)-&gt;490M(96%) 0.006s
+[0.851s][info][gc       ] GC(32) Minor Collection (Allocation Rate) 466M(91%)-&gt;490M(96%) 0.006s
+[0.852s][info][gc       ] GC(33) Minor Collection (Allocation Rate)
+[0.852s][info][gc,phases] GC(33) y: Young Generation
+[0.852s][info][gc,phases] GC(33) y: Pause Mark Start 0.008ms
+[0.853s][info][gc,phases] GC(33) y: Concurrent Mark 1.696ms
+[0.853s][info][gc,phases] GC(33) y: Pause Mark End 0.005ms
+[0.853s][info][gc,phases] GC(33) y: Concurrent Mark Free 0.000ms
+[0.853s][info][gc,phases] GC(33) y: Concurrent Reset Relocation Set 0.004ms
+[0.854s][info][gc,phases] GC(31) O: Concurrent Select Relocation Set 2.239ms
+[0.856s][info][gc,phases] GC(33) y: Concurrent Select Relocation Set 2.815ms
+[0.856s][info][gc,phases] GC(33) y: Pause Relocate Start 0.004ms
+[0.857s][info][gc,phases] GC(33) y: Concurrent Relocate 0.361ms
+[0.857s][info][gc,phases] GC(33) y: Young Generation 492M(96%)-&gt;288M(56%) 0.005s
+[0.857s][info][gc       ] GC(33) Minor Collection (Allocation Rate) 492M(96%)-&gt;288M(56%) 0.005s
+finished in 435 ms, still holding 4200 objects
+[0.893s][info][gc,phases] GC(31) O: Concurrent Remap Roots 36.056ms
+[0.893s][info][gc,phases] GC(31) O: Pause Relocate Start 0.008ms
+[0.893s][info][gc       ] GC(34) Minor Collection (Allocation Rate)
+[0.893s][info][gc,phases] GC(34) y: Young Generation
+[0.893s][info][gc,phases] GC(34) y: Pause Mark Start 0.006ms
+[0.894s][info][gc,phases] GC(34) y: Young Generation Aborted
+[0.894s][info][gc       ] GC(34) Minor Collection (Allocation Rate) Aborted
+[0.895s][info][gc,phases] GC(31) O: Old Generation Aborted
+[0.895s][info][gc       ] GC(31) Major Collection (Allocation Rate) Aborted
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

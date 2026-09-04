@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 11 of the Java interview study series.">
+<title>Forty Five Minutes, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 11 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>Forty Five Minutes</h1>
+<p class="tagline">Every number on the episode page came from running this. 18 files, 30.9 KB.</p>
+<p class="codeacts"><a class="dl" href="ep11.zip" download>Download all, 14.5 KB</a><a class="back2" href="../ep11.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">README.md</span><span class="fmeta">4.2 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 11 demos
+
+Captured on Java 24.0.2. One notification service, built the way the low level
+design round asks for it, plus the two measurements that decide whether the
+design is any good.
+
+## 1. The service
+
+```bash
+cd service &amp;&amp; java Main.java
+```
+
+Fifteen small files. Three channels behind one interface, a factory, two
+listeners, a bounded queue with three workers, an exception hierarchy, retries,
+and a dead letter queue.
+
+The whole retry decision is one line, because the exception knows the answer:
+
+```java
+if (!e.worthRetrying()) { giveUp(...); }
+```
+
+What that buys, from the real run:
+
+```
+bad address, cannot ever work:
+  N-4 GAVE UP: permanent: not an email address: asha-at-example.com
+
+provider busy, worth trying again:
+  retry N-5 in 50 ms, attempt 1 failed: sms provider busy
+  retry N-5 in 100 ms, attempt 2 failed: sms provider busy
+  [sms] delivered to +919000000001 on attempt 3
+```
+
+**The permanent failure used 1 attempt. The temporary one used 3.** Nothing in
+the service asked what kind of failure it was; it asked the exception.
+
+The same request submitted twice with the same idempotency key was sent once:
+
+```
+[email] delivered to ravi@example.com
+ignored duplicate of N-7, key pay-9912
+```
+
+### The queue is bounded, and that number is not stable
+
+Queue capacity 10, three workers, 40 notifications submitted at once. Four runs:
+
+| run | accepted | rejected |
+|---|---|---|
+| 1 | 31 | 9 |
+| 2 | 27 | 13 |
+| 3 | 29 | 11 |
+| 4 | 26 | 14 |
+
+**This varies on purpose and it is worth saying so out loud in an interview.**
+How many get rejected depends on how fast three workers drain the queue against
+how fast the caller fills it. You cannot reason your way to the number, you
+measure it, and then you pick the capacity from what you measured.
+
+Stable across every run: 4 retries, 1 dead lettered, and the dead letter queue
+holding exactly the permanently broken one after a single attempt.
+
+## 2. Rate limiters
+
+```bash
+java RateLimiterCompare.java
+```
+
+Limit: 10 per second. The clock is a plain number the test moves forward, so
+the results are about the algorithm and not about thread scheduling.
+
+**A burst straddling a window boundary.** Ten requests just before the 1000 ms
+mark and ten just after, so twenty inside 60 ms:
+
+```
+limiter                 allowed   worst 1s   verdict
+fixed window                 20         20   over 10 by 10
+sliding window log           10         10   never over 10
+token bucket 20/10           20         20   over 10 by 10
+```
+
+**The fixed window and the token bucket allowed exactly the same 20 requests.**
+That is the interesting part, because the reasons are opposite. Slide the same
+burst across every millisecond of the window and the difference shows up:
+
+```
+limiter                   best case     worst case
+fixed window                     10             20   depends on timing
+sliding window log               10             10   same every time
+token bucket 20/10               20             20   same every time
+```
+
+The token bucket lets 20 through **every time, because 20 is the capacity you
+set**. The fixed window lets 20 through **only when the traffic happens to land
+on a boundary**. One is a dial. The other is luck.
+
+A quiet client that then sends 30 at once: fixed window 10, sliding window 10,
+token bucket 20, which is the burst it was configured to forgive.
+
+## 3. Retries and the dead letter queue
+
+```bash
+java RetryAndDlq.java
+```
+
+**Everyone fails at the same moment.** 500 clients, three retries each, backoff
+100 ms doubling:
+
+| | retries | 10 ms slices used | worst slice |
+|---|---|---|---|
+| no jitter, plain backoff | 1500 | **3** | **500** |
+| with jitter | 1500 | 66 | 78 |
+
+Plain exponential backoff does not spread anything out. It moves the whole crowd
+together, so the server that just failed is hit by all 500 clients at once,
+three times over. Jitter cut the worst slice from 500 to 78, about **6.4 times
+lower**.
+
+**What it costs to retry something that can never work.** 200 notifications, 60
+of them permanently broken, up to 4 attempts:
+
+| | attempts used | time spent waiting |
+|---|---|---|
+| retry everything the same way | 520 | 56,000 ms |
+| ask the exception first | 340 | 14,000 ms |
+
+**180 wasted attempts and 42 seconds of waiting**, removed by one method on the
+exception base class.
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">RateLimiterCompare.java</span><span class="fmeta">7.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/RateLimiterCompare.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayDeque;
+<span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.Deque;
+<span class="kw">import</span> java.util.HashMap;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+
+<span class="cm">/**
+ * Three rate limiters, given exactly the same requests.
+ *
+ * The clock is a plain long that the test moves forward, not the real one.
+ * That is deliberate: a test that sleeps is slow and flaky, and the point
+ * here is what the algorithm decides, not how the machine schedules threads.
+ *
+ *   java RateLimiterCompare.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> RateLimiterCompare {
+
+    <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> LIMIT = <span class="nm">10</span>;          <span class="cm">// allowed per second</span>
+    <span class="kw">static</span> <span class="kw">final</span> <span class="kw">long</span> WINDOW = <span class="nm">1000</span>;      <span class="cm">// one second</span>
+
+    <span class="kw">interface</span> Limiter {
+        String name();
+        <span class="kw">boolean</span> allow(String client, <span class="kw">long</span> nowMs);
+    }
+
+    <span class="cm">/** Counts per fixed block of time. The cheapest, and the one with a hole in it. */</span>
+    <span class="kw">static</span> <span class="kw">class</span> FixedWindow <span class="kw">implements</span> Limiter {
+        <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, <span class="kw">long</span>[]&gt; state = <span class="kw">new</span> HashMap&lt;&gt;();   <span class="cm">// [windowId, count]</span>
+        <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"fixed window"</span>; }
+        <span class="kw">public</span> <span class="kw">boolean</span> allow(String client, <span class="kw">long</span> now) {
+            <span class="kw">long</span> window = now / WINDOW;
+            <span class="kw">long</span>[] s = state.computeIfAbsent(client, k -&gt; <span class="kw">new</span> <span class="kw">long</span>[]{window, <span class="nm">0</span>});
+            <span class="kw">if</span> (s[<span class="nm">0</span>] != window) { s[<span class="nm">0</span>] = window; s[<span class="nm">1</span>] = <span class="nm">0</span>; }
+            <span class="kw">if</span> (s[<span class="nm">1</span>] &lt; LIMIT) { s[<span class="nm">1</span>]++; <span class="kw">return</span> <span class="kw">true</span>; }
+            <span class="kw">return</span> <span class="kw">false</span>;
+        }
+    }
+
+    <span class="cm">/** Keeps every timestamp in the last second. Exact, and the most expensive. */</span>
+    <span class="kw">static</span> <span class="kw">class</span> SlidingWindowLog <span class="kw">implements</span> Limiter {
+        <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, Deque&lt;Long&gt;&gt; state = <span class="kw">new</span> HashMap&lt;&gt;();
+        <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"sliding window log"</span>; }
+        <span class="kw">public</span> <span class="kw">boolean</span> allow(String client, <span class="kw">long</span> now) {
+            Deque&lt;Long&gt; times = state.computeIfAbsent(client, k -&gt; <span class="kw">new</span> ArrayDeque&lt;&gt;());
+            <span class="kw">while</span> (!times.isEmpty() &amp;&amp; times.peekFirst() &lt;= now - WINDOW) times.pollFirst();
+            <span class="kw">if</span> (times.size() &lt; LIMIT) { times.addLast(now); <span class="kw">return</span> <span class="kw">true</span>; }
+            <span class="kw">return</span> <span class="kw">false</span>;
+        }
+    }
+
+    <span class="cm">/**
+     * Refills steadily and lets a saved up burst through on purpose.
+     *
+     * Capacity and refill rate are two separate dials, and that is the whole
+     * point of this algorithm. Capacity says how big a burst you will forgive
+     * after a quiet spell. Rate says what you will sustain. Setting capacity
+     * equal to the rate throws the feature away.
+     */</span>
+    <span class="kw">static</span> <span class="kw">class</span> TokenBucket <span class="kw">implements</span> Limiter {
+        <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, <span class="kw">double</span>[]&gt; state = <span class="kw">new</span> HashMap&lt;&gt;();  <span class="cm">// [tokens, lastRefillMs]</span>
+        <span class="kw">private</span> <span class="kw">final</span> <span class="kw">int</span> capacity;
+        <span class="kw">private</span> <span class="kw">final</span> <span class="kw">double</span> perMs;
+        TokenBucket(<span class="kw">int</span> capacity, <span class="kw">int</span> ratePerSecond) {
+            <span class="kw">this</span>.capacity = capacity;
+            <span class="kw">this</span>.perMs = (<span class="kw">double</span>) ratePerSecond / WINDOW;
+        }
+        <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"token bucket "</span> + capacity + <span class="st">"/"</span> + LIMIT; }
+        <span class="kw">public</span> <span class="kw">boolean</span> allow(String client, <span class="kw">long</span> now) {
+            <span class="kw">double</span>[] s = state.computeIfAbsent(client, k -&gt; <span class="kw">new</span> <span class="kw">double</span>[]{capacity, now});
+            s[<span class="nm">0</span>] = Math.min(capacity, s[<span class="nm">0</span>] + (now - s[<span class="nm">1</span>]) * perMs);
+            s[<span class="nm">1</span>] = now;
+            <span class="kw">if</span> (s[<span class="nm">0</span>] &gt;= <span class="nm">1</span>) { s[<span class="nm">0</span>] -= <span class="nm">1</span>; <span class="kw">return</span> <span class="kw">true</span>; }
+            <span class="kw">return</span> <span class="kw">false</span>;
+        }
+    }
+
+    <span class="cm">/** The measurement that matters: the most it ever let through in any one second. */</span>
+    <span class="kw">static</span> <span class="kw">int</span> worstSecond(List&lt;Long&gt; allowed) {
+        <span class="kw">int</span> worst = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; allowed.size(); i++) {
+            <span class="kw">int</span> n = <span class="nm">0</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> j = i; j &lt; allowed.size(); j++) {
+                <span class="kw">if</span> (allowed.get(j) - allowed.get(i) &lt; WINDOW) n++; <span class="kw">else</span> <span class="kw">break</span>;
+            }
+            worst = Math.max(worst, n);
+        }
+        <span class="kw">return</span> worst;
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> run(String title, List&lt;Long&gt; requests, String explain) {
+        System.out.println(<span class="st">"=== "</span> + title + <span class="st">" ==="</span>);
+        System.out.println(<span class="st">"  "</span> + requests.size() + <span class="st">" requests. The limit is "</span>
+                + LIMIT + <span class="st">" per second."</span>);
+        System.out.println(<span class="st">"  "</span> + explain);
+        System.out.println();
+        System.out.printf(<span class="st">"  %-20s %10s %10s   %s%n"</span>,
+                <span class="st">"limiter"</span>, <span class="st">"allowed"</span>, <span class="st">"worst 1s"</span>, <span class="st">"verdict"</span>);
+        System.out.println(<span class="st">"  "</span> + <span class="st">"-"</span>.repeat(<span class="nm">62</span>));
+
+        <span class="kw">for</span> (Limiter lim : List.of(<span class="kw">new</span> FixedWindow(), <span class="kw">new</span> SlidingWindowLog(),
+                                   <span class="kw">new</span> TokenBucket(<span class="nm">20</span>, LIMIT))) {
+            List&lt;Long&gt; allowed = <span class="kw">new</span> ArrayList&lt;&gt;();
+            <span class="kw">for</span> (<span class="kw">long</span> t : requests) <span class="kw">if</span> (lim.allow(<span class="st">"client-a"</span>, t)) allowed.add(t);
+            <span class="kw">int</span> worst = worstSecond(allowed);
+            System.out.printf(<span class="st">"  %-20s %10d %10d   %s%n"</span>,
+                    lim.name(), allowed.size(), worst,
+                    worst &gt; LIMIT ? <span class="st">"over "</span> + LIMIT + <span class="st">" by "</span> + (worst - LIMIT) : <span class="st">"never over "</span> + LIMIT);
+        }
+        System.out.println();
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        <span class="cm">// 1. steady traffic, well inside the limit</span>
+        List&lt;Long&gt; steady = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">long</span> t = <span class="nm">0</span>; t &lt; <span class="nm">3000</span>; t += <span class="nm">200</span>) steady.add(t);
+        run(<span class="st">"steady traffic, 5 per second"</span>, steady,
+            <span class="st">"One request every 200 ms for three seconds. Nothing should be blocked."</span>);
+
+        <span class="cm">// 2. the boundary. 10 at the end of one window, 10 at the start of the next.</span>
+        List&lt;Long&gt; boundary = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">10</span>; i++) boundary.add(<span class="nm">950L</span> + i);     <span class="cm">// 950 to 959</span>
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">10</span>; i++) boundary.add(<span class="nm">1000L</span> + i);    <span class="cm">// 1000 to 1009</span>
+        run(<span class="st">"a burst straddling a window boundary"</span>, boundary,
+            <span class="st">"10 requests just before the 1000 ms mark and 10 just after, so 20 inside 60 ms."</span>);
+
+        <span class="cm">// 4. the same burst, slid across the window, to see how much the answer</span>
+        <span class="cm">//    depends on where the traffic happens to land</span>
+        System.out.println(<span class="st">"=== does the answer depend on luck? ==="</span>);
+        System.out.println(<span class="st">"  The same burst of 20 requests, slid one millisecond at a"</span>);
+        System.out.println(<span class="st">"  time across a whole window. If a limiter is predictable, the"</span>);
+        System.out.println(<span class="st">"  worst second is the same wherever the burst lands."</span>);
+        System.out.println();
+        System.out.printf(<span class="st">"  %-20s %14s %14s%n"</span>, <span class="st">"limiter"</span>, <span class="st">"best case"</span>, <span class="st">"worst case"</span>);
+        System.out.println(<span class="st">"  "</span> + <span class="st">"-"</span>.repeat(<span class="nm">52</span>));
+        <span class="kw">for</span> (<span class="kw">int</span> which = <span class="nm">0</span>; which &lt; <span class="nm">3</span>; which++) {
+            <span class="kw">int</span> lo = <span class="nm">999</span>, hi = <span class="nm">0</span>;
+            <span class="kw">for</span> (<span class="kw">long</span> offset = <span class="nm">0</span>; offset &lt; <span class="nm">1000</span>; offset += <span class="nm">1</span>) {
+                Limiter lim = which == <span class="nm">0</span> ? <span class="kw">new</span> FixedWindow()
+                            : which == <span class="nm">1</span> ? <span class="kw">new</span> SlidingWindowLog()
+                            : <span class="kw">new</span> TokenBucket(<span class="nm">20</span>, LIMIT);
+                List&lt;Long&gt; reqs = <span class="kw">new</span> ArrayList&lt;&gt;();
+                <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) reqs.add(<span class="nm">10000L</span> + offset + i);
+                List&lt;Long&gt; allowed = <span class="kw">new</span> ArrayList&lt;&gt;();
+                <span class="kw">for</span> (<span class="kw">long</span> t : reqs) <span class="kw">if</span> (lim.allow(<span class="st">"c"</span>, t)) allowed.add(t);
+                <span class="kw">int</span> w = worstSecond(allowed);
+                lo = Math.min(lo, w); hi = Math.max(hi, w);
+            }
+            String nm = which == <span class="nm">0</span> ? <span class="st">"fixed window"</span> : which == <span class="nm">1</span> ? <span class="st">"sliding window log"</span>
+                                                   : <span class="st">"token bucket 20/10"</span>;
+            System.out.printf(<span class="st">"  %-20s %14d %14d   %s%n"</span>, nm, lo, hi,
+                    lo == hi ? <span class="st">"same every time"</span> : <span class="st">"depends on timing"</span>);
+        }
+        System.out.println();
+
+        <span class="cm">// 3. a client that was quiet and then sends everything at once</span>
+        List&lt;Long&gt; saved = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">30</span>; i++) saved.add(<span class="nm">5000L</span> + i);
+        run(<span class="st">"quiet for five seconds, then 30 at once"</span>, saved,
+            <span class="st">"Nothing sent for five seconds, then 30 requests in 30 ms. The bucket holds 20."</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">RetryAndDlq.java</span><span class="fmeta">4.8 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/RetryAndDlq.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Random;
+<span class="kw">import</span> java.util.TreeMap;
+
+<span class="cm">/**
+ * Two things every low level design round asks about once you mention retries.
+ *
+ * 1. What happens when everyone retries at the same moment.
+ * 2. What it costs to retry something that can never succeed.
+ *
+ * The clock is simulated, so the numbers are about the algorithm and not
+ * about how this machine felt on the day.
+ *
+ *   java RetryAndDlq.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> RetryAndDlq {
+
+    <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> CLIENTS = <span class="nm">500</span>;
+    <span class="kw">static</span> <span class="kw">final</span> <span class="kw">long</span> BASE_MS = <span class="nm">100</span>;
+    <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> MAX_ATTEMPTS = <span class="nm">4</span>;
+
+    <span class="cm">/** Every client fails at t=0 and retries on the same schedule. */</span>
+    <span class="kw">static</span> List&lt;Long&gt; retryTimes(<span class="kw">boolean</span> jitter, <span class="kw">long</span> seed) {
+        Random rnd = <span class="kw">new</span> Random(seed);
+        List&lt;Long&gt; arrivals = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">int</span> c = <span class="nm">0</span>; c &lt; CLIENTS; c++) {
+            <span class="kw">long</span> t = <span class="nm">0</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> attempt = <span class="nm">1</span>; attempt &lt; MAX_ATTEMPTS; attempt++) {
+                <span class="kw">long</span> backoff = BASE_MS * (<span class="nm">1L</span> &lt;&lt; (attempt - <span class="nm">1</span>));   <span class="cm">// 100, 200, 400</span>
+                <span class="kw">long</span> wait = jitter ? (<span class="kw">long</span>) (rnd.nextDouble() * backoff) : backoff;
+                t += wait;
+                arrivals.add(t);
+            }
+        }
+        <span class="kw">return</span> arrivals;
+    }
+
+    <span class="cm">/** The number that matters: the most retries landing in any 10 ms slice. */</span>
+    <span class="kw">static</span> <span class="kw">int</span> peakPer10ms(List&lt;Long&gt; arrivals) {
+        TreeMap&lt;Long, Integer&gt; buckets = <span class="kw">new</span> TreeMap&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">long</span> t : arrivals) buckets.merge(t / <span class="nm">10</span>, <span class="nm">1</span>, Integer::sum);
+        <span class="kw">return</span> buckets.values().stream().mapToInt(Integer::intValue).max().orElse(<span class="nm">0</span>);
+    }
+
+    <span class="kw">static</span> <span class="kw">int</span> distinctSlices(List&lt;Long&gt; arrivals) {
+        <span class="kw">return</span> (<span class="kw">int</span>) arrivals.stream().map(t -&gt; t / <span class="nm">10</span>).distinct().count();
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> storm() {
+        System.out.println(<span class="st">"=== 1. everyone fails at the same moment ==="</span>);
+        System.out.println(<span class="st">"  "</span> + CLIENTS + <span class="st">" clients, up to "</span> + (MAX_ATTEMPTS - <span class="nm">1</span>)
+                + <span class="st">" retries each, backoff "</span> + BASE_MS + <span class="st">" ms doubling each time."</span>);
+        System.out.println();
+        System.out.printf(<span class="st">"  %-28s %10s %14s %16s%n"</span>,
+                <span class="st">""</span>, <span class="st">"retries"</span>, <span class="st">"10 ms slices"</span>, <span class="st">"worst slice"</span>);
+        System.out.println(<span class="st">"  "</span> + <span class="st">"-"</span>.repeat(<span class="nm">72</span>));
+
+        <span class="kw">for</span> (<span class="kw">boolean</span> jitter : <span class="kw">new</span> <span class="kw">boolean</span>[]{<span class="kw">false</span>, <span class="kw">true</span>}) {
+            List&lt;Long&gt; a = retryTimes(jitter, <span class="nm">42</span>);
+            System.out.printf(<span class="st">"  %-28s %10d %14d %16d%n"</span>,
+                    jitter ? <span class="st">"with jitter"</span> : <span class="st">"no jitter, plain backoff"</span>,
+                    a.size(), distinctSlices(a), peakPer10ms(a));
+        }
+        System.out.println();
+        System.out.println(<span class="st">"  Plain backoff does not spread anything out. It moves the whole"</span>);
+        System.out.println(<span class="st">"  crowd together, so the server that just failed gets hit by all"</span>);
+        System.out.println(<span class="st">"  "</span> + CLIENTS + <span class="st">" of them at once, three times over."</span>);
+        System.out.println();
+    }
+
+    <span class="cm">/** A notification that either can be delivered later, or never can. */</span>
+    <span class="kw">record</span> Item(String id, <span class="kw">boolean</span> permanentlyBroken) {}
+
+    <span class="kw">static</span> <span class="kw">void</span> classification() {
+        System.out.println(<span class="st">"=== 2. what it costs to retry something that cannot work ==="</span>);
+
+        <span class="kw">int</span> total = <span class="nm">200</span>, broken = <span class="nm">60</span>;
+        List&lt;Item&gt; items = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; total; i++) items.add(<span class="kw">new</span> Item(<span class="st">"N-"</span> + i, i &lt; broken));
+
+        <span class="kw">for</span> (<span class="kw">boolean</span> classify : <span class="kw">new</span> <span class="kw">boolean</span>[]{<span class="kw">false</span>, <span class="kw">true</span>}) {
+            <span class="kw">int</span> attempts = <span class="nm">0</span>, delivered = <span class="nm">0</span>, deadLettered = <span class="nm">0</span>;
+            <span class="kw">long</span> clockMs = <span class="nm">0</span>;
+
+            <span class="kw">for</span> (Item item : items) {
+                <span class="kw">if</span> (!item.permanentlyBroken()) {
+                    attempts += <span class="nm">2</span>;                    <span class="cm">// busy once, then delivered</span>
+                    clockMs += BASE_MS;               <span class="cm">// one backoff wait</span>
+                    delivered++;
+                    <span class="kw">continue</span>;
+                }
+                <span class="kw">if</span> (classify) {
+                    attempts += <span class="nm">1</span>;                    <span class="cm">// one look is enough</span>
+                    deadLettered++;
+                } <span class="kw">else</span> {
+                    attempts += MAX_ATTEMPTS;         <span class="cm">// try, wait, try, wait, try, wait, give up</span>
+                    <span class="kw">for</span> (<span class="kw">int</span> a = <span class="nm">1</span>; a &lt; MAX_ATTEMPTS; a++) clockMs += BASE_MS * (<span class="nm">1L</span> &lt;&lt; (a - <span class="nm">1</span>));
+                    deadLettered++;
+                }
+            }
+            System.out.println();
+            System.out.println(<span class="st">"  "</span> + (classify
+                    ? <span class="st">"asking the exception whether a retry could ever work:"</span>
+                    : <span class="st">"retrying everything the same way:"</span>));
+            System.out.println(<span class="st">"    attempts used        "</span> + attempts);
+            System.out.println(<span class="st">"    delivered            "</span> + delivered);
+            System.out.println(<span class="st">"    dead lettered        "</span> + deadLettered);
+            System.out.println(<span class="st">"    time spent waiting   "</span> + clockMs + <span class="st">" ms"</span>);
+        }
+        System.out.println();
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        storm();
+        classification();
+    }
+}
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">service</h2>
+<details class="f">
+<summary><span class="fname">AuditListener.java</span><span class="fmeta">368 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/AuditListener.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> AuditListener <span class="kw">implements</span> NotificationListener {
+    <span class="kw">public</span> <span class="kw">void</span> sent(Notification n, <span class="kw">int</span> attempts) {
+        System.out.println(<span class="st">"      [audit] "</span> + n.id() + <span class="st">" sent after "</span> + attempts + <span class="st">" attempt(s)"</span>);
+    }
+    <span class="kw">public</span> <span class="kw">void</span> deadLettered(Notification n, String reason) {
+        System.out.println(<span class="st">"      [audit] "</span> + n.id() + <span class="st">" GAVE UP: "</span> + reason);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Channel.java</span><span class="fmeta">259 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/Channel.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * One way of getting a notification to a person. Adding a fourth channel is a
+ * new file that implements this, and no existing file changes.
+ */</span>
+<span class="kw">public</span> <span class="kw">interface</span> Channel {
+    String name();
+    <span class="kw">void</span> send(Notification n) <span class="kw">throws</span> NotificationException;
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ChannelUnavailableException.java</span><span class="fmeta">292 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/ChannelUnavailableException.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Temporary. The provider is down or busy. Later is genuinely worth a try. */</span>
+<span class="kw">public</span> <span class="kw">class</span> ChannelUnavailableException <span class="kw">extends</span> NotificationException {
+    <span class="kw">public</span> ChannelUnavailableException(String message) { <span class="kw">super</span>(message); }
+    <span class="an">@Override</span> <span class="kw">public</span> <span class="kw">boolean</span> worthRetrying() { <span class="kw">return</span> <span class="kw">true</span>; }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Channels.java</span><span class="fmeta">720 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/Channels.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.LinkedHashMap;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+
+<span class="cm">/**
+ * The factory. Callers ask for a channel by name and never write
+ * "new EmailChannel()" themselves, so the set of channels can grow without
+ * any caller changing.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Channels {
+    <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, Channel&gt; byName = <span class="kw">new</span> LinkedHashMap&lt;&gt;();
+
+    <span class="kw">public</span> Channels(List&lt;Channel&gt; channels) {
+        <span class="kw">for</span> (Channel c : channels) byName.put(c.name(), c);
+    }
+
+    <span class="kw">public</span> Channel get(String name) {
+        Channel c = byName.get(name);
+        <span class="kw">if</span> (c == <span class="kw">null</span>) <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"no such channel: "</span> + name);
+        <span class="kw">return</span> c;
+    }
+
+    <span class="kw">public</span> java.util.Set&lt;String&gt; names() { <span class="kw">return</span> byName.keySet(); }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">DeadLetterQueue.java</span><span class="fmeta">592 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/DeadLetterQueue.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.Collections;
+<span class="kw">import</span> java.util.List;
+
+<span class="cm">/** Where a notification goes when it will never be delivered. */</span>
+<span class="kw">public</span> <span class="kw">class</span> DeadLetterQueue {
+    <span class="kw">public</span> <span class="kw">record</span> Entry(Notification notification, String reason, <span class="kw">int</span> attempts) {}
+
+    <span class="kw">private</span> <span class="kw">final</span> List&lt;Entry&gt; entries = Collections.synchronizedList(<span class="kw">new</span> ArrayList&lt;&gt;());
+
+    <span class="kw">public</span> <span class="kw">void</span> add(Notification n, String reason, <span class="kw">int</span> attempts) {
+        entries.add(<span class="kw">new</span> Entry(n, reason, attempts));
+    }
+    <span class="kw">public</span> List&lt;Entry&gt; all() { <span class="kw">return</span> List.copyOf(entries); }
+    <span class="kw">public</span> <span class="kw">int</span> size() { <span class="kw">return</span> entries.size(); }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">EmailChannel.java</span><span class="fmeta">462 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/EmailChannel.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> EmailChannel <span class="kw">implements</span> Channel {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"email"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> send(Notification n) <span class="kw">throws</span> NotificationException {
+        <span class="kw">if</span> (!n.recipient().contains(<span class="st">"@"</span>)) {
+            <span class="cm">// wrong today and wrong in ten minutes, so never retry this</span>
+            <span class="kw">throw</span> <span class="kw">new</span> InvalidRecipientException(<span class="st">"not an email address: "</span> + n.recipient());
+        }
+        System.out.println(<span class="st">"      [email] delivered to "</span> + n.recipient());
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">InvalidRecipientException.java</span><span class="fmeta">288 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/InvalidRecipientException.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Permanent. The address is wrong and will still be wrong in ten minutes. */</span>
+<span class="kw">public</span> <span class="kw">class</span> InvalidRecipientException <span class="kw">extends</span> NotificationException {
+    <span class="kw">public</span> InvalidRecipientException(String message) { <span class="kw">super</span>(message); }
+    <span class="an">@Override</span> <span class="kw">public</span> <span class="kw">boolean</span> worthRetrying() { <span class="kw">return</span> <span class="kw">false</span>; }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Main.java</span><span class="fmeta">3.0 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * Runs the notification service end to end.
+ *
+ *   java Main.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Main {
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        Channels channels = <span class="kw">new</span> Channels(List.of(
+                <span class="kw">new</span> EmailChannel(), <span class="kw">new</span> SmsChannel(), <span class="kw">new</span> PushChannel()));
+        DeadLetterQueue dlq = <span class="kw">new</span> DeadLetterQueue();
+        MetricsListener metrics = <span class="kw">new</span> MetricsListener();
+
+        <span class="kw">try</span> (NotificationService service = <span class="kw">new</span> NotificationService(
+                channels, dlq, List.of(metrics, <span class="kw">new</span> AuditListener()),
+                <span class="cm">/* queue capacity */</span> <span class="nm">10</span>, <span class="cm">/* workers */</span> <span class="nm">3</span>,
+                <span class="cm">/* max attempts */</span> <span class="nm">3</span>, <span class="cm">/* base delay ms */</span> <span class="nm">50</span>)) {
+
+            System.out.println(<span class="st">"=== 1. three channels, one interface ==="</span>);
+            service.submit(<span class="kw">new</span> Notification(<span class="st">"N-1"</span>, <span class="st">"asha@example.com"</span>, <span class="st">"email"</span>, <span class="st">"Order shipped"</span>, <span class="kw">null</span>));
+            service.submit(<span class="kw">new</span> Notification(<span class="st">"N-2"</span>, <span class="st">"+919876543210"</span>, <span class="st">"sms"</span>, <span class="st">"OTP 4417"</span>, <span class="kw">null</span>));
+            service.submit(<span class="kw">new</span> Notification(<span class="st">"N-3"</span>, <span class="st">"device-77"</span>, <span class="st">"push"</span>, <span class="st">"You have a reply"</span>, <span class="kw">null</span>));
+            service.drain(<span class="nm">3000</span>);
+
+            System.out.println();
+            System.out.println(<span class="st">"=== 2. a permanent failure and a temporary one ==="</span>);
+            System.out.println(<span class="st">"  bad address, cannot ever work:"</span>);
+            service.submit(<span class="kw">new</span> Notification(<span class="st">"N-4"</span>, <span class="st">"asha-at-example.com"</span>, <span class="st">"email"</span>, <span class="st">"Order shipped"</span>, <span class="kw">null</span>));
+            service.drain(<span class="nm">3000</span>);
+            System.out.println(<span class="st">"  provider busy, worth trying again:"</span>);
+            service.submit(<span class="kw">new</span> Notification(<span class="st">"N-5"</span>, <span class="st">"+919000000001"</span>, <span class="st">"sms"</span>, <span class="st">"OTP 8823"</span>, <span class="kw">null</span>));
+            service.drain(<span class="nm">3000</span>);
+
+            System.out.println();
+            System.out.println(<span class="st">"=== 3. the same request arrives twice ==="</span>);
+            service.submit(<span class="kw">new</span> Notification(<span class="st">"N-6"</span>, <span class="st">"ravi@example.com"</span>, <span class="st">"email"</span>, <span class="st">"Payment received"</span>, <span class="st">"pay-9912"</span>));
+            service.submit(<span class="kw">new</span> Notification(<span class="st">"N-7"</span>, <span class="st">"ravi@example.com"</span>, <span class="st">"email"</span>, <span class="st">"Payment received"</span>, <span class="st">"pay-9912"</span>));
+            service.drain(<span class="nm">3000</span>);
+
+            System.out.println();
+            System.out.println(<span class="st">"=== 4. more work than the queue can hold ==="</span>);
+            System.out.println(<span class="st">"  queue capacity is 10, submitting 40 at once:"</span>);
+            <span class="kw">int</span> accepted = <span class="nm">0</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">40</span>; i++) {
+                <span class="kw">if</span> (service.submit(<span class="kw">new</span> Notification(<span class="st">"B-"</span> + i, <span class="st">"device-"</span> + i, <span class="st">"push"</span>, <span class="st">"burst"</span>, <span class="kw">null</span>))) {
+                    accepted++;
+                }
+            }
+            System.out.println(<span class="st">"  accepted "</span> + accepted + <span class="st">", rejected "</span> + service.rejected());
+            service.drain(<span class="nm">5000</span>);
+
+            System.out.println();
+            System.out.println(<span class="st">"=== what happened ==="</span>);
+            System.out.println(<span class="st">"  "</span> + metrics.summary());
+            System.out.println(<span class="st">"  duplicates ignored: "</span> + service.duplicatesIgnored());
+            System.out.println(<span class="st">"  dead letter queue holds "</span> + dlq.size() + <span class="st">":"</span>);
+            <span class="kw">for</span> (DeadLetterQueue.Entry e : dlq.all()) {
+                System.out.println(<span class="st">"    "</span> + e.notification() + <span class="st">"  after "</span> + e.attempts()
+                        + <span class="st">" attempt(s), "</span> + e.reason());
+            }
+        }
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">MetricsListener.java</span><span class="fmeta">821 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/MetricsListener.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+
+<span class="kw">public</span> <span class="kw">class</span> MetricsListener <span class="kw">implements</span> NotificationListener {
+    <span class="kw">final</span> AtomicInteger sent = <span class="kw">new</span> AtomicInteger();
+    <span class="kw">final</span> AtomicInteger retries = <span class="kw">new</span> AtomicInteger();
+    <span class="kw">final</span> AtomicInteger dead = <span class="kw">new</span> AtomicInteger();
+    <span class="kw">final</span> AtomicInteger attemptsTotal = <span class="kw">new</span> AtomicInteger();
+
+    <span class="kw">public</span> <span class="kw">void</span> sent(Notification n, <span class="kw">int</span> attempts) {
+        sent.incrementAndGet(); attemptsTotal.addAndGet(attempts);
+    }
+    <span class="kw">public</span> <span class="kw">void</span> retrying(Notification n, <span class="kw">int</span> attempt, <span class="kw">long</span> delayMs) { retries.incrementAndGet(); }
+    <span class="kw">public</span> <span class="kw">void</span> deadLettered(Notification n, String reason) { dead.incrementAndGet(); }
+
+    <span class="kw">public</span> String summary() {
+        <span class="kw">return</span> <span class="st">"sent "</span> + sent + <span class="st">", dead lettered "</span> + dead
+             + <span class="st">", retries "</span> + retries + <span class="st">", attempts used "</span> + attemptsTotal;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Notification.java</span><span class="fmeta">562 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/Notification.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * One thing to send. A record because it never changes after it is created,
+ * which matters once several worker threads are holding the same one.
+ */</span>
+<span class="kw">public</span> <span class="kw">record</span> Notification(String id, String recipient, String channel,
+                           String body, String idempotencyKey) {
+
+    <span class="kw">public</span> Notification {
+        <span class="kw">if</span> (recipient == <span class="kw">null</span> || recipient.isBlank()) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"recipient is required"</span>);
+        }
+    }
+
+    <span class="an">@Override</span> <span class="kw">public</span> String toString() { <span class="kw">return</span> id + <span class="st">" to "</span> + recipient + <span class="st">" by "</span> + channel; }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">NotificationException.java</span><span class="fmeta">452 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/NotificationException.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * The base of the exception tree. The important field is not the message,
+ * it is whether trying again could ever work. Every retry decision in the
+ * whole system reads this one method, so the decision lives in one place
+ * instead of in a switch somewhere.
+ */</span>
+<span class="kw">public</span> <span class="kw">abstract</span> <span class="kw">class</span> NotificationException <span class="kw">extends</span> Exception {
+    <span class="kw">protected</span> NotificationException(String message) { <span class="kw">super</span>(message); }
+    <span class="kw">public</span> <span class="kw">abstract</span> <span class="kw">boolean</span> worthRetrying();
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">NotificationListener.java</span><span class="fmeta">390 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/NotificationListener.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * Anyone who wants to know what happened, without the service knowing who
+ * they are. Adding metrics or an audit trail does not touch the service.
+ */</span>
+<span class="kw">public</span> <span class="kw">interface</span> NotificationListener {
+    <span class="kw">default</span> <span class="kw">void</span> sent(Notification n, <span class="kw">int</span> attempts) {}
+    <span class="kw">default</span> <span class="kw">void</span> retrying(Notification n, <span class="kw">int</span> attempt, <span class="kw">long</span> delayMs) {}
+    <span class="kw">default</span> <span class="kw">void</span> deadLettered(Notification n, String reason) {}
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">NotificationService.java</span><span class="fmeta">5.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/NotificationService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+<span class="kw">import</span> java.util.concurrent.ArrayBlockingQueue;
+<span class="kw">import</span> java.util.concurrent.BlockingQueue;
+<span class="kw">import</span> java.util.concurrent.ConcurrentHashMap;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.ScheduledExecutorService;
+<span class="kw">import</span> java.util.concurrent.TimeUnit;
+<span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+
+<span class="cm">/**
+ * The service the whole round is built around. It owns four decisions and
+ * nothing else: what goes on the queue, who picks it up, what happens when
+ * something fails, and who gets told.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> NotificationService <span class="kw">implements</span> AutoCloseable {
+
+    <span class="cm">/** One item of work, carrying how many times it has already been tried. */</span>
+    <span class="kw">private</span> <span class="kw">record</span> Job(Notification n, <span class="kw">int</span> attempt) {}
+
+    <span class="kw">private</span> <span class="kw">final</span> Channels channels;
+    <span class="kw">private</span> <span class="kw">final</span> DeadLetterQueue dlq;
+    <span class="kw">private</span> <span class="kw">final</span> List&lt;NotificationListener&gt; listeners;
+    <span class="kw">private</span> <span class="kw">final</span> <span class="kw">int</span> maxAttempts;
+    <span class="kw">private</span> <span class="kw">final</span> <span class="kw">long</span> baseDelayMs;
+
+    <span class="kw">private</span> <span class="kw">final</span> BlockingQueue&lt;Job&gt; queue;
+    <span class="kw">private</span> <span class="kw">final</span> List&lt;Thread&gt; workers = <span class="kw">new</span> ArrayList&lt;&gt;();
+    <span class="kw">private</span> <span class="kw">final</span> ScheduledExecutorService retryClock =
+            Executors.newSingleThreadScheduledExecutor(r -&gt; {
+                Thread t = <span class="kw">new</span> Thread(r, <span class="st">"retry-clock"</span>); t.setDaemon(<span class="kw">true</span>); <span class="kw">return</span> t;
+            });
+
+    <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, String&gt; alreadyHandled = <span class="kw">new</span> ConcurrentHashMap&lt;&gt;();
+    <span class="kw">private</span> <span class="kw">final</span> AtomicInteger rejected = <span class="kw">new</span> AtomicInteger();
+    <span class="kw">private</span> <span class="kw">final</span> AtomicInteger duplicatesIgnored = <span class="kw">new</span> AtomicInteger();
+    <span class="kw">private</span> <span class="kw">final</span> AtomicInteger inFlight = <span class="kw">new</span> AtomicInteger();
+    <span class="kw">private</span> <span class="kw">volatile</span> <span class="kw">boolean</span> running = <span class="kw">true</span>;
+
+    <span class="kw">public</span> NotificationService(Channels channels, DeadLetterQueue dlq,
+                               List&lt;NotificationListener&gt; listeners,
+                               <span class="kw">int</span> queueCapacity, <span class="kw">int</span> workerCount,
+                               <span class="kw">int</span> maxAttempts, <span class="kw">long</span> baseDelayMs) {
+        <span class="kw">this</span>.channels = channels;
+        <span class="kw">this</span>.dlq = dlq;
+        <span class="kw">this</span>.listeners = List.copyOf(listeners);
+        <span class="kw">this</span>.maxAttempts = maxAttempts;
+        <span class="kw">this</span>.baseDelayMs = baseDelayMs;
+        <span class="kw">this</span>.queue = <span class="kw">new</span> ArrayBlockingQueue&lt;&gt;(queueCapacity);
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; workerCount; i++) {
+            Thread t = <span class="kw">new</span> Thread(<span class="kw">this</span>::workerLoop, <span class="st">"worker-"</span> + (i + <span class="nm">1</span>));
+            t.setDaemon(<span class="kw">true</span>);
+            workers.add(t);
+            t.start();
+        }
+    }
+
+    <span class="cm">/**
+     * Hand a notification in. Returns false when the queue is full, which is
+     * the honest answer: the caller decides whether to wait, drop it or fail.
+     * Blocking here instead would push the problem up the stack invisibly.
+     */</span>
+    <span class="kw">public</span> <span class="kw">boolean</span> submit(Notification n) {
+        String key = n.idempotencyKey();
+        <span class="kw">if</span> (key != <span class="kw">null</span> &amp;&amp; alreadyHandled.putIfAbsent(key, n.id()) != <span class="kw">null</span>) {
+            duplicatesIgnored.incrementAndGet();
+            System.out.println(<span class="st">"    ignored duplicate of "</span> + n.id() + <span class="st">", key "</span> + key);
+            <span class="kw">return</span> <span class="kw">true</span>;
+        }
+        inFlight.incrementAndGet();
+        <span class="kw">boolean</span> accepted = queue.offer(<span class="kw">new</span> Job(n, <span class="nm">1</span>));
+        <span class="kw">if</span> (!accepted) {
+            inFlight.decrementAndGet();
+            rejected.incrementAndGet();
+            System.out.println(<span class="st">"    REJECTED "</span> + n.id() + <span class="st">", queue is full"</span>);
+        }
+        <span class="kw">return</span> accepted;
+    }
+
+    <span class="kw">private</span> <span class="kw">void</span> workerLoop() {
+        <span class="kw">while</span> (running) {
+            Job job;
+            <span class="kw">try</span> {
+                job = queue.poll(<span class="nm">100</span>, TimeUnit.MILLISECONDS);
+            } <span class="kw">catch</span> (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                <span class="kw">return</span>;
+            }
+            <span class="kw">if</span> (job != <span class="kw">null</span>) handle(job);
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">void</span> handle(Job job) {
+        Notification n = job.n();
+        <span class="kw">try</span> {
+            channels.get(n.channel()).send(n);
+            listeners.forEach(l -&gt; l.sent(n, job.attempt()));
+            inFlight.decrementAndGet();
+        } <span class="kw">catch</span> (NotificationException e) {
+            <span class="cm">// the whole retry decision is this one line</span>
+            <span class="kw">if</span> (!e.worthRetrying()) {
+                giveUp(n, <span class="st">"permanent: "</span> + e.getMessage(), job.attempt());
+            } <span class="kw">else</span> <span class="kw">if</span> (job.attempt() &gt;= maxAttempts) {
+                giveUp(n, <span class="st">"gave up after "</span> + maxAttempts + <span class="st">" attempts: "</span> + e.getMessage(),
+                        job.attempt());
+            } <span class="kw">else</span> {
+                <span class="kw">long</span> delay = baseDelayMs * (<span class="nm">1L</span> &lt;&lt; (job.attempt() - <span class="nm">1</span>));   <span class="cm">// 1x, 2x, 4x</span>
+                listeners.forEach(l -&gt; l.retrying(n, job.attempt(), delay));
+                System.out.println(<span class="st">"      retry "</span> + n.id() + <span class="st">" in "</span> + delay
+                        + <span class="st">" ms, attempt "</span> + job.attempt() + <span class="st">" failed: "</span> + e.getMessage());
+                retryClock.schedule(() -&gt; queue.offer(<span class="kw">new</span> Job(n, job.attempt() + <span class="nm">1</span>)),
+                        delay, TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">void</span> giveUp(Notification n, String reason, <span class="kw">int</span> attempts) {
+        dlq.add(n, reason, attempts);
+        listeners.forEach(l -&gt; l.deadLettered(n, reason));
+        inFlight.decrementAndGet();
+    }
+
+    <span class="kw">public</span> <span class="kw">void</span> drain(<span class="kw">long</span> timeoutMs) <span class="kw">throws</span> InterruptedException {
+        <span class="kw">long</span> deadline = System.currentTimeMillis() + timeoutMs;
+        <span class="kw">while</span> (inFlight.get() &gt; <span class="nm">0</span> &amp;&amp; System.currentTimeMillis() &lt; deadline) Thread.sleep(<span class="nm">10</span>);
+    }
+
+    <span class="kw">public</span> <span class="kw">int</span> rejected() { <span class="kw">return</span> rejected.get(); }
+    <span class="kw">public</span> <span class="kw">int</span> duplicatesIgnored() { <span class="kw">return</span> duplicatesIgnored.get(); }
+
+    <span class="an">@Override</span> <span class="kw">public</span> <span class="kw">void</span> close() {
+        running = <span class="kw">false</span>;
+        retryClock.shutdownNow();
+        workers.forEach(Thread::interrupt);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">PushChannel.java</span><span class="fmeta">219 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/PushChannel.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> PushChannel <span class="kw">implements</span> Channel {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"push"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> send(Notification n) {
+        System.out.println(<span class="st">"      [push] delivered to device "</span> + n.recipient());
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">SmsChannel.java</span><span class="fmeta">847 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep11/service/SmsChannel.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.Map;
+<span class="kw">import</span> java.util.concurrent.ConcurrentHashMap;
+
+<span class="cm">/**
+ * Fails the first two attempts for any recipient, then succeeds. Real
+ * providers fail unpredictably; this one fails predictably so the numbers
+ * in the output can be trusted.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> SmsChannel <span class="kw">implements</span> Channel {
+    <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, Integer&gt; attempts = <span class="kw">new</span> ConcurrentHashMap&lt;&gt;();
+
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"sms"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> send(Notification n) <span class="kw">throws</span> NotificationException {
+        <span class="kw">int</span> attempt = attempts.merge(n.recipient(), <span class="nm">1</span>, Integer::sum);
+        <span class="kw">if</span> (attempt &lt;= <span class="nm">2</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> ChannelUnavailableException(
+                    <span class="st">"sms provider busy, attempt "</span> + attempt + <span class="st">" for "</span> + n.recipient());
+        }
+        System.out.println(<span class="st">"      [sms] delivered to "</span> + n.recipient() + <span class="st">" on attempt "</span> + attempt);
+    }
+}
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 10 of the Java interview study series.">
+<title>The Cost of a Change, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 10 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>The Cost of a Change</h1>
+<p class="tagline">Every number on the episode page came from running this. 73 files, 52.0 KB.</p>
+<p class="codeacts"><a class="dl" href="ep10.zip" download>Download all, 34.0 KB</a><a class="back2" href="../ep10.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">README.md</span><span class="fmeta">4.5 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 10 demos
+
+Captured on Java 24.0.2. Every number below came from running the code or from
+`git diff --no-index --stat`, not from counting by hand.
+
+One checkout system, written twice. `tangled/` is one class that does everything.
+`clean/` is the same behaviour, factored. Both produce identical business output.
+
+```bash
+cd tangled &amp;&amp; java Main.java
+cd clean   &amp;&amp; java Main.java
+```
+
+## Before any change
+
+| | lines | files |
+|---|---|---|
+| tangled | 103 | 6 |
+| clean | 157 | 13 |
+
+**The clean version is 52 percent more code in 2.2 times the files.** Anyone who
+tells you SOLID makes the code smaller has not measured it.
+
+## Change 1: add UPI as a payment method
+
+```bash
+git diff --no-index --stat tangled add-upi/tangled
+git diff --no-index --stat clean   add-upi/clean
+```
+
+```
+tangled   Main.java         | 2 +-
+          OrderService.java | 9 +++++++++
+          2 files changed, 10 insertions(+), 1 deletion(-)
+
+clean     Main.java         |  4 ++--
+          UpiPayment.java   | 16 ++++++++++++++++
+          2 files changed, 18 insertions(+), 2 deletions(-)
+```
+
+**The clean version wrote more lines, 18 against 10.** That is not the point.
+
+| | lines of existing logic modified |
+|---|---|
+| tangled | 9, spread over three places inside the method that also opens the database and sends the email |
+| clean | 0 |
+
+In the clean version, 12 of the 13 existing files came out byte identical.
+`CardPayment.java` and `NetBankingPayment.java` were never opened. The only
+file touched was `Main.java`, which is the wiring, and that is the job a
+framework like Spring does for you.
+
+## Change 2: marketing wants different email wording
+
+```
+tangled   OrderService.java  | 4 +++-   3 insertions, 1 deletion
+clean     EmailNotifier.java | 5 +++--  3 insertions, 2 deletions
+```
+
+Almost the same number of lines. **The difference is which file.** A wording
+change from the marketing team edited the payment logic file. That is what
+"more than one reason to change" costs in practice.
+
+## Liskov: the subclass that breaks its parent's promise
+
+```bash
+cd proofs &amp;&amp; java LiskovProof.java
+```
+
+One test, written once against the parent's promise:
+
+```
+card         contract holds? true
+netbanking   contract holds? true
+gift card    contract holds? false
+```
+
+The damage is not a tidy exception. A refund batch written against the parent
+type stops halfway:
+
+```
+refunded Rs 500.00 by card
+STOPPED: gift cards are not refundable
+batch died after 1 of 3. Rs 500.00 already left the account and the rest
+never ran. Nobody wrote a bug. The subclass broke a promise.
+```
+
+## Interface segregation: counted, not argued
+
+```bash
+cd proofs &amp;&amp; java FatInterfaceProof.java
+```
+
+```
+                  charge      refund      schedule    splitAcross
+card              works       works       works       works
+upi               works       works       throws      throws
+cash on delivery  works       throws      throws      throws
+
+12 method implementations had to be written.
+7 do something. 5 exist only to throw, which is 41 percent.
+```
+
+The compiler allowed all of it, because every class really does implement every
+method. Split the interface into `PaymentMethod`, `Refundable`, `Schedulable`
+and `Splittable`, and the same mistake stops being a production crash:
+
+```bash
+cd proofs/segregated &amp;&amp; javac *.java
+```
+
+```
+Bad.java:5: error: incompatible types: UpiPayment cannot be converted to Splittable
+        System.out.println(SplitTheBill.run(new UpiPayment(), 3, 50000));
+                                            ^
+1 error
+```
+
+Methods in the segregated version that exist only to throw: **0**.
+
+## Dependency inversion: can the thing be tested at all
+
+```bash
+cd tangled &amp;&amp; java TangledTest.java
+cd clean   &amp;&amp; java CleanTest.java
+```
+
+Both timings are taken after a warm up run, so this is the work and not class
+loading.
+
+| | tangled | clean |
+|---|---|---|
+| time for one checkout | 301 ms | 158 microseconds |
+| real assertions possible | 1, that it did not throw | 5 |
+| needs a database | yes | no |
+| sends a real email | yes | no |
+
+**About 1,900 times faster**, and that ratio is the least interesting part. The
+tangled test cannot check the fee, because the number went into a database and
+was never handed back. The clean test checks the fee, the method, the order id,
+the email address and the gateway reference, because the fakes kept them.
+
+## The honest summary
+
+SOLID did not make this code shorter. It made it 52 percent longer. What it
+changed is where a change lands: in a new file instead of inside working code,
+and in the file that owns the concern instead of the file that owns everything.
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">add-upi</h2>
+<details class="f">
+<summary><span class="fname">clean/AuditLog.java</span><span class="fmeta">117 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/AuditLog.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> AuditLog {
+    <span class="kw">void</span> paymentTaken(String orderId, String method, String reference, <span class="kw">long</span> feePaise);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/CardPayment.java</span><span class="fmeta">568 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/CardPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> CardPayment <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"card"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> validate(Order order) {
+        <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">20000000</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"card limit is Rs 200000"</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise) {
+        <span class="kw">return</span> Math.round(amountPaise * <span class="nm">0.0195</span>) + <span class="nm">300</span>;
+    }
+
+    <span class="kw">public</span> String charge(Order order) {
+        System.out.println(<span class="st">"  [card gateway] charged "</span> + Money.rupees(order.amountPaise()));
+        <span class="kw">return</span> <span class="st">"CARD-"</span> + order.id() + <span class="st">"-ok"</span>;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/CheckoutService.java</span><span class="fmeta">1.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/CheckoutService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.LinkedHashMap;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+
+<span class="cm">/**
+ * Orchestrates a checkout and does none of the work itself. It names four
+ * interfaces and not one concrete class, so every part of it can be swapped
+ * or faked without editing this file.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> CheckoutService {
+
+    <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, PaymentMethod&gt; methods = <span class="kw">new</span> LinkedHashMap&lt;&gt;();
+    <span class="kw">private</span> <span class="kw">final</span> OrderRepository repository;
+    <span class="kw">private</span> <span class="kw">final</span> Notifier notifier;
+    <span class="kw">private</span> <span class="kw">final</span> AuditLog audit;
+
+    <span class="kw">public</span> CheckoutService(List&lt;PaymentMethod&gt; supported,
+                           OrderRepository repository,
+                           Notifier notifier,
+                           AuditLog audit) {
+        <span class="kw">for</span> (PaymentMethod m : supported) <span class="kw">this</span>.methods.put(m.name(), m);
+        <span class="kw">this</span>.repository = repository;
+        <span class="kw">this</span>.notifier = notifier;
+        <span class="kw">this</span>.audit = audit;
+    }
+
+    <span class="kw">public</span> <span class="kw">void</span> checkout(Order order, String methodName) {
+        System.out.println(<span class="st">"checkout "</span> + order.id() + <span class="st">" for "</span> + Money.rupees(order.amountPaise())
+                + <span class="st">" by "</span> + methodName);
+
+        <span class="kw">if</span> (order.amountPaise() &lt;= <span class="nm">0</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"amount must be positive"</span>);
+        }
+        PaymentMethod method = methods.get(methodName);
+        <span class="kw">if</span> (method == <span class="kw">null</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + methodName);
+        }
+
+        method.validate(order);
+        <span class="kw">long</span> fee = method.feePaise(order.amountPaise());
+        String reference = method.charge(order);
+
+        repository.savePayment(order.id(), methodName, fee);
+        notifier.orderConfirmed(order);
+        audit.paymentTaken(order.id(), methodName, reference, fee);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/ConsoleAuditLog.java</span><span class="fmeta">308 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/ConsoleAuditLog.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> ConsoleAuditLog <span class="kw">implements</span> AuditLog {
+    <span class="kw">public</span> <span class="kw">void</span> paymentTaken(String orderId, String method, String reference, <span class="kw">long</span> feePaise) {
+        System.out.println(<span class="st">"  [audit] "</span> + orderId + <span class="st">" paid by "</span> + method
+                + <span class="st">" reference "</span> + reference + <span class="st">" fee "</span> + Money.rupees(feePaise));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/EmailNotifier.java</span><span class="fmeta">586 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/EmailNotifier.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> EmailNotifier <span class="kw">implements</span> Notifier {
+    <span class="kw">public</span> EmailNotifier(String host) {
+        System.out.println(<span class="st">"  [smtp] opening connection to "</span> + host);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    <span class="kw">public</span> <span class="kw">void</span> orderConfirmed(Order order) {
+        System.out.println(<span class="st">"  [smtp] to "</span> + order.customerEmail()
+                + <span class="st">" subject: Order "</span> + order.id() + <span class="st">" confirmed"</span>);
+        System.out.println(<span class="st">"  [smtp] body: Thank you. We received "</span>
+                + Money.rupees(order.amountPaise()) + <span class="st">"."</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Main.java</span><span class="fmeta">837 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * The only file that knows which real classes are in use. Everything else
+ * names interfaces. This is the one place a new payment method is wired in,
+ * and it is what a framework like Spring does for you.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Main {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        CheckoutService service = <span class="kw">new</span> CheckoutService(
+                List.of(<span class="kw">new</span> CardPayment(), <span class="kw">new</span> NetBankingPayment(), <span class="kw">new</span> UpiPayment()),
+                <span class="kw">new</span> PostgresOrderRepository(<span class="st">"jdbc:postgresql://prod-db:5432/orders"</span>),
+                <span class="kw">new</span> EmailNotifier(<span class="st">"smtp.company.internal"</span>),
+                <span class="kw">new</span> ConsoleAuditLog());
+
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1001"</span>, <span class="nm">250000</span>, <span class="st">"asha@example.com"</span>), <span class="st">"card"</span>);
+        System.out.println();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1003"</span>, <span class="nm">45000</span>, <span class="st">"meera@example.com"</span>), <span class="st">"upi"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Money.java</span><span class="fmeta">232 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/Money.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Money is held in paise, never in double. */</span>
+<span class="kw">public</span> <span class="kw">final</span> <span class="kw">class</span> Money {
+    <span class="kw">private</span> Money() {}
+    <span class="kw">public</span> <span class="kw">static</span> String rupees(<span class="kw">long</span> paise) {
+        <span class="kw">return</span> String.format(<span class="st">"Rs %d.%02d"</span>, paise / <span class="nm">100</span>, Math.abs(paise % <span class="nm">100</span>));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/NetBankingPayment.java</span><span class="fmeta">533 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/NetBankingPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> NetBankingPayment <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"netbanking"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> validate(Order order) {
+        <span class="kw">if</span> (order.amountPaise() &lt; <span class="nm">100</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"netbanking needs at least Rs 1"</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise) { <span class="kw">return</span> <span class="nm">1200</span>; }
+
+    <span class="kw">public</span> String charge(Order order) {
+        System.out.println(<span class="st">"  [bank portal] debited "</span> + Money.rupees(order.amountPaise()));
+        <span class="kw">return</span> <span class="st">"NB-"</span> + order.id() + <span class="st">"-ok"</span>;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Notifier.java</span><span class="fmeta">68 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/Notifier.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> Notifier {
+    <span class="kw">void</span> orderConfirmed(Order order);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Order.java</span><span class="fmeta">74 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/Order.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">record</span> Order(String id, <span class="kw">long</span> amountPaise, String customerEmail) {}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/OrderRepository.java</span><span class="fmeta">105 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/OrderRepository.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> OrderRepository {
+    <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> feePaise);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/PaymentMethod.java</span><span class="fmeta">323 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/PaymentMethod.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * Everything a payment method has to be able to do, and nothing more.
+ * A new method is a new file that implements this. No existing file learns
+ * about it.
+ */</span>
+<span class="kw">public</span> <span class="kw">interface</span> PaymentMethod {
+    String name();
+    <span class="kw">void</span> validate(Order order);
+    <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise);
+    String charge(Order order);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/PostgresOrderRepository.java</span><span class="fmeta">506 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/PostgresOrderRepository.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> PostgresOrderRepository <span class="kw">implements</span> OrderRepository {
+    <span class="kw">public</span> PostgresOrderRepository(String url) {
+        System.out.println(<span class="st">"  [db] opening connection to "</span> + url);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    <span class="kw">public</span> <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> feePaise) {
+        System.out.println(<span class="st">"  [db] saved "</span> + orderId + <span class="st">" method="</span> + method
+                + <span class="st">" fee="</span> + Money.rupees(feePaise));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/UpiPayment.java</span><span class="fmeta">515 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/clean/UpiPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> UpiPayment <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"upi"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> validate(Order order) {
+        <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">10000000</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"upi limit is Rs 100000"</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise) { <span class="kw">return</span> <span class="nm">0</span>; }
+
+    <span class="kw">public</span> String charge(Order order) {
+        System.out.println(<span class="st">"  [upi handle] collected "</span> + Money.rupees(order.amountPaise()));
+        <span class="kw">return</span> <span class="st">"UPI-"</span> + order.id() + <span class="st">"-ok"</span>;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Database.java</span><span class="fmeta">546 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/tangled/Database.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Stands in for a real database. Note that it is opened, not handed in. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Database {
+    <span class="kw">public</span> <span class="kw">static</span> Database connect(String url) {
+        System.out.println(<span class="st">"  [db] opening connection to "</span> + url);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+        <span class="kw">return</span> <span class="kw">new</span> Database();
+    }
+    <span class="kw">public</span> <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> fee) {
+        System.out.println(<span class="st">"  [db] saved "</span> + orderId + <span class="st">" method="</span> + method + <span class="st">" fee="</span> + Money.rupees(fee));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Main.java</span><span class="fmeta">319 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/tangled/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> Main {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        OrderService service = <span class="kw">new</span> OrderService();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1001"</span>, <span class="nm">250000</span>, <span class="st">"asha@example.com"</span>), <span class="st">"card"</span>);
+        System.out.println();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1003"</span>, <span class="nm">45000</span>, <span class="st">"meera@example.com"</span>), <span class="st">"upi"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Money.java</span><span class="fmeta">232 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/tangled/Money.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Money is held in paise, never in double. */</span>
+<span class="kw">public</span> <span class="kw">final</span> <span class="kw">class</span> Money {
+    <span class="kw">private</span> Money() {}
+    <span class="kw">public</span> <span class="kw">static</span> String rupees(<span class="kw">long</span> paise) {
+        <span class="kw">return</span> String.format(<span class="st">"Rs %d.%02d"</span>, paise / <span class="nm">100</span>, Math.abs(paise % <span class="nm">100</span>));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Order.java</span><span class="fmeta">74 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/tangled/Order.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">record</span> Order(String id, <span class="kw">long</span> amountPaise, String customerEmail) {}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/OrderService.java</span><span class="fmeta">3.0 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/tangled/OrderService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * One class that does the whole checkout. This is not a strawman. It is what
+ * the code looks like when a working feature is shipped under a deadline and
+ * every later change is added to the method that was already there.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> OrderService {
+
+    <span class="kw">public</span> <span class="kw">void</span> checkout(Order order, String method) {
+        System.out.println(<span class="st">"checkout "</span> + order.id() + <span class="st">" for "</span> + Money.rupees(order.amountPaise())
+                + <span class="st">" by "</span> + method);
+
+        <span class="cm">// 1. validation</span>
+        <span class="kw">if</span> (order.amountPaise() &lt;= <span class="nm">0</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"amount must be positive"</span>);
+        }
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">20000000</span>) {
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"card limit is Rs 200000"</span>);
+            }
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            <span class="kw">if</span> (order.amountPaise() &lt; <span class="nm">100</span>) {
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"netbanking needs at least Rs 1"</span>);
+            }
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"upi"</span>)) {
+            <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">10000000</span>) {
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"upi limit is Rs 100000"</span>);
+            }
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 2. what the payment provider charges us</span>
+        <span class="kw">long</span> fee;
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            fee = Math.round(order.amountPaise() * <span class="nm">0.0195</span>) + <span class="nm">300</span>;
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            fee = <span class="nm">1200</span>;
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"upi"</span>)) {
+            fee = <span class="nm">0</span>;
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 3. actually take the money</span>
+        String reference;
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            reference = <span class="st">"CARD-"</span> + order.id() + <span class="st">"-ok"</span>;
+            System.out.println(<span class="st">"  [card gateway] charged "</span> + Money.rupees(order.amountPaise()));
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            reference = <span class="st">"NB-"</span> + order.id() + <span class="st">"-ok"</span>;
+            System.out.println(<span class="st">"  [bank portal] debited "</span> + Money.rupees(order.amountPaise()));
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"upi"</span>)) {
+            reference = <span class="st">"UPI-"</span> + order.id() + <span class="st">"-ok"</span>;
+            System.out.println(<span class="st">"  [upi handle] collected "</span> + Money.rupees(order.amountPaise()));
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 4. store it</span>
+        Database db = Database.connect(<span class="st">"jdbc:postgresql://prod-db:5432/orders"</span>);
+        db.savePayment(order.id(), method, fee);
+
+        <span class="cm">// 5. tell the customer</span>
+        Smtp smtp = Smtp.connect(<span class="st">"smtp.company.internal"</span>);
+        smtp.send(order.customerEmail(),
+                <span class="st">"Order "</span> + order.id() + <span class="st">" confirmed"</span>,
+                <span class="st">"Thank you. We received "</span> + Money.rupees(order.amountPaise()) + <span class="st">"."</span>);
+
+        <span class="cm">// 6. audit trail</span>
+        System.out.println(<span class="st">"  [audit] "</span> + order.id() + <span class="st">" paid by "</span> + method
+                + <span class="st">" reference "</span> + reference + <span class="st">" fee "</span> + Money.rupees(fee));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Smtp.java</span><span class="fmeta">543 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/add-upi/tangled/Smtp.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Stands in for a real mail server. Also opened, not handed in. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Smtp {
+    <span class="kw">public</span> <span class="kw">static</span> Smtp connect(String host) {
+        System.out.println(<span class="st">"  [smtp] opening connection to "</span> + host);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+        <span class="kw">return</span> <span class="kw">new</span> Smtp();
+    }
+    <span class="kw">public</span> <span class="kw">void</span> send(String to, String subject, String body) {
+        System.out.println(<span class="st">"  [smtp] to "</span> + to + <span class="st">" subject: "</span> + subject);
+        System.out.println(<span class="st">"  [smtp] body: "</span> + body);
+    }
+}
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">change-email</h2>
+<details class="f">
+<summary><span class="fname">clean/AuditLog.java</span><span class="fmeta">117 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/AuditLog.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> AuditLog {
+    <span class="kw">void</span> paymentTaken(String orderId, String method, String reference, <span class="kw">long</span> feePaise);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/CardPayment.java</span><span class="fmeta">568 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/CardPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> CardPayment <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"card"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> validate(Order order) {
+        <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">20000000</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"card limit is Rs 200000"</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise) {
+        <span class="kw">return</span> Math.round(amountPaise * <span class="nm">0.0195</span>) + <span class="nm">300</span>;
+    }
+
+    <span class="kw">public</span> String charge(Order order) {
+        System.out.println(<span class="st">"  [card gateway] charged "</span> + Money.rupees(order.amountPaise()));
+        <span class="kw">return</span> <span class="st">"CARD-"</span> + order.id() + <span class="st">"-ok"</span>;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/CheckoutService.java</span><span class="fmeta">1.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/CheckoutService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.LinkedHashMap;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+
+<span class="cm">/**
+ * Orchestrates a checkout and does none of the work itself. It names four
+ * interfaces and not one concrete class, so every part of it can be swapped
+ * or faked without editing this file.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> CheckoutService {
+
+    <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, PaymentMethod&gt; methods = <span class="kw">new</span> LinkedHashMap&lt;&gt;();
+    <span class="kw">private</span> <span class="kw">final</span> OrderRepository repository;
+    <span class="kw">private</span> <span class="kw">final</span> Notifier notifier;
+    <span class="kw">private</span> <span class="kw">final</span> AuditLog audit;
+
+    <span class="kw">public</span> CheckoutService(List&lt;PaymentMethod&gt; supported,
+                           OrderRepository repository,
+                           Notifier notifier,
+                           AuditLog audit) {
+        <span class="kw">for</span> (PaymentMethod m : supported) <span class="kw">this</span>.methods.put(m.name(), m);
+        <span class="kw">this</span>.repository = repository;
+        <span class="kw">this</span>.notifier = notifier;
+        <span class="kw">this</span>.audit = audit;
+    }
+
+    <span class="kw">public</span> <span class="kw">void</span> checkout(Order order, String methodName) {
+        System.out.println(<span class="st">"checkout "</span> + order.id() + <span class="st">" for "</span> + Money.rupees(order.amountPaise())
+                + <span class="st">" by "</span> + methodName);
+
+        <span class="kw">if</span> (order.amountPaise() &lt;= <span class="nm">0</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"amount must be positive"</span>);
+        }
+        PaymentMethod method = methods.get(methodName);
+        <span class="kw">if</span> (method == <span class="kw">null</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + methodName);
+        }
+
+        method.validate(order);
+        <span class="kw">long</span> fee = method.feePaise(order.amountPaise());
+        String reference = method.charge(order);
+
+        repository.savePayment(order.id(), methodName, fee);
+        notifier.orderConfirmed(order);
+        audit.paymentTaken(order.id(), methodName, reference, fee);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/ConsoleAuditLog.java</span><span class="fmeta">308 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/ConsoleAuditLog.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> ConsoleAuditLog <span class="kw">implements</span> AuditLog {
+    <span class="kw">public</span> <span class="kw">void</span> paymentTaken(String orderId, String method, String reference, <span class="kw">long</span> feePaise) {
+        System.out.println(<span class="st">"  [audit] "</span> + orderId + <span class="st">" paid by "</span> + method
+                + <span class="st">" reference "</span> + reference + <span class="st">" fee "</span> + Money.rupees(feePaise));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/EmailNotifier.java</span><span class="fmeta">684 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/EmailNotifier.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> EmailNotifier <span class="kw">implements</span> Notifier {
+    <span class="kw">public</span> EmailNotifier(String host) {
+        System.out.println(<span class="st">"  [smtp] opening connection to "</span> + host);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    <span class="kw">public</span> <span class="kw">void</span> orderConfirmed(Order order) {
+        System.out.println(<span class="st">"  [smtp] to "</span> + order.customerEmail()
+                + <span class="st">" subject: Order "</span> + order.id() + <span class="st">" confirmed"</span>);
+        System.out.println(<span class="st">"  [smtp] body: Payment received for order "</span> + order.id() + <span class="st">"."</span>
+                + <span class="st">" Amount "</span> + Money.rupees(order.amountPaise()) + <span class="st">"."</span>
+                + <span class="st">" Questions? Write to help@company.example"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Main.java</span><span class="fmeta">826 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * The only file that knows which real classes are in use. Everything else
+ * names interfaces. This is the one place a new payment method is wired in,
+ * and it is what a framework like Spring does for you.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Main {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        CheckoutService service = <span class="kw">new</span> CheckoutService(
+                List.of(<span class="kw">new</span> CardPayment(), <span class="kw">new</span> NetBankingPayment()),
+                <span class="kw">new</span> PostgresOrderRepository(<span class="st">"jdbc:postgresql://prod-db:5432/orders"</span>),
+                <span class="kw">new</span> EmailNotifier(<span class="st">"smtp.company.internal"</span>),
+                <span class="kw">new</span> ConsoleAuditLog());
+
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1001"</span>, <span class="nm">250000</span>, <span class="st">"asha@example.com"</span>), <span class="st">"card"</span>);
+        System.out.println();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1002"</span>, <span class="nm">899900</span>, <span class="st">"ravi@example.com"</span>), <span class="st">"netbanking"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Money.java</span><span class="fmeta">232 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/Money.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Money is held in paise, never in double. */</span>
+<span class="kw">public</span> <span class="kw">final</span> <span class="kw">class</span> Money {
+    <span class="kw">private</span> Money() {}
+    <span class="kw">public</span> <span class="kw">static</span> String rupees(<span class="kw">long</span> paise) {
+        <span class="kw">return</span> String.format(<span class="st">"Rs %d.%02d"</span>, paise / <span class="nm">100</span>, Math.abs(paise % <span class="nm">100</span>));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/NetBankingPayment.java</span><span class="fmeta">533 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/NetBankingPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> NetBankingPayment <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"netbanking"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> validate(Order order) {
+        <span class="kw">if</span> (order.amountPaise() &lt; <span class="nm">100</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"netbanking needs at least Rs 1"</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise) { <span class="kw">return</span> <span class="nm">1200</span>; }
+
+    <span class="kw">public</span> String charge(Order order) {
+        System.out.println(<span class="st">"  [bank portal] debited "</span> + Money.rupees(order.amountPaise()));
+        <span class="kw">return</span> <span class="st">"NB-"</span> + order.id() + <span class="st">"-ok"</span>;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Notifier.java</span><span class="fmeta">68 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/Notifier.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> Notifier {
+    <span class="kw">void</span> orderConfirmed(Order order);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/Order.java</span><span class="fmeta">74 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/Order.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">record</span> Order(String id, <span class="kw">long</span> amountPaise, String customerEmail) {}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/OrderRepository.java</span><span class="fmeta">105 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/OrderRepository.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> OrderRepository {
+    <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> feePaise);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/PaymentMethod.java</span><span class="fmeta">323 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/PaymentMethod.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * Everything a payment method has to be able to do, and nothing more.
+ * A new method is a new file that implements this. No existing file learns
+ * about it.
+ */</span>
+<span class="kw">public</span> <span class="kw">interface</span> PaymentMethod {
+    String name();
+    <span class="kw">void</span> validate(Order order);
+    <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise);
+    String charge(Order order);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">clean/PostgresOrderRepository.java</span><span class="fmeta">506 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/clean/PostgresOrderRepository.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> PostgresOrderRepository <span class="kw">implements</span> OrderRepository {
+    <span class="kw">public</span> PostgresOrderRepository(String url) {
+        System.out.println(<span class="st">"  [db] opening connection to "</span> + url);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    <span class="kw">public</span> <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> feePaise) {
+        System.out.println(<span class="st">"  [db] saved "</span> + orderId + <span class="st">" method="</span> + method
+                + <span class="st">" fee="</span> + Money.rupees(feePaise));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Database.java</span><span class="fmeta">546 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/tangled/Database.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Stands in for a real database. Note that it is opened, not handed in. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Database {
+    <span class="kw">public</span> <span class="kw">static</span> Database connect(String url) {
+        System.out.println(<span class="st">"  [db] opening connection to "</span> + url);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+        <span class="kw">return</span> <span class="kw">new</span> Database();
+    }
+    <span class="kw">public</span> <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> fee) {
+        System.out.println(<span class="st">"  [db] saved "</span> + orderId + <span class="st">" method="</span> + method + <span class="st">" fee="</span> + Money.rupees(fee));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Main.java</span><span class="fmeta">326 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/tangled/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> Main {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        OrderService service = <span class="kw">new</span> OrderService();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1001"</span>, <span class="nm">250000</span>, <span class="st">"asha@example.com"</span>), <span class="st">"card"</span>);
+        System.out.println();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1002"</span>, <span class="nm">899900</span>, <span class="st">"ravi@example.com"</span>), <span class="st">"netbanking"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Money.java</span><span class="fmeta">232 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/tangled/Money.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Money is held in paise, never in double. */</span>
+<span class="kw">public</span> <span class="kw">final</span> <span class="kw">class</span> Money {
+    <span class="kw">private</span> Money() {}
+    <span class="kw">public</span> <span class="kw">static</span> String rupees(<span class="kw">long</span> paise) {
+        <span class="kw">return</span> String.format(<span class="st">"Rs %d.%02d"</span>, paise / <span class="nm">100</span>, Math.abs(paise % <span class="nm">100</span>));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Order.java</span><span class="fmeta">74 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/tangled/Order.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">record</span> Order(String id, <span class="kw">long</span> amountPaise, String customerEmail) {}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/OrderService.java</span><span class="fmeta">2.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/tangled/OrderService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * One class that does the whole checkout. This is not a strawman. It is what
+ * the code looks like when a working feature is shipped under a deadline and
+ * every later change is added to the method that was already there.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> OrderService {
+
+    <span class="kw">public</span> <span class="kw">void</span> checkout(Order order, String method) {
+        System.out.println(<span class="st">"checkout "</span> + order.id() + <span class="st">" for "</span> + Money.rupees(order.amountPaise())
+                + <span class="st">" by "</span> + method);
+
+        <span class="cm">// 1. validation</span>
+        <span class="kw">if</span> (order.amountPaise() &lt;= <span class="nm">0</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"amount must be positive"</span>);
+        }
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">20000000</span>) {
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"card limit is Rs 200000"</span>);
+            }
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            <span class="kw">if</span> (order.amountPaise() &lt; <span class="nm">100</span>) {
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"netbanking needs at least Rs 1"</span>);
+            }
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 2. what the payment provider charges us</span>
+        <span class="kw">long</span> fee;
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            fee = Math.round(order.amountPaise() * <span class="nm">0.0195</span>) + <span class="nm">300</span>;
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            fee = <span class="nm">1200</span>;
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 3. actually take the money</span>
+        String reference;
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            reference = <span class="st">"CARD-"</span> + order.id() + <span class="st">"-ok"</span>;
+            System.out.println(<span class="st">"  [card gateway] charged "</span> + Money.rupees(order.amountPaise()));
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            reference = <span class="st">"NB-"</span> + order.id() + <span class="st">"-ok"</span>;
+            System.out.println(<span class="st">"  [bank portal] debited "</span> + Money.rupees(order.amountPaise()));
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 4. store it</span>
+        Database db = Database.connect(<span class="st">"jdbc:postgresql://prod-db:5432/orders"</span>);
+        db.savePayment(order.id(), method, fee);
+
+        <span class="cm">// 5. tell the customer</span>
+        Smtp smtp = Smtp.connect(<span class="st">"smtp.company.internal"</span>);
+        smtp.send(order.customerEmail(),
+                <span class="st">"Order "</span> + order.id() + <span class="st">" confirmed"</span>,
+                <span class="st">"Payment received for order "</span> + order.id() + <span class="st">"."</span>
+                        + <span class="st">" Amount "</span> + Money.rupees(order.amountPaise()) + <span class="st">"."</span>
+                        + <span class="st">" Questions? Write to help@company.example"</span>);
+
+        <span class="cm">// 6. audit trail</span>
+        System.out.println(<span class="st">"  [audit] "</span> + order.id() + <span class="st">" paid by "</span> + method
+                + <span class="st">" reference "</span> + reference + <span class="st">" fee "</span> + Money.rupees(fee));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">tangled/Smtp.java</span><span class="fmeta">543 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/change-email/tangled/Smtp.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Stands in for a real mail server. Also opened, not handed in. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Smtp {
+    <span class="kw">public</span> <span class="kw">static</span> Smtp connect(String host) {
+        System.out.println(<span class="st">"  [smtp] opening connection to "</span> + host);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+        <span class="kw">return</span> <span class="kw">new</span> Smtp();
+    }
+    <span class="kw">public</span> <span class="kw">void</span> send(String to, String subject, String body) {
+        System.out.println(<span class="st">"  [smtp] to "</span> + to + <span class="st">" subject: "</span> + subject);
+        System.out.println(<span class="st">"  [smtp] body: "</span> + body);
+    }
+}
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">clean</h2>
+<details class="f">
+<summary><span class="fname">AuditLog.java</span><span class="fmeta">117 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/AuditLog.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> AuditLog {
+    <span class="kw">void</span> paymentTaken(String orderId, String method, String reference, <span class="kw">long</span> feePaise);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">CardPayment.java</span><span class="fmeta">568 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/CardPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> CardPayment <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"card"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> validate(Order order) {
+        <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">20000000</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"card limit is Rs 200000"</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise) {
+        <span class="kw">return</span> Math.round(amountPaise * <span class="nm">0.0195</span>) + <span class="nm">300</span>;
+    }
+
+    <span class="kw">public</span> String charge(Order order) {
+        System.out.println(<span class="st">"  [card gateway] charged "</span> + Money.rupees(order.amountPaise()));
+        <span class="kw">return</span> <span class="st">"CARD-"</span> + order.id() + <span class="st">"-ok"</span>;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">CheckoutService.java</span><span class="fmeta">1.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/CheckoutService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.LinkedHashMap;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+
+<span class="cm">/**
+ * Orchestrates a checkout and does none of the work itself. It names four
+ * interfaces and not one concrete class, so every part of it can be swapped
+ * or faked without editing this file.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> CheckoutService {
+
+    <span class="kw">private</span> <span class="kw">final</span> Map&lt;String, PaymentMethod&gt; methods = <span class="kw">new</span> LinkedHashMap&lt;&gt;();
+    <span class="kw">private</span> <span class="kw">final</span> OrderRepository repository;
+    <span class="kw">private</span> <span class="kw">final</span> Notifier notifier;
+    <span class="kw">private</span> <span class="kw">final</span> AuditLog audit;
+
+    <span class="kw">public</span> CheckoutService(List&lt;PaymentMethod&gt; supported,
+                           OrderRepository repository,
+                           Notifier notifier,
+                           AuditLog audit) {
+        <span class="kw">for</span> (PaymentMethod m : supported) <span class="kw">this</span>.methods.put(m.name(), m);
+        <span class="kw">this</span>.repository = repository;
+        <span class="kw">this</span>.notifier = notifier;
+        <span class="kw">this</span>.audit = audit;
+    }
+
+    <span class="kw">public</span> <span class="kw">void</span> checkout(Order order, String methodName) {
+        System.out.println(<span class="st">"checkout "</span> + order.id() + <span class="st">" for "</span> + Money.rupees(order.amountPaise())
+                + <span class="st">" by "</span> + methodName);
+
+        <span class="kw">if</span> (order.amountPaise() &lt;= <span class="nm">0</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"amount must be positive"</span>);
+        }
+        PaymentMethod method = methods.get(methodName);
+        <span class="kw">if</span> (method == <span class="kw">null</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + methodName);
+        }
+
+        method.validate(order);
+        <span class="kw">long</span> fee = method.feePaise(order.amountPaise());
+        String reference = method.charge(order);
+
+        repository.savePayment(order.id(), methodName, fee);
+        notifier.orderConfirmed(order);
+        audit.paymentTaken(order.id(), methodName, reference, fee);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">CleanTest.java</span><span class="fmeta">3.0 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/CleanTest.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * The same test against the clean version. Nothing real is connected to,
+ * because CheckoutService only ever named interfaces.
+ *
+ *   java CleanTest.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> CleanTest {
+
+    <span class="kw">static</span> <span class="kw">class</span> FakeRepository <span class="kw">implements</span> OrderRepository {
+        String orderId; String method; <span class="kw">long</span> feePaise;
+        <span class="kw">public</span> <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> feePaise) {
+            <span class="kw">this</span>.orderId = orderId; <span class="kw">this</span>.method = method; <span class="kw">this</span>.feePaise = feePaise;
+        }
+    }
+
+    <span class="kw">static</span> <span class="kw">class</span> FakeNotifier <span class="kw">implements</span> Notifier {
+        List&lt;String&gt; sentTo = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">public</span> <span class="kw">void</span> orderConfirmed(Order order) { sentTo.add(order.customerEmail()); }
+    }
+
+    <span class="kw">static</span> <span class="kw">class</span> FakeAudit <span class="kw">implements</span> AuditLog {
+        String reference;
+        <span class="kw">public</span> <span class="kw">void</span> paymentTaken(String orderId, String method, String reference, <span class="kw">long</span> fee) {
+            <span class="kw">this</span>.reference = reference;
+        }
+    }
+
+    <span class="kw">static</span> <span class="kw">int</span> passed = <span class="nm">0</span>, failed = <span class="nm">0</span>;
+    <span class="kw">static</span> <span class="kw">void</span> check(String what, Object actual, Object expected) {
+        <span class="kw">boolean</span> ok = actual.equals(expected);
+        <span class="kw">if</span> (ok) passed++; <span class="kw">else</span> failed++;
+        System.out.println(<span class="st">"    "</span> + (ok ? <span class="st">"pass"</span> : <span class="st">"FAIL"</span>) + <span class="st">"  "</span> + what
+                + <span class="st">" = "</span> + actual + (ok ? <span class="st">""</span> : <span class="st">"  expected "</span> + expected));
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        System.out.println(<span class="st">"=== testing the clean version ==="</span>);
+        System.out.println();
+
+        FakeRepository repo = <span class="kw">new</span> FakeRepository();
+        FakeNotifier mail = <span class="kw">new</span> FakeNotifier();
+        FakeAudit audit = <span class="kw">new</span> FakeAudit();
+
+        <span class="cm">// one warm up run first, so we time the work and not class loading.</span>
+        <span class="cm">// it gets its own fakes so it cannot pollute what we are about to check.</span>
+        <span class="kw">new</span> CheckoutService(List.of(<span class="kw">new</span> CardPayment(), <span class="kw">new</span> NetBankingPayment()),
+                <span class="kw">new</span> FakeRepository(), <span class="kw">new</span> FakeNotifier(), <span class="kw">new</span> FakeAudit())
+                .checkout(<span class="kw">new</span> Order(<span class="st">"WARMUP"</span>, <span class="nm">250000</span>, <span class="st">"warmup@example.com"</span>), <span class="st">"card"</span>);
+
+        CheckoutService service = <span class="kw">new</span> CheckoutService(
+                List.of(<span class="kw">new</span> CardPayment(), <span class="kw">new</span> NetBankingPayment()), repo, mail, audit);
+
+        System.out.println();
+        System.out.println(<span class="st">"  the run being timed:"</span>);
+        <span class="kw">long</span> start = System.nanoTime();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"T-1"</span>, <span class="nm">250000</span>, <span class="st">"test@example.com"</span>), <span class="st">"card"</span>);
+        <span class="kw">long</span> micros = (System.nanoTime() - start) / <span class="nm">1000</span>;
+
+        System.out.println();
+        System.out.println(<span class="st">"  what this test could check:"</span>);
+        check(<span class="st">"fee charged"</span>, repo.feePaise, <span class="nm">5175L</span>);
+        check(<span class="st">"payment method recorded"</span>, repo.method, <span class="st">"card"</span>);
+        check(<span class="st">"order id recorded"</span>, repo.orderId, <span class="st">"T-1"</span>);
+        check(<span class="st">"email address used"</span>, mail.sentTo, List.of(<span class="st">"test@example.com"</span>));
+        check(<span class="st">"gateway reference"</span>, audit.reference, <span class="st">"CARD-T-1-ok"</span>);
+
+        System.out.println();
+        System.out.println(<span class="st">"  "</span> + passed + <span class="st">" passed, "</span> + failed + <span class="st">" failed"</span>);
+        System.out.println(<span class="st">"  took "</span> + micros + <span class="st">" microseconds"</span>);
+        System.out.println(<span class="st">"  no database, no mail server, nothing to clean up afterwards"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ConsoleAuditLog.java</span><span class="fmeta">308 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/ConsoleAuditLog.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> ConsoleAuditLog <span class="kw">implements</span> AuditLog {
+    <span class="kw">public</span> <span class="kw">void</span> paymentTaken(String orderId, String method, String reference, <span class="kw">long</span> feePaise) {
+        System.out.println(<span class="st">"  [audit] "</span> + orderId + <span class="st">" paid by "</span> + method
+                + <span class="st">" reference "</span> + reference + <span class="st">" fee "</span> + Money.rupees(feePaise));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">EmailNotifier.java</span><span class="fmeta">586 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/EmailNotifier.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> EmailNotifier <span class="kw">implements</span> Notifier {
+    <span class="kw">public</span> EmailNotifier(String host) {
+        System.out.println(<span class="st">"  [smtp] opening connection to "</span> + host);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    <span class="kw">public</span> <span class="kw">void</span> orderConfirmed(Order order) {
+        System.out.println(<span class="st">"  [smtp] to "</span> + order.customerEmail()
+                + <span class="st">" subject: Order "</span> + order.id() + <span class="st">" confirmed"</span>);
+        System.out.println(<span class="st">"  [smtp] body: Thank you. We received "</span>
+                + Money.rupees(order.amountPaise()) + <span class="st">"."</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Main.java</span><span class="fmeta">826 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * The only file that knows which real classes are in use. Everything else
+ * names interfaces. This is the one place a new payment method is wired in,
+ * and it is what a framework like Spring does for you.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Main {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        CheckoutService service = <span class="kw">new</span> CheckoutService(
+                List.of(<span class="kw">new</span> CardPayment(), <span class="kw">new</span> NetBankingPayment()),
+                <span class="kw">new</span> PostgresOrderRepository(<span class="st">"jdbc:postgresql://prod-db:5432/orders"</span>),
+                <span class="kw">new</span> EmailNotifier(<span class="st">"smtp.company.internal"</span>),
+                <span class="kw">new</span> ConsoleAuditLog());
+
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1001"</span>, <span class="nm">250000</span>, <span class="st">"asha@example.com"</span>), <span class="st">"card"</span>);
+        System.out.println();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1002"</span>, <span class="nm">899900</span>, <span class="st">"ravi@example.com"</span>), <span class="st">"netbanking"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Money.java</span><span class="fmeta">232 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/Money.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Money is held in paise, never in double. */</span>
+<span class="kw">public</span> <span class="kw">final</span> <span class="kw">class</span> Money {
+    <span class="kw">private</span> Money() {}
+    <span class="kw">public</span> <span class="kw">static</span> String rupees(<span class="kw">long</span> paise) {
+        <span class="kw">return</span> String.format(<span class="st">"Rs %d.%02d"</span>, paise / <span class="nm">100</span>, Math.abs(paise % <span class="nm">100</span>));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">NetBankingPayment.java</span><span class="fmeta">533 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/NetBankingPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> NetBankingPayment <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"netbanking"</span>; }
+
+    <span class="kw">public</span> <span class="kw">void</span> validate(Order order) {
+        <span class="kw">if</span> (order.amountPaise() &lt; <span class="nm">100</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"netbanking needs at least Rs 1"</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise) { <span class="kw">return</span> <span class="nm">1200</span>; }
+
+    <span class="kw">public</span> String charge(Order order) {
+        System.out.println(<span class="st">"  [bank portal] debited "</span> + Money.rupees(order.amountPaise()));
+        <span class="kw">return</span> <span class="st">"NB-"</span> + order.id() + <span class="st">"-ok"</span>;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Notifier.java</span><span class="fmeta">68 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/Notifier.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> Notifier {
+    <span class="kw">void</span> orderConfirmed(Order order);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Order.java</span><span class="fmeta">74 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/Order.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">record</span> Order(String id, <span class="kw">long</span> amountPaise, String customerEmail) {}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">OrderRepository.java</span><span class="fmeta">105 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/OrderRepository.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> OrderRepository {
+    <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> feePaise);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">PaymentMethod.java</span><span class="fmeta">323 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/PaymentMethod.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * Everything a payment method has to be able to do, and nothing more.
+ * A new method is a new file that implements this. No existing file learns
+ * about it.
+ */</span>
+<span class="kw">public</span> <span class="kw">interface</span> PaymentMethod {
+    String name();
+    <span class="kw">void</span> validate(Order order);
+    <span class="kw">long</span> feePaise(<span class="kw">long</span> amountPaise);
+    String charge(Order order);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">PostgresOrderRepository.java</span><span class="fmeta">506 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/clean/PostgresOrderRepository.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> PostgresOrderRepository <span class="kw">implements</span> OrderRepository {
+    <span class="kw">public</span> PostgresOrderRepository(String url) {
+        System.out.println(<span class="st">"  [db] opening connection to "</span> + url);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    <span class="kw">public</span> <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> feePaise) {
+        System.out.println(<span class="st">"  [db] saved "</span> + orderId + <span class="st">" method="</span> + method
+                + <span class="st">" fee="</span> + Money.rupees(feePaise));
+    }
+}
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">proofs</h2>
+<details class="f">
+<summary><span class="fname">FatInterfaceProof.java</span><span class="fmeta">4.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/FatInterfaceProof.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * Interface segregation, counted rather than argued.
+ *
+ * One interface grows until it covers everything any payment method might do.
+ * Every method that a given class cannot honestly do still has to be written,
+ * and the only thing it can do is throw. This program calls every method on
+ * every class and counts how many exist purely to fail.
+ *
+ *   java FatInterfaceProof.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> FatInterfaceProof {
+
+    <span class="cm">/** The interface after four features were added to it over two years. */</span>
+    <span class="kw">interface</span> PaymentMethod {
+        String name();
+        String charge(<span class="kw">long</span> amountPaise);
+        String refund(<span class="kw">long</span> amountPaise);
+        String schedule(<span class="kw">long</span> amountPaise, String date);
+        String splitAcross(<span class="kw">int</span> people, <span class="kw">long</span> amountPaise);
+    }
+
+    <span class="kw">static</span> <span class="kw">class</span> CardPayment <span class="kw">implements</span> PaymentMethod {
+        <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"card"</span>; }
+        <span class="kw">public</span> String charge(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"charged"</span>; }
+        <span class="kw">public</span> String refund(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"refunded"</span>; }
+        <span class="kw">public</span> String schedule(<span class="kw">long</span> a, String d) { <span class="kw">return</span> <span class="st">"scheduled for "</span> + d; }
+        <span class="kw">public</span> String splitAcross(<span class="kw">int</span> p, <span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"split across "</span> + p; }
+    }
+
+    <span class="kw">static</span> <span class="kw">class</span> UpiPayment <span class="kw">implements</span> PaymentMethod {
+        <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"upi"</span>; }
+        <span class="kw">public</span> String charge(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"collected"</span>; }
+        <span class="kw">public</span> String refund(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"refunded"</span>; }
+        <span class="kw">public</span> String schedule(<span class="kw">long</span> a, String d) {
+            <span class="kw">throw</span> <span class="kw">new</span> UnsupportedOperationException(<span class="st">"upi cannot schedule a future payment"</span>);
+        }
+        <span class="kw">public</span> String splitAcross(<span class="kw">int</span> p, <span class="kw">long</span> a) {
+            <span class="kw">throw</span> <span class="kw">new</span> UnsupportedOperationException(<span class="st">"upi cannot split one order across payers"</span>);
+        }
+    }
+
+    <span class="kw">static</span> <span class="kw">class</span> CashOnDelivery <span class="kw">implements</span> PaymentMethod {
+        <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"cash on delivery"</span>; }
+        <span class="kw">public</span> String charge(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"collected at the door"</span>; }
+        <span class="kw">public</span> String refund(<span class="kw">long</span> a) {
+            <span class="kw">throw</span> <span class="kw">new</span> UnsupportedOperationException(<span class="st">"cash refunds are handled by the courier"</span>);
+        }
+        <span class="kw">public</span> String schedule(<span class="kw">long</span> a, String d) {
+            <span class="kw">throw</span> <span class="kw">new</span> UnsupportedOperationException(<span class="st">"cash cannot be scheduled"</span>);
+        }
+        <span class="kw">public</span> String splitAcross(<span class="kw">int</span> p, <span class="kw">long</span> a) {
+            <span class="kw">throw</span> <span class="kw">new</span> UnsupportedOperationException(<span class="st">"cash cannot be split"</span>);
+        }
+    }
+
+    <span class="kw">interface</span> Call { String run(PaymentMethod m); }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        List&lt;PaymentMethod&gt; all = List.of(<span class="kw">new</span> CardPayment(), <span class="kw">new</span> UpiPayment(), <span class="kw">new</span> CashOnDelivery());
+        List&lt;String&gt; names = List.of(<span class="st">"charge"</span>, <span class="st">"refund"</span>, <span class="st">"schedule"</span>, <span class="st">"splitAcross"</span>);
+        List&lt;Call&gt; calls = List.of(
+                m -&gt; m.charge(<span class="nm">50000</span>),
+                m -&gt; m.refund(<span class="nm">50000</span>),
+                m -&gt; m.schedule(<span class="nm">50000</span>, <span class="st">"2026-10-01"</span>),
+                m -&gt; m.splitAcross(<span class="nm">3</span>, <span class="nm">50000</span>));
+
+        System.out.println(<span class="st">"=== every method, called on every class ==="</span>);
+        System.out.printf(<span class="st">"%-18s%-12s%-12s%-12s%-12s%n"</span>,
+                <span class="st">""</span>, names.get(<span class="nm">0</span>), names.get(<span class="nm">1</span>), names.get(<span class="nm">2</span>), names.get(<span class="nm">3</span>));
+
+        <span class="kw">int</span> works = <span class="nm">0</span>, throwsOnly = <span class="nm">0</span>;
+        <span class="kw">for</span> (PaymentMethod m : all) {
+            StringBuilder row = <span class="kw">new</span> StringBuilder(String.format(<span class="st">"%-18s"</span>, m.name()));
+            <span class="kw">for</span> (Call c : calls) {
+                <span class="kw">try</span> {
+                    c.run(m);
+                    row.append(String.format(<span class="st">"%-12s"</span>, <span class="st">"works"</span>));
+                    works++;
+                } <span class="kw">catch</span> (UnsupportedOperationException e) {
+                    row.append(String.format(<span class="st">"%-12s"</span>, <span class="st">"throws"</span>));
+                    throwsOnly++;
+                }
+            }
+            System.out.println(row);
+        }
+
+        <span class="kw">int</span> total = works + throwsOnly;
+        System.out.println();
+        System.out.println(<span class="st">"  "</span> + total + <span class="st">" method implementations had to be written."</span>);
+        System.out.println(<span class="st">"  "</span> + works + <span class="st">" do something. "</span> + throwsOnly
+                + <span class="st">" exist only to throw, which is "</span> + (throwsOnly * <span class="nm">100</span> / total) + <span class="st">" percent."</span>);
+        System.out.println();
+        System.out.println(<span class="st">"=== what that costs at run time ==="</span>);
+        System.out.println(<span class="st">"  a 'split the bill' feature loops over the methods it was given:"</span>);
+        <span class="kw">for</span> (PaymentMethod m : all) {
+            <span class="kw">try</span> {
+                System.out.println(<span class="st">"    "</span> + m.name() + <span class="st">": "</span> + m.splitAcross(<span class="nm">3</span>, <span class="nm">50000</span>));
+            } <span class="kw">catch</span> (UnsupportedOperationException e) {
+                System.out.println(<span class="st">"    "</span> + m.name() + <span class="st">": CRASH at run time, "</span>
+                        + e.getClass().getSimpleName() + <span class="st">": "</span> + e.getMessage());
+            }
+        }
+        System.out.println();
+        System.out.println(<span class="st">"  The compiler was happy with all of this. It had to be, because"</span>);
+        System.out.println(<span class="st">"  every class does implement every method. The type system was"</span>);
+        System.out.println(<span class="st">"  told they are all the same thing, so it cannot help."</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">LiskovProof.java</span><span class="fmeta">4.0 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/LiskovProof.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.List;
+
+<span class="cm">/**
+ * Liskov substitution, proved rather than recited.
+ *
+ * A parent class makes a promise. A subclass is allowed to keep that promise
+ * differently. It is not allowed to break it. Here one subclass breaks it, and
+ * the damage is not a neat exception at the top of the program: the batch stops
+ * halfway, after real money has already moved.
+ *
+ *   java LiskovProof.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> LiskovProof {
+
+    <span class="kw">static</span> String rupees(<span class="kw">long</span> paise) {
+        <span class="kw">return</span> String.format(<span class="st">"Rs %d.%02d"</span>, paise / <span class="nm">100</span>, Math.abs(paise % <span class="nm">100</span>));
+    }
+
+    <span class="cm">/**
+     * The promise: call refund with an amount, get that amount back to the
+     * customer. Every subclass is expected to honour this.
+     */</span>
+    <span class="kw">static</span> <span class="kw">abstract</span> <span class="kw">class</span> Refundable {
+        <span class="kw">private</span> <span class="kw">final</span> String label;
+        String labelOverride;
+        Refundable(String label) { <span class="kw">this</span>.label = label; }
+        String label() { <span class="kw">return</span> labelOverride != <span class="kw">null</span> ? labelOverride : label; }
+        <span class="kw">abstract</span> <span class="kw">long</span> refund(<span class="kw">long</span> amountPaise);
+    }
+
+    <span class="kw">static</span> <span class="kw">class</span> CardRefund <span class="kw">extends</span> Refundable {
+        CardRefund() { <span class="kw">super</span>(<span class="st">"card"</span>); }
+        <span class="kw">long</span> refund(<span class="kw">long</span> amountPaise) { <span class="kw">return</span> amountPaise; }
+    }
+
+    <span class="kw">static</span> <span class="kw">class</span> NetBankingRefund <span class="kw">extends</span> Refundable {
+        NetBankingRefund() { <span class="kw">super</span>(<span class="st">"netbanking"</span>); }
+        <span class="kw">long</span> refund(<span class="kw">long</span> amountPaise) { <span class="kw">return</span> amountPaise; }
+    }
+
+    <span class="cm">/**
+     * Written by someone reasonable. A gift card behaves like a card in almost
+     * every way, so extending it looked like a saving. But the business rule is
+     * that gift card money is never returned, so refund cannot honour the promise.
+     */</span>
+    <span class="kw">static</span> <span class="kw">class</span> GiftCardRefund <span class="kw">extends</span> CardRefund {
+        GiftCardRefund() { <span class="kw">this</span>.labelOverride = <span class="st">"gift card"</span>; }
+        <span class="an">@Override</span> <span class="kw">long</span> refund(<span class="kw">long</span> amountPaise) {
+            <span class="kw">throw</span> <span class="kw">new</span> UnsupportedOperationException(<span class="st">"gift cards are not refundable"</span>);
+        }
+    }
+
+    <span class="cm">/** One test, written once, against the promise the parent made. */</span>
+    <span class="kw">static</span> <span class="kw">boolean</span> contractHolds(Refundable r) {
+        <span class="kw">try</span> {
+            <span class="kw">return</span> r.refund(<span class="nm">50000</span>) == <span class="nm">50000</span>;
+        } <span class="kw">catch</span> (RuntimeException e) {
+            System.out.println(<span class="st">"    "</span> + r.label() + <span class="st">": "</span> + e.getClass().getSimpleName()
+                    + <span class="st">": "</span> + e.getMessage());
+            <span class="kw">return</span> <span class="kw">false</span>;
+        }
+    }
+
+    <span class="cm">/** Real code that was written against the parent type, not against any subclass. */</span>
+    <span class="kw">static</span> <span class="kw">void</span> runRefundBatch(List&lt;Refundable&gt; batch, <span class="kw">long</span> each) {
+        <span class="kw">long</span> returned = <span class="nm">0</span>;
+        <span class="kw">int</span> done = <span class="nm">0</span>;
+        <span class="kw">try</span> {
+            <span class="kw">for</span> (Refundable r : batch) {
+                returned += r.refund(each);
+                done++;
+                System.out.println(<span class="st">"    refunded "</span> + rupees(each) + <span class="st">" by "</span> + r.label());
+            }
+            System.out.println(<span class="st">"  batch finished, "</span> + done + <span class="st">" of "</span> + batch.size()
+                    + <span class="st">", total "</span> + rupees(returned));
+        } <span class="kw">catch</span> (RuntimeException e) {
+            System.out.println(<span class="st">"    STOPPED: "</span> + e.getMessage());
+            System.out.println(<span class="st">"  batch died after "</span> + done + <span class="st">" of "</span> + batch.size()
+                    + <span class="st">". "</span> + rupees(returned) + <span class="st">" already left the account and the rest"</span>);
+            System.out.println(<span class="st">"  never ran. Nobody wrote a bug. The subclass broke a promise."</span>);
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        System.out.println(<span class="st">"=== the same test, run against three subclasses ==="</span>);
+        <span class="kw">for</span> (Refundable r : List.of(<span class="kw">new</span> CardRefund(), <span class="kw">new</span> NetBankingRefund(), <span class="kw">new</span> GiftCardRefund())) {
+            System.out.printf(<span class="st">"  %-12s contract holds? %s%n"</span>, r.label(), contractHolds(r));
+        }
+
+        System.out.println();
+        System.out.println(<span class="st">"=== a refund batch, written against the parent type ==="</span>);
+        System.out.println(<span class="st">"  all subclasses keeping the promise:"</span>);
+        runRefundBatch(List.of(<span class="kw">new</span> CardRefund(), <span class="kw">new</span> NetBankingRefund(), <span class="kw">new</span> CardRefund()), <span class="nm">50000</span>);
+
+        System.out.println();
+        System.out.println(<span class="st">"  one gift card in the middle:"</span>);
+        runRefundBatch(List.of(<span class="kw">new</span> CardRefund(), <span class="kw">new</span> GiftCardRefund(), <span class="kw">new</span> CardRefund()), <span class="nm">50000</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/Bad.java</span><span class="fmeta">290 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/Bad.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** The same mistake as before: handing UPI to the split feature. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Bad {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        System.out.println(SplitTheBill.run(<span class="kw">new</span> CardPayment(), <span class="nm">3</span>, <span class="nm">50000</span>));
+        System.out.println(SplitTheBill.run(<span class="kw">new</span> UpiPayment(), <span class="nm">3</span>, <span class="nm">50000</span>));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/CardPayment.java</span><span class="fmeta">401 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/CardPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> CardPayment <span class="kw">implements</span> PaymentMethod, Refundable, Schedulable, Splittable {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"card"</span>; }
+    <span class="kw">public</span> String charge(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"charged"</span>; }
+    <span class="kw">public</span> String refund(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"refunded"</span>; }
+    <span class="kw">public</span> String schedule(<span class="kw">long</span> a, String d) { <span class="kw">return</span> <span class="st">"scheduled for "</span> + d; }
+    <span class="kw">public</span> String splitAcross(<span class="kw">int</span> p, <span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"split across "</span> + p; }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/CashOnDelivery.java</span><span class="fmeta">266 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/CashOnDelivery.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Cash can only be collected. One interface, two methods, nothing that throws. */</span>
+<span class="kw">public</span> <span class="kw">class</span> CashOnDelivery <span class="kw">implements</span> PaymentMethod {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"cash on delivery"</span>; }
+    <span class="kw">public</span> String charge(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"collected at the door"</span>; }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/Good.java</span><span class="fmeta">792 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/Good.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.List;
+
+<span class="cm">/** Only the methods that really can be split are offered to the feature. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Good {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        System.out.println(<span class="st">"split the bill, given only things that can be split:"</span>);
+        <span class="kw">for</span> (Splittable s : List.&lt;Splittable&gt;of(<span class="kw">new</span> CardPayment())) {
+            System.out.println(<span class="st">"  "</span> + SplitTheBill.run(s, <span class="nm">3</span>, <span class="nm">50000</span>));
+        }
+        System.out.println();
+        System.out.println(<span class="st">"everything can still be charged:"</span>);
+        <span class="kw">for</span> (PaymentMethod m : List.of(<span class="kw">new</span> CardPayment(), <span class="kw">new</span> UpiPayment(), <span class="kw">new</span> CashOnDelivery())) {
+            System.out.println(<span class="st">"  "</span> + m.name() + <span class="st">": "</span> + m.charge(<span class="nm">50000</span>));
+        }
+        System.out.println();
+        System.out.println(<span class="st">"methods written that exist only to throw: 0"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/PaymentMethod.java</span><span class="fmeta">159 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/PaymentMethod.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** What every payment method can do. Nothing else belongs here. */</span>
+<span class="kw">public</span> <span class="kw">interface</span> PaymentMethod {
+    String name();
+    String charge(<span class="kw">long</span> amountPaise);
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/Refundable.java</span><span class="fmeta">65 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/Refundable.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> Refundable { String refund(<span class="kw">long</span> amountPaise); }
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/Schedulable.java</span><span class="fmeta">81 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/Schedulable.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> Schedulable { String schedule(<span class="kw">long</span> amountPaise, String date); }
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/SplitTheBill.java</span><span class="fmeta">241 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/SplitTheBill.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** This feature asks for exactly what it needs and nothing more. */</span>
+<span class="kw">public</span> <span class="kw">class</span> SplitTheBill {
+    <span class="kw">public</span> <span class="kw">static</span> String run(Splittable method, <span class="kw">int</span> people, <span class="kw">long</span> amountPaise) {
+        <span class="kw">return</span> method.splitAcross(people, amountPaise);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/Splittable.java</span><span class="fmeta">82 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/Splittable.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">interface</span> Splittable { String splitAcross(<span class="kw">int</span> people, <span class="kw">long</span> amountPaise); }
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">segregated/UpiPayment.java</span><span class="fmeta">297 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/proofs/segregated/UpiPayment.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** UPI can take money and give it back. It says nothing about the rest. */</span>
+<span class="kw">public</span> <span class="kw">class</span> UpiPayment <span class="kw">implements</span> PaymentMethod, Refundable {
+    <span class="kw">public</span> String name() { <span class="kw">return</span> <span class="st">"upi"</span>; }
+    <span class="kw">public</span> String charge(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"collected"</span>; }
+    <span class="kw">public</span> String refund(<span class="kw">long</span> a) { <span class="kw">return</span> <span class="st">"refunded"</span>; }
+}
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">tangled</h2>
+<details class="f">
+<summary><span class="fname">Database.java</span><span class="fmeta">546 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/tangled/Database.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Stands in for a real database. Note that it is opened, not handed in. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Database {
+    <span class="kw">public</span> <span class="kw">static</span> Database connect(String url) {
+        System.out.println(<span class="st">"  [db] opening connection to "</span> + url);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+        <span class="kw">return</span> <span class="kw">new</span> Database();
+    }
+    <span class="kw">public</span> <span class="kw">void</span> savePayment(String orderId, String method, <span class="kw">long</span> fee) {
+        System.out.println(<span class="st">"  [db] saved "</span> + orderId + <span class="st">" method="</span> + method + <span class="st">" fee="</span> + Money.rupees(fee));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Main.java</span><span class="fmeta">326 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/tangled/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">class</span> Main {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        OrderService service = <span class="kw">new</span> OrderService();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1001"</span>, <span class="nm">250000</span>, <span class="st">"asha@example.com"</span>), <span class="st">"card"</span>);
+        System.out.println();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"A-1002"</span>, <span class="nm">899900</span>, <span class="st">"ravi@example.com"</span>), <span class="st">"netbanking"</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Money.java</span><span class="fmeta">232 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/tangled/Money.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Money is held in paise, never in double. */</span>
+<span class="kw">public</span> <span class="kw">final</span> <span class="kw">class</span> Money {
+    <span class="kw">private</span> Money() {}
+    <span class="kw">public</span> <span class="kw">static</span> String rupees(<span class="kw">long</span> paise) {
+        <span class="kw">return</span> String.format(<span class="st">"Rs %d.%02d"</span>, paise / <span class="nm">100</span>, Math.abs(paise % <span class="nm">100</span>));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Order.java</span><span class="fmeta">74 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/tangled/Order.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">public</span> <span class="kw">record</span> Order(String id, <span class="kw">long</span> amountPaise, String customerEmail) {}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">OrderService.java</span><span class="fmeta">2.6 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/tangled/OrderService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * One class that does the whole checkout. This is not a strawman. It is what
+ * the code looks like when a working feature is shipped under a deadline and
+ * every later change is added to the method that was already there.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> OrderService {
+
+    <span class="kw">public</span> <span class="kw">void</span> checkout(Order order, String method) {
+        System.out.println(<span class="st">"checkout "</span> + order.id() + <span class="st">" for "</span> + Money.rupees(order.amountPaise())
+                + <span class="st">" by "</span> + method);
+
+        <span class="cm">// 1. validation</span>
+        <span class="kw">if</span> (order.amountPaise() &lt;= <span class="nm">0</span>) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"amount must be positive"</span>);
+        }
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            <span class="kw">if</span> (order.amountPaise() &gt; <span class="nm">20000000</span>) {
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"card limit is Rs 200000"</span>);
+            }
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            <span class="kw">if</span> (order.amountPaise() &lt; <span class="nm">100</span>) {
+                <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"netbanking needs at least Rs 1"</span>);
+            }
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 2. what the payment provider charges us</span>
+        <span class="kw">long</span> fee;
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            fee = Math.round(order.amountPaise() * <span class="nm">0.0195</span>) + <span class="nm">300</span>;
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            fee = <span class="nm">1200</span>;
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 3. actually take the money</span>
+        String reference;
+        <span class="kw">if</span> (method.equals(<span class="st">"card"</span>)) {
+            reference = <span class="st">"CARD-"</span> + order.id() + <span class="st">"-ok"</span>;
+            System.out.println(<span class="st">"  [card gateway] charged "</span> + Money.rupees(order.amountPaise()));
+        } <span class="kw">else</span> <span class="kw">if</span> (method.equals(<span class="st">"netbanking"</span>)) {
+            reference = <span class="st">"NB-"</span> + order.id() + <span class="st">"-ok"</span>;
+            System.out.println(<span class="st">"  [bank portal] debited "</span> + Money.rupees(order.amountPaise()));
+        } <span class="kw">else</span> {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalArgumentException(<span class="st">"unknown payment method: "</span> + method);
+        }
+
+        <span class="cm">// 4. store it</span>
+        Database db = Database.connect(<span class="st">"jdbc:postgresql://prod-db:5432/orders"</span>);
+        db.savePayment(order.id(), method, fee);
+
+        <span class="cm">// 5. tell the customer</span>
+        Smtp smtp = Smtp.connect(<span class="st">"smtp.company.internal"</span>);
+        smtp.send(order.customerEmail(),
+                <span class="st">"Order "</span> + order.id() + <span class="st">" confirmed"</span>,
+                <span class="st">"Thank you. We received "</span> + Money.rupees(order.amountPaise()) + <span class="st">"."</span>);
+
+        <span class="cm">// 6. audit trail</span>
+        System.out.println(<span class="st">"  [audit] "</span> + order.id() + <span class="st">" paid by "</span> + method
+                + <span class="st">" reference "</span> + reference + <span class="st">" fee "</span> + Money.rupees(fee));
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Smtp.java</span><span class="fmeta">543 B</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/tangled/Smtp.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/** Stands in for a real mail server. Also opened, not handed in. */</span>
+<span class="kw">public</span> <span class="kw">class</span> Smtp {
+    <span class="kw">public</span> <span class="kw">static</span> Smtp connect(String host) {
+        System.out.println(<span class="st">"  [smtp] opening connection to "</span> + host);
+        <span class="kw">try</span> { Thread.sleep(<span class="nm">150</span>); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+        <span class="kw">return</span> <span class="kw">new</span> Smtp();
+    }
+    <span class="kw">public</span> <span class="kw">void</span> send(String to, String subject, String body) {
+        System.out.println(<span class="st">"  [smtp] to "</span> + to + <span class="st">" subject: "</span> + subject);
+        System.out.println(<span class="st">"  [smtp] body: "</span> + body);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">TangledTest.java</span><span class="fmeta">1.8 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep10/tangled/TangledTest.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * An honest attempt to unit test the tangled OrderService.
+ *
+ * There is nothing to hand in, so checkout() opens its own database
+ * connection and its own mail connection. On a real machine those point at
+ * a real server, so this is not a unit test at all.
+ *
+ *   java TangledTest.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> TangledTest {
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        System.out.println(<span class="st">"=== testing the tangled version ==="</span>);
+        System.out.println();
+
+        OrderService service = <span class="kw">new</span> OrderService();
+        <span class="cm">// one warm up run first, so we time the work and not class loading</span>
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"WARMUP"</span>, <span class="nm">250000</span>, <span class="st">"test@example.com"</span>), <span class="st">"card"</span>);
+
+        System.out.println();
+        System.out.println(<span class="st">"  the run being timed:"</span>);
+        <span class="kw">long</span> start = System.nanoTime();
+        service.checkout(<span class="kw">new</span> Order(<span class="st">"T-1"</span>, <span class="nm">250000</span>, <span class="st">"test@example.com"</span>), <span class="st">"card"</span>);
+        <span class="kw">long</span> micros = (System.nanoTime() - start) / <span class="nm">1000</span>;
+
+        System.out.println();
+        System.out.println(<span class="st">"  took "</span> + micros + <span class="st">" microseconds, which is "</span>
+                + (micros / <span class="nm">1000</span>) + <span class="st">" ms"</span>);
+        System.out.println();
+        System.out.println(<span class="st">"  what this test could check:"</span>);
+        System.out.println(<span class="st">"    1. checkout did not throw"</span>);
+        System.out.println();
+        System.out.println(<span class="st">"  what it could NOT check:"</span>);
+        System.out.println(<span class="st">"    the fee, because the number went into the database and was"</span>);
+        System.out.println(<span class="st">"      never handed back"</span>);
+        System.out.println(<span class="st">"    the email, because it went to a mail server"</span>);
+        System.out.println(<span class="st">"    the audit line, because it went to standard output"</span>);
+        System.out.println();
+        System.out.println(<span class="st">"  it also wrote a row into whatever database that url points at,"</span>);
+        System.out.println(<span class="st">"  and sent a real email, every time anyone ran the test suite."</span>);
+    }
+}
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

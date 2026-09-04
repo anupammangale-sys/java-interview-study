@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 8 of the Java interview study series.">
+<title>The Employee Questions, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 08 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>The Employee Questions</h1>
+<p class="tagline">Every number on the episode page came from running this. 5 files, 19.0 KB.</p>
+<p class="codeacts"><a class="dl" href="ep08.zip" download>Download all, 6.7 KB</a><a class="back2" href="../ep08.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">EmployeeQueries.java</span><span class="fmeta">4.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep08/EmployeeQueries.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.Comparator;
+<span class="kw">import</span> java.util.LinkedHashMap;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+<span class="kw">import</span> java.util.Optional;
+<span class="kw">import</span> java.util.stream.Collectors;
+
+<span class="kw">import</span> <span class="kw">static</span> java.util.stream.Collectors.*;
+
+<span class="cm">/**
+ * The employee questions, which is what most stream coding rounds actually ask.
+ * Every answer here was run, and the printed output is what goes on the page.
+ *
+ *   java EmployeeQueries.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> EmployeeQueries {
+
+    <span class="kw">record</span> Employee(String name, String dept, <span class="kw">int</span> salary, <span class="kw">int</span> age) {}
+
+    <span class="kw">static</span> <span class="kw">final</span> List&lt;Employee&gt; STAFF = List.of(
+            <span class="kw">new</span> Employee(<span class="st">"Ann"</span>,   <span class="st">"eng"</span>,   <span class="nm">120</span>, <span class="nm">34</span>),
+            <span class="kw">new</span> Employee(<span class="st">"Bob"</span>,   <span class="st">"eng"</span>,   <span class="nm">100</span>, <span class="nm">28</span>),
+            <span class="kw">new</span> Employee(<span class="st">"Cara"</span>,  <span class="st">"eng"</span>,   <span class="nm">140</span>, <span class="nm">41</span>),
+            <span class="kw">new</span> Employee(<span class="st">"Dan"</span>,   <span class="st">"sales"</span>,  <span class="nm">90</span>, <span class="nm">25</span>),
+            <span class="kw">new</span> Employee(<span class="st">"Eve"</span>,   <span class="st">"sales"</span>, <span class="nm">110</span>, <span class="nm">37</span>),
+            <span class="kw">new</span> Employee(<span class="st">"Finn"</span>,  <span class="st">"hr"</span>,     <span class="nm">80</span>, <span class="nm">45</span>),
+            <span class="kw">new</span> Employee(<span class="st">"Gita"</span>,  <span class="st">"hr"</span>,     <span class="nm">95</span>, <span class="nm">30</span>));
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        line(<span class="st">"1. names grouped by department"</span>);
+        show(STAFF.stream().collect(
+                groupingBy(Employee::dept, mapping(Employee::name, toList()))));
+
+        line(<span class="st">"2. how many in each department"</span>);
+        show(STAFF.stream().collect(groupingBy(Employee::dept, counting())));
+
+        line(<span class="st">"3. average salary per department"</span>);
+        show(STAFF.stream().collect(groupingBy(Employee::dept, averagingInt(Employee::salary))));
+
+        line(<span class="st">"4. total salary per department"</span>);
+        show(STAFF.stream().collect(groupingBy(Employee::dept, summingInt(Employee::salary))));
+
+        line(<span class="st">"5. highest paid person in each department"</span>);
+        Map&lt;String, Optional&lt;Employee&gt;&gt; topOptional = STAFF.stream().collect(
+                groupingBy(Employee::dept, maxBy(Comparator.comparingInt(Employee::salary))));
+        show(topOptional.entrySet().stream().collect(toMap(Map.Entry::getKey,
+                e -&gt; e.getValue().map(Employee::name).orElse(<span class="st">"none"</span>))));
+
+        line(<span class="st">"   the same thing without the Optional, using collectingAndThen"</span>);
+        show(STAFF.stream().collect(groupingBy(Employee::dept,
+                collectingAndThen(maxBy(Comparator.comparingInt(Employee::salary)),
+                        o -&gt; o.map(Employee::name).orElse(<span class="st">"none"</span>)))));
+
+        line(<span class="st">"6. second highest salary overall"</span>);
+        show(STAFF.stream().map(Employee::salary).distinct()
+                .sorted(Comparator.reverseOrder())
+                .skip(<span class="nm">1</span>).findFirst().orElse(-<span class="nm">1</span>));
+
+        line(<span class="st">"   third highest, same shape with skip(2)"</span>);
+        show(STAFF.stream().map(Employee::salary).distinct()
+                .sorted(Comparator.reverseOrder())
+                .skip(<span class="nm">2</span>).findFirst().orElse(-<span class="nm">1</span>));
+
+        line(<span class="st">"7. top 2 earners in each department"</span>);
+        show(STAFF.stream().collect(groupingBy(Employee::dept,
+                collectingAndThen(toList(), list -&gt; list.stream()
+                        .sorted(Comparator.comparingInt(Employee::salary).reversed())
+                        .limit(<span class="nm">2</span>)
+                        .map(Employee::name)
+                        .toList()))));
+
+        line(<span class="st">"8. sort by department, then by salary highest first"</span>);
+        show(STAFF.stream()
+                .sorted(Comparator.comparing(Employee::dept)
+                        .thenComparing(Comparator.comparingInt(Employee::salary).reversed()))
+                .map(e -&gt; e.dept() + <span class="st">":"</span> + e.name() + <span class="st">":"</span> + e.salary())
+                .toList());
+
+        line(<span class="st">"9. one summary pass: count, min, max, average, total"</span>);
+        show(STAFF.stream().collect(summarizingInt(Employee::salary)));
+
+        line(<span class="st">"10. names to salaries as a map, keeping insertion order"</span>);
+        show(STAFF.stream().collect(toMap(Employee::name, Employee::salary,
+                (a, b) -&gt; a, LinkedHashMap::<span class="kw">new</span>)));
+
+        line(<span class="st">"11. partition into high and low earners"</span>);
+        show(STAFF.stream().collect(partitioningBy(e -&gt; e.salary() &gt;= <span class="nm">100</span>,
+                mapping(Employee::name, toList()))));
+
+        line(<span class="st">"12. department with the highest average salary"</span>);
+        show(STAFF.stream()
+                .collect(groupingBy(Employee::dept, averagingInt(Employee::salary)))
+                .entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey).orElse(<span class="st">"none"</span>));
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> line(String s) { System.out.println(s); }
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> show(Object o) { System.out.println(<span class="st">"   -&gt; "</span> + o); System.out.println(); }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">FlattenAndExceptions.java</span><span class="fmeta">5.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep08/FlattenAndExceptions.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.*;
+<span class="kw">import</span> java.util.function.Function;
+<span class="kw">import</span> java.util.stream.Collectors;
+<span class="kw">import</span> java.util.stream.Stream;
+
+<span class="kw">import</span> <span class="kw">static</span> java.util.stream.Collectors.*;
+
+<span class="cm">/**
+ * Flattening nested things, and the checked exception problem that stops
+ * every stream coding round sooner or later.
+ *
+ *   java FlattenAndExceptions.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> FlattenAndExceptions {
+
+    <span class="kw">record</span> Item(String sku, <span class="kw">int</span> qty) {}
+    <span class="kw">record</span> Order(String id, List&lt;Item&gt; items) {}
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        flattening();
+        System.out.println();
+        checkedExceptions();
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> flattening() {
+        System.out.println(<span class="st">"=== flattening ==="</span>);
+
+        List&lt;List&lt;Integer&gt;&gt; nested = List.of(List.of(<span class="nm">1</span>, <span class="nm">2</span>), List.of(<span class="nm">3</span>, <span class="nm">4</span>, <span class="nm">5</span>), List.of(), List.of(<span class="nm">6</span>));
+        line(<span class="st">"1. list of lists into one list"</span>);
+        show(nested.stream().flatMap(List::stream).toList());
+
+        line(<span class="st">"   why map does not work: it gives you a stream of streams"</span>);
+        show(nested.stream().map(List::stream).toList().size() + <span class="st">" Stream objects, not the numbers"</span>);
+
+        Map&lt;String, List&lt;String&gt;&gt; byDept = <span class="kw">new</span> LinkedHashMap&lt;&gt;();
+        byDept.put(<span class="st">"eng"</span>, List.of(<span class="st">"Ann"</span>, <span class="st">"Bob"</span>));
+        byDept.put(<span class="st">"hr"</span>, List.of(<span class="st">"Cara"</span>));
+        line(<span class="st">"2. all values from a map of lists"</span>);
+        show(byDept.values().stream().flatMap(List::stream).toList());
+
+        List&lt;Order&gt; orders = List.of(
+                <span class="kw">new</span> Order(<span class="st">"o1"</span>, List.of(<span class="kw">new</span> Item(<span class="st">"a"</span>, <span class="nm">2</span>), <span class="kw">new</span> Item(<span class="st">"b"</span>, <span class="nm">1</span>))),
+                <span class="kw">new</span> Order(<span class="st">"o2"</span>, List.of(<span class="kw">new</span> Item(<span class="st">"a"</span>, <span class="nm">5</span>))),
+                <span class="kw">new</span> Order(<span class="st">"o3"</span>, List.of()));
+
+        line(<span class="st">"3. every item across every order"</span>);
+        show(orders.stream().flatMap(o -&gt; o.items().stream()).map(Item::sku).toList());
+
+        line(<span class="st">"4. total quantity per sku, across all orders"</span>);
+        show(orders.stream()
+                .flatMap(o -&gt; o.items().stream())
+                .collect(groupingBy(Item::sku, TreeMap::<span class="kw">new</span>, summingInt(Item::qty))));
+
+        line(<span class="st">"5. split sentences into words"</span>);
+        List&lt;String&gt; sentences = List.of(<span class="st">"the cat sat"</span>, <span class="st">"on the mat"</span>);
+        show(sentences.stream().flatMap(s -&gt; Arrays.stream(s.split(<span class="st">" "</span>))).distinct().sorted().toList());
+
+        line(<span class="st">"6. keep only the orders that have items"</span>);
+        show(orders.stream().filter(o -&gt; !o.items().isEmpty()).map(Order::id).toList());
+
+        line(<span class="st">"7. flatMap with Optional: drop the empties"</span>);
+        List&lt;Optional&lt;String&gt;&gt; maybes = List.of(Optional.of(<span class="st">"x"</span>), Optional.empty(), Optional.of(<span class="st">"y"</span>));
+        show(maybes.stream().flatMap(Optional::stream).toList());
+    }
+
+    <span class="cm">// ---- checked exceptions ----</span>
+
+    <span class="cm">/** Stands in for anything that throws a checked exception. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">int</span> parse(String s) <span class="kw">throws</span> Exception {
+        <span class="kw">if</span> (!s.matches(<span class="st">"-?\\d+"</span>)) <span class="kw">throw</span> <span class="kw">new</span> Exception(<span class="st">"not a number: "</span> + s);
+        <span class="kw">return</span> Integer.parseInt(s);
+    }
+
+    <span class="cm">/** A functional interface that IS allowed to throw. */</span>
+    <span class="an">@FunctionalInterface</span>
+    <span class="kw">interface</span> ThrowingFunction&lt;T, R&gt; {
+        R apply(T t) <span class="kw">throws</span> Exception;
+    }
+
+    <span class="cm">/** Wraps a throwing function into an ordinary one. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> &lt;T, R&gt; Function&lt;T, R&gt; unchecked(ThrowingFunction&lt;T, R&gt; f) {
+        <span class="kw">return</span> t -&gt; {
+            <span class="kw">try</span> {
+                <span class="kw">return</span> f.apply(t);
+            } <span class="kw">catch</span> (Exception e) {
+                <span class="kw">throw</span> <span class="kw">new</span> RuntimeException(e);
+            }
+        };
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> checkedExceptions() {
+        System.out.println(<span class="st">"=== checked exceptions inside a lambda ==="</span>);
+        List&lt;String&gt; good = List.of(<span class="st">"1"</span>, <span class="st">"2"</span>, <span class="st">"3"</span>);
+        List&lt;String&gt; mixed = List.of(<span class="st">"1"</span>, <span class="st">"oops"</span>, <span class="st">"3"</span>);
+
+        line(<span class="st">"the problem: map(this::parse) does not compile, because Function"</span>);
+        line(<span class="st">"cannot throw a checked exception. Three ways round it."</span>);
+        System.out.println();
+
+        line(<span class="st">"A. try/catch inside the lambda, turning it into something unchecked"</span>);
+        show(good.stream().map(s -&gt; {
+            <span class="kw">try</span> {
+                <span class="kw">return</span> parse(s);
+            } <span class="kw">catch</span> (Exception e) {
+                <span class="kw">throw</span> <span class="kw">new</span> RuntimeException(e);
+            }
+        }).toList());
+
+        line(<span class="st">"B. the same thing extracted into a helper, so the pipeline stays readable"</span>);
+        show(good.stream().map(unchecked(FlattenAndExceptions::parse)).toList());
+
+        line(<span class="st">"C. do not throw at all: keep the failures and the successes"</span>);
+        Map&lt;Boolean, List&lt;String&gt;&gt; split = mixed.stream()
+                .collect(partitioningBy(FlattenAndExceptions::isNumber));
+        show(<span class="st">"valid "</span> + split.get(<span class="kw">true</span>) + <span class="st">", invalid "</span> + split.get(<span class="kw">false</span>));
+
+        line(<span class="st">"   then parse only the valid ones"</span>);
+        show(split.get(<span class="kw">true</span>).stream().map(Integer::parseInt).toList());
+
+        line(<span class="st">"what happens if you let B hit a bad value"</span>);
+        <span class="kw">try</span> {
+            mixed.stream().map(unchecked(FlattenAndExceptions::parse)).toList();
+        } <span class="kw">catch</span> (RuntimeException e) {
+            show(e.getClass().getSimpleName() + <span class="st">" wrapping "</span> + e.getCause().getMessage());
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">boolean</span> isNumber(String s) {
+        <span class="kw">return</span> s.matches(<span class="st">"-?\\d+"</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> line(String s) { System.out.println(s); }
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> show(Object o) { System.out.println(<span class="st">"   -&gt; "</span> + o); System.out.println(); }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">FrequencyAndDuplicates.java</span><span class="fmeta">3.9 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep08/FrequencyAndDuplicates.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.*;
+<span class="kw">import</span> java.util.function.Function;
+<span class="kw">import</span> java.util.stream.Collectors;
+<span class="kw">import</span> java.util.stream.Stream;
+
+<span class="kw">import</span> <span class="kw">static</span> java.util.stream.Collectors.*;
+
+<span class="cm">/**
+ * The counting questions: duplicates, frequency, first non repeating.
+ * Every answer was run and the printed output is what goes on the page.
+ *
+ *   java FrequencyAndDuplicates.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> FrequencyAndDuplicates {
+
+    <span class="kw">static</span> <span class="kw">final</span> List&lt;String&gt; WORDS =
+            List.of(<span class="st">"apple"</span>, <span class="st">"pear"</span>, <span class="st">"apple"</span>, <span class="st">"fig"</span>, <span class="st">"pear"</span>, <span class="st">"apple"</span>, <span class="st">"plum"</span>);
+    <span class="kw">static</span> <span class="kw">final</span> String TEXT = <span class="st">"swiss cheese"</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        line(<span class="st">"1. frequency of each word"</span>);
+        show(WORDS.stream().collect(groupingBy(Function.identity(), counting())));
+
+        line(<span class="st">"   keeping the order the words first appeared"</span>);
+        show(WORDS.stream().collect(groupingBy(Function.identity(),
+                LinkedHashMap::<span class="kw">new</span>, counting())));
+
+        line(<span class="st">"2. words that appear more than once"</span>);
+        show(WORDS.stream().collect(groupingBy(Function.identity(), counting()))
+                .entrySet().stream()
+                .filter(e -&gt; e.getValue() &gt; <span class="nm">1</span>)
+                .map(Map.Entry::getKey)
+                .toList());
+
+        line(<span class="st">"   the same thing with a Set, which is the version to know"</span>);
+        Set&lt;String&gt; seen = <span class="kw">new</span> HashSet&lt;&gt;();
+        show(WORDS.stream().filter(w -&gt; !seen.add(w)).collect(toSet()));
+
+        line(<span class="st">"3. the most frequent word"</span>);
+        show(WORDS.stream().collect(groupingBy(Function.identity(), counting()))
+                .entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey).orElse(<span class="st">"none"</span>));
+
+        line(<span class="st">"4. remove duplicates, keep the original order"</span>);
+        show(WORDS.stream().distinct().toList());
+
+        line(<span class="st">"5. count each character in \""</span> + TEXT + <span class="st">"\", ignoring spaces"</span>);
+        show(TEXT.chars()
+                .filter(Character::isLetter)
+                .mapToObj(c -&gt; (<span class="kw">char</span>) c)
+                .collect(groupingBy(Function.identity(), LinkedHashMap::<span class="kw">new</span>, counting())));
+
+        line(<span class="st">"6. first character that appears exactly once"</span>);
+        show(TEXT.chars()
+                .filter(Character::isLetter)
+                .mapToObj(c -&gt; (<span class="kw">char</span>) c)
+                .collect(groupingBy(Function.identity(), LinkedHashMap::<span class="kw">new</span>, counting()))
+                .entrySet().stream()
+                .filter(e -&gt; e.getValue() == <span class="nm">1</span>)
+                .map(Map.Entry::getKey)
+                .findFirst().map(String::valueOf).orElse(<span class="st">"none"</span>));
+
+        line(<span class="st">"   why LinkedHashMap matters here: the same code with a plain HashMap"</span>);
+        show(TEXT.chars()
+                .filter(Character::isLetter)
+                .mapToObj(c -&gt; (<span class="kw">char</span>) c)
+                .collect(groupingBy(Function.identity(), counting()))
+                .entrySet().stream()
+                .filter(e -&gt; e.getValue() == <span class="nm">1</span>)
+                .map(Map.Entry::getKey)
+                .findFirst().map(String::valueOf).orElse(<span class="st">"none"</span>));
+
+        line(<span class="st">"7. are two words anagrams"</span>);
+        show(anagram(<span class="st">"listen"</span>, <span class="st">"silent"</span>) + <span class="st">"  and  "</span> + anagram(<span class="st">"hello"</span>, <span class="st">"world"</span>));
+
+        line(<span class="st">"8. words appearing exactly twice"</span>);
+        show(WORDS.stream().collect(groupingBy(Function.identity(), counting()))
+                .entrySet().stream()
+                .filter(e -&gt; e.getValue() == <span class="nm">2</span>)
+                .map(Map.Entry::getKey)
+                .toList());
+
+        line(<span class="st">"9. join the distinct words into one string"</span>);
+        show(WORDS.stream().distinct().sorted().collect(joining(<span class="st">", "</span>, <span class="st">"["</span>, <span class="st">"]"</span>)));
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">boolean</span> anagram(String a, String b) {
+        <span class="kw">return</span> sorted(a).equals(sorted(b));
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> String sorted(String s) {
+        <span class="kw">return</span> s.chars().sorted()
+                .collect(StringBuilder::<span class="kw">new</span>, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString();
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> line(String s) { System.out.println(s); }
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> show(Object o) { System.out.println(<span class="st">"   -&gt; "</span> + o); System.out.println(); }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">README.md</span><span class="fmeta">2.3 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep08/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 8 demos
+
+Every solution on the episode page came from these files. They were compiled and
+run, and the output shown on the page is what they actually printed.
+
+```bash
+java EmployeeQueries.java
+java FrequencyAndDuplicates.java
+java SortingEdges.java
+java FlattenAndExceptions.java
+```
+
+## The two answers that run cleanly and give the wrong result
+
+**1. First character appearing exactly once** (`FrequencyAndDuplicates`, item 6).
+
+The answer everyone writes groups by character with `counting()`, filters for 1,
+and takes `findFirst`. On `"swiss cheese"`:
+
+```
+with LinkedHashMap::new  -&gt;  w      (correct)
+with a plain HashMap     -&gt;  c      (wrong)
+```
+
+`groupingBy` builds a HashMap, so "first" becomes first in hash order rather
+than first in the string. The wrong version compiles, runs, and returns a
+plausible letter.
+
+**2. Sorting a map by value** (`SortingEdges`, item 6).
+
+```
+collect into LinkedHashMap  -&gt;  {bob=9, cara=5, ann=3}    (correct)
+collect into a plain toMap  -&gt;  {ann=3, cara=5, bob=9}    (sort discarded)
+```
+
+## The reversed() trap (`SortingEdges`, item 5)
+
+Sort by age descending, then name ascending:
+
+```
+comparingInt(age).thenComparing(name).reversed()   -&gt;  [34:Dan, 34:Ann, ...]
+comparingInt(age).reversed().thenComparing(name)   -&gt;  [34:Ann, 34:Dan, ...]
+```
+
+`reversed()` applies to the whole chain built so far. Both compile, and the
+difference only appears when two elements tie, which test data often avoids.
+
+## Everything else that was verified
+
+`EmployeeQueries` covers grouping by department (names, counts, totals,
+averages), highest paid per department with and without the Optional,
+second and third highest salary, top two per department, multi field sorting,
+`summarizingInt`, `toMap` with a merge function and insertion order,
+partitioning, and the department with the highest average.
+
+`FrequencyAndDuplicates` covers frequency maps, duplicates two ways, most
+frequent, distinct preserving order, character counting, anagrams, and words
+appearing exactly twice.
+
+`FlattenAndExceptions` covers list of lists, map of lists, nested records,
+quantity totals per key, splitting sentences, `Optional::stream`, and the three
+ways to handle a checked exception inside a lambda, including what the wrapped
+failure actually looks like:
+
+```
+RuntimeException wrapping not a number: oops
+```
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">SortingEdges.java</span><span class="fmeta">3.3 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep08/SortingEdges.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.*;
+<span class="kw">import</span> java.util.stream.Collectors;
+
+<span class="cm">/**
+ * Sorting, including the two things that go wrong: nulls, and reversing the
+ * wrong part of a chained comparator.
+ *
+ *   java SortingEdges.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> SortingEdges {
+
+    <span class="kw">record</span> Person(String name, String city, Integer age) {}
+
+    <span class="kw">static</span> <span class="kw">final</span> List&lt;Person&gt; PEOPLE = Arrays.asList(
+            <span class="kw">new</span> Person(<span class="st">"Ann"</span>, <span class="st">"leeds"</span>, <span class="nm">34</span>),
+            <span class="kw">new</span> Person(<span class="st">"Bob"</span>, <span class="st">"bath"</span>, <span class="kw">null</span>),
+            <span class="kw">new</span> Person(<span class="st">"Cara"</span>, <span class="st">"leeds"</span>, <span class="nm">29</span>),
+            <span class="kw">new</span> Person(<span class="st">"Dan"</span>, <span class="st">"bath"</span>, <span class="nm">34</span>),
+            <span class="kw">new</span> Person(<span class="st">"Eve"</span>, <span class="kw">null</span>, <span class="nm">22</span>));
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        line(<span class="st">"1. sort by age, with nulls last"</span>);
+        show(PEOPLE.stream()
+                .sorted(Comparator.comparing(Person::age, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(p -&gt; p.name() + <span class="st">"="</span> + p.age())
+                .toList());
+
+        line(<span class="st">"2. same, nulls first"</span>);
+        show(PEOPLE.stream()
+                .sorted(Comparator.comparing(Person::age, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .map(p -&gt; p.name() + <span class="st">"="</span> + p.age())
+                .toList());
+
+        line(<span class="st">"3. what happens with a plain comparator and a null value"</span>);
+        <span class="kw">try</span> {
+            PEOPLE.stream().sorted(Comparator.comparing(Person::age)).toList();
+            show(<span class="st">"no exception"</span>);
+        } <span class="kw">catch</span> (NullPointerException e) {
+            show(<span class="st">"NullPointerException, because comparing() calls compareTo on null"</span>);
+        }
+
+        line(<span class="st">"4. city then name, both ascending"</span>);
+        show(PEOPLE.stream()
+                .sorted(Comparator.comparing(Person::city, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(Person::name))
+                .map(p -&gt; p.city() + <span class="st">":"</span> + p.name())
+                .toList());
+
+        line(<span class="st">"5. the reversed() trap: this reverses the WHOLE chain"</span>);
+        show(PEOPLE.stream()
+                .filter(p -&gt; p.age() != <span class="kw">null</span>)
+                .sorted(Comparator.comparingInt(Person::age).thenComparing(Person::name).reversed())
+                .map(p -&gt; p.age() + <span class="st">":"</span> + p.name())
+                .toList());
+
+        line(<span class="st">"   what people usually mean: age descending, then name ascending"</span>);
+        show(PEOPLE.stream()
+                .filter(p -&gt; p.age() != <span class="kw">null</span>)
+                .sorted(Comparator.comparingInt(Person::age).reversed().thenComparing(Person::name))
+                .map(p -&gt; p.age() + <span class="st">":"</span> + p.name())
+                .toList());
+
+        line(<span class="st">"6. sorting a map by value, highest first, keeping the order"</span>);
+        Map&lt;String, Integer&gt; scores = <span class="kw">new</span> LinkedHashMap&lt;&gt;();
+        scores.put(<span class="st">"ann"</span>, <span class="nm">3</span>); scores.put(<span class="st">"bob"</span>, <span class="nm">9</span>); scores.put(<span class="st">"cara"</span>, <span class="nm">5</span>);
+        show(scores.entrySet().stream()
+                .sorted(Map.Entry.&lt;String, Integer&gt;comparingByValue().reversed())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                        (a, b) -&gt; a, LinkedHashMap::<span class="kw">new</span>)));
+
+        line(<span class="st">"   the same without LinkedHashMap, which throws the order away"</span>);
+        show(scores.entrySet().stream()
+                .sorted(Map.Entry.&lt;String, Integer&gt;comparingByValue().reversed())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> line(String s) { System.out.println(s); }
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> show(Object o) { System.out.println(<span class="st">"   -&gt; "</span> + o); System.out.println(); }
+}
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

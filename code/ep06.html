@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 6 of the Java interview study series.">
+<title>A Million Threads, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 06 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>A Million Threads</h1>
+<p class="tagline">Every number on the episode page came from running this. 5 files, 12.7 KB.</p>
+<p class="codeacts"><a class="dl" href="ep06.zip" download>Download all, 5.7 KB</a><a class="back2" href="../ep06.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">BlockingThroughput.java</span><span class="fmeta">2.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep06/BlockingThroughput.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.TimeUnit;
+
+<span class="cm">/**
+ * Ten thousand tasks, each waiting 100 ms for something slow. This is the shape
+ * of a service that mostly calls other services.
+ *
+ * With a fixed pool the maths is simple and unforgiving: tasks divided by
+ * threads, times how long each one waits. Virtual threads remove the divisor.
+ *
+ *   java BlockingThroughput.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> BlockingThroughput {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> TASKS = <span class="nm">10_000</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> WAIT_MS = <span class="nm">100</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.printf(<span class="st">"%,d tasks, each waiting %d ms for something slow%n%n"</span>, TASKS, WAIT_MS);
+        System.out.printf(<span class="st">"%-38s %12s   %s%n"</span>, <span class="st">"executor"</span>, <span class="st">"wall time"</span>, <span class="st">"in theory"</span>);
+        System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">76</span>));
+
+        run(<span class="st">"fixed pool, 200 threads"</span>,
+                Executors.newFixedThreadPool(<span class="nm">200</span>), TASKS / <span class="nm">200</span> * WAIT_MS);
+        run(<span class="st">"fixed pool, 1000 threads"</span>,
+                Executors.newFixedThreadPool(<span class="nm">1000</span>), TASKS / <span class="nm">1000</span> * WAIT_MS);
+        run(<span class="st">"fixed pool, 2000 threads"</span>,
+                Executors.newFixedThreadPool(<span class="nm">2000</span>), TASKS / <span class="nm">2000</span> * WAIT_MS);
+        run(<span class="st">"one virtual thread per task"</span>,
+                Executors.newVirtualThreadPerTaskExecutor(), WAIT_MS);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> run(String label, ExecutorService pool, <span class="kw">long</span> theory) <span class="kw">throws</span> Exception {
+        <span class="kw">long</span> t0 = System.currentTimeMillis();
+        <span class="kw">try</span> (pool) {
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; TASKS; i++) {
+                pool.submit(() -&gt; {
+                    <span class="kw">try</span> {
+                        Thread.sleep(WAIT_MS);      <span class="cm">// stands in for a network call</span>
+                    } <span class="kw">catch</span> (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+            }
+            pool.shutdown();
+            pool.awaitTermination(<span class="nm">5</span>, TimeUnit.MINUTES);
+        }
+        <span class="kw">long</span> ms = System.currentTimeMillis() - t0;
+        System.out.printf(<span class="st">"%-38s %9d ms   about %d ms%n"</span>, label, ms, theory);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">PinningTest.java</span><span class="fmeta">3.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep06/PinningTest.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.CountDownLatch;
+<span class="kw">import</span> java.util.concurrent.locks.ReentrantLock;
+
+<span class="cm">/**
+ * Does blocking inside synchronized still trap the carrier thread?
+ *
+ * The classic advice is yes: a virtual thread that blocks inside a synchronized
+ * block cannot unmount, so it holds its carrier hostage and you lose the whole
+ * point of virtual threads. The usual fix given is to replace synchronized with
+ * ReentrantLock.
+ *
+ * This measures it. Every virtual thread locks its OWN object, so there is no
+ * contention at all: the only thing that could serialise them is pinning.
+ *
+ *   If pinning happens : time is about (threads / carriers) * sleep
+ *   If it does not     : time is about sleep, whatever the thread count
+ *
+ *   java PinningTest.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> PinningTest {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> THREADS = <span class="nm">2_000</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> SLEEP_MS = <span class="nm">200</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        <span class="kw">int</span> carriers = Runtime.getRuntime().availableProcessors();
+        System.out.println(<span class="st">"Java "</span> + System.getProperty(<span class="st">"java.version"</span>));
+        System.out.printf(<span class="st">"%,d virtual threads, each holding its OWN lock and sleeping %d ms%n"</span>,
+                THREADS, SLEEP_MS);
+        System.out.printf(<span class="st">"Carrier threads available: %d%n"</span>, carriers);
+        System.out.println();
+        System.out.printf(<span class="st">"if pinning happens, expect roughly %,d ms%n"</span>,
+                (<span class="kw">long</span>) THREADS / carriers * SLEEP_MS);
+        System.out.printf(<span class="st">"if it does not, expect roughly %,d ms%n"</span>, SLEEP_MS);
+        System.out.println();
+        System.out.printf(<span class="st">"%-34s %12s%n"</span>, <span class="st">"blocking inside"</span>, <span class="st">"wall time"</span>);
+        System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">50</span>));
+
+        <span class="cm">// warm up so class loading is not counted</span>
+        measure(<span class="kw">true</span>);
+        measure(<span class="kw">false</span>);
+
+        System.out.printf(<span class="st">"%-34s %9d ms%n"</span>, <span class="st">"synchronized (own monitor)"</span>, measure(<span class="kw">true</span>));
+        System.out.printf(<span class="st">"%-34s %9d ms%n"</span>, <span class="st">"ReentrantLock (own lock)"</span>, measure(<span class="kw">false</span>));
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> measure(<span class="kw">boolean</span> useSynchronized) <span class="kw">throws</span> Exception {
+        CountDownLatch done = <span class="kw">new</span> CountDownLatch(THREADS);
+        <span class="kw">long</span> t0 = System.currentTimeMillis();
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; THREADS; i++) {
+            <span class="kw">final</span> Object monitor = <span class="kw">new</span> Object();          <span class="cm">// nobody else wants these</span>
+            <span class="kw">final</span> ReentrantLock lock = <span class="kw">new</span> ReentrantLock();
+            Thread.ofVirtual().start(() -&gt; {
+                <span class="kw">try</span> {
+                    <span class="kw">if</span> (useSynchronized) {
+                        <span class="kw">synchronized</span> (monitor) {
+                            Thread.sleep(SLEEP_MS);
+                        }
+                    } <span class="kw">else</span> {
+                        lock.lock();
+                        <span class="kw">try</span> {
+                            Thread.sleep(SLEEP_MS);
+                        } <span class="kw">finally</span> {
+                            lock.unlock();
+                        }
+                    }
+                } <span class="kw">catch</span> (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } <span class="kw">finally</span> {
+                    done.countDown();
+                }
+            });
+        }
+
+        done.await();
+        <span class="kw">return</span> System.currentTimeMillis() - t0;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">README.md</span><span class="fmeta">2.6 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep06/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 6 demos
+
+Captured on Java 24.0.2, on a machine with 12 processors.
+
+## 1. How many threads can exist
+
+```bash
+java -Xmx1g ThreadScale.java platform
+java -Xmx1g ThreadScale.java virtual
+```
+
+**Run each kind in its own JVM.** The first version of this ran both in one
+program and the numbers were nonsense: tearing down 50,000 platform threads was
+still happening while the virtual measurement started, which reported 1,000
+virtual threads taking 25.8 seconds.
+
+| Asked for | Platform | Virtual |
+|---|---|---|
+| 1,000 | 37 ms | 9 ms |
+| 10,000 | 513 ms | 18 ms |
+| 20,000 | 2,129 ms | - |
+| 50,000 | 12,605 ms | - |
+| 100,000 | - | 76 ms |
+| 500,000 | - | 398 ms |
+| 1,000,000 | - | 656 ms |
+
+Platform cost grows faster than the count. Virtual threads created a million in
+less time than platform threads took for twenty thousand.
+
+## 2. Blocking throughput
+
+```bash
+java BlockingThroughput.java
+```
+
+10,000 tasks, each waiting 100 ms.
+
+| Executor | Wall time | tasks/threads x wait |
+|---|---|---|
+| fixed pool, 200 threads | 5,043 ms | about 5,000 ms |
+| fixed pool, 1000 threads | 1,048 ms | about 1,000 ms |
+| fixed pool, 2000 threads | 572 ms | about 500 ms |
+| one virtual thread per task | 203 ms | about 100 ms |
+
+The arithmetic matches the measurement in every row.
+
+## 3. Does synchronized still pin? (the interesting one)
+
+```bash
+java PinningTest.java
+```
+
+2,000 virtual threads, each locking **its own** object then sleeping 200 ms.
+No contention at all, so the only thing that could serialise them is pinning.
+
+```
+Carrier threads available: 12
+if pinning happens, expect roughly 33,200 ms
+if it does not, expect roughly 200 ms
+
+synchronized (own monitor)               236 ms
+ReentrantLock (own lock)                 212 ms
+```
+
+**On Java 24, synchronized does not pin.** JEP 491 removed it. The advice to
+replace synchronized with ReentrantLock before adopting virtual threads was
+correct for Java 21 to 23 and is out of date on 24. Run this on an older JDK and
+the first row should be around 33 seconds instead.
+
+What still pins is code blocking below Java in native C, because the stack
+cannot be moved to the heap. Not demonstrated here, since it needs a native
+library to show.
+
+## 4. Structured concurrency (preview)
+
+```bash
+java --enable-preview --source 24 StructuredDemo.java
+```
+
+Two subtasks, 100 ms and 300 ms, run in parallel. When one fails the other is
+cancelled and the whole scope fails:
+
+```
+1. both succeed:
+   Order[user=user-42, cart=cart-7]
+
+2. one fails, so the other is cancelled:
+   whole scope failed: cart service is down
+```
+
+Still a preview feature and the API has changed between releases, so the flag is
+required and this should not go into production yet.
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">StructuredDemo.java</span><span class="fmeta">1.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep06/StructuredDemo.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.StructuredTaskScope;
+
+<span class="cm">/**
+ * Structured concurrency: several tasks treated as one unit of work.
+ *
+ * Still a preview feature, so it needs the flag:
+ *
+ *   java --enable-preview --source 24 StructuredDemo.java
+ *
+ * The point is that if one subtask fails, the others are cancelled
+ * automatically, and the scope cannot be left open by accident.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> StructuredDemo {
+
+    <span class="kw">record</span> Order(String user, String cart) {}
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.println(<span class="st">"Two subtasks, both needed to build one result."</span>);
+        System.out.println();
+
+        System.out.println(<span class="st">"1. both succeed:"</span>);
+        System.out.println(<span class="st">"   "</span> + fetch(<span class="kw">false</span>));
+
+        System.out.println();
+        System.out.println(<span class="st">"2. one fails, so the other is cancelled:"</span>);
+        <span class="kw">try</span> {
+            System.out.println(<span class="st">"   "</span> + fetch(<span class="kw">true</span>));
+        } <span class="kw">catch</span> (Exception e) {
+            System.out.println(<span class="st">"   whole scope failed: "</span> + e.getCause().getMessage());
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> Order fetch(<span class="kw">boolean</span> failCart) <span class="kw">throws</span> Exception {
+        <span class="kw">try</span> (<span class="kw">var</span> scope = <span class="kw">new</span> StructuredTaskScope.ShutdownOnFailure()) {
+            <span class="kw">var</span> user = scope.fork(() -&gt; slow(<span class="st">"user-42"</span>, <span class="nm">100</span>, <span class="kw">false</span>));
+            <span class="kw">var</span> cart = scope.fork(() -&gt; slow(<span class="st">"cart-7"</span>, <span class="nm">300</span>, failCart));
+
+            scope.join();            <span class="cm">// wait for both</span>
+            scope.throwIfFailed();   <span class="cm">// rethrow the first failure, if any</span>
+
+            <span class="kw">return</span> <span class="kw">new</span> Order(user.get(), cart.get());
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> String slow(String value, <span class="kw">int</span> ms, <span class="kw">boolean</span> fail) <span class="kw">throws</span> Exception {
+        Thread.sleep(ms);
+        <span class="kw">if</span> (fail) <span class="kw">throw</span> <span class="kw">new</span> IllegalStateException(<span class="st">"cart service is down"</span>);
+        <span class="kw">return</span> value;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ThreadScale.java</span><span class="fmeta">3.2 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep06/ThreadScale.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.concurrent.CountDownLatch;
+
+<span class="cm">/**
+ * How many threads can you actually have, and what does starting them cost?
+ *
+ * Each thread does nothing but wait, so this measures the cost of existing
+ * rather than the cost of working. Platform threads each need about a megabyte
+ * of memory outside the heap. Virtual threads are objects on the heap.
+ *
+ * Run each kind in its OWN JVM. Tearing down fifty thousand platform threads
+ * takes long enough to contaminate whatever is measured next, which is exactly
+ * what happened the first time this was written:
+ *
+ *   java ThreadScale.java platform
+ *   java ThreadScale.java virtual
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> ThreadScale {
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        <span class="kw">boolean</span> virtual = args.length &gt; <span class="nm">0</span> &amp;&amp; args[<span class="nm">0</span>].equals(<span class="st">"virtual"</span>);
+        String kind = virtual ? <span class="st">"virtual"</span> : <span class="st">"platform"</span>;
+
+        System.out.printf(<span class="st">"%s threads that only wait%n%n"</span>, kind);
+        System.out.printf(<span class="st">"%-12s %12s %14s   %s%n"</span>, <span class="st">"asked for"</span>, <span class="st">"started"</span>, <span class="st">"time to start"</span>, <span class="st">"note"</span>);
+        System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">62</span>));
+
+        <span class="kw">int</span>[] counts = virtual
+                ? <span class="kw">new</span> <span class="kw">int</span>[]{<span class="nm">1_000</span>, <span class="nm">10_000</span>, <span class="nm">100_000</span>, <span class="nm">500_000</span>, <span class="nm">1_000_000</span>}
+                : <span class="kw">new</span> <span class="kw">int</span>[]{<span class="nm">1_000</span>, <span class="nm">10_000</span>, <span class="nm">20_000</span>, <span class="nm">50_000</span>};
+
+        <span class="kw">for</span> (<span class="kw">int</span> n : counts) {
+            <span class="kw">if</span> (!attempt(n, virtual)) <span class="kw">break</span>;   <span class="cm">// stop once the machine says no</span>
+        }
+    }
+
+    <span class="cm">/** @return false if we could not create everything asked for. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">boolean</span> attempt(<span class="kw">int</span> wanted, <span class="kw">boolean</span> virtual) {
+        CountDownLatch release = <span class="kw">new</span> CountDownLatch(<span class="nm">1</span>);
+        List&lt;Thread&gt; started = <span class="kw">new</span> ArrayList&lt;&gt;(wanted);
+        String note = <span class="st">""</span>;
+        <span class="kw">boolean</span> complete = <span class="kw">true</span>;
+
+        <span class="kw">long</span> t0 = System.nanoTime();
+        <span class="kw">try</span> {
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; wanted; i++) {
+                Runnable body = () -&gt; {
+                    <span class="kw">try</span> {
+                        release.await();
+                    } <span class="kw">catch</span> (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                };
+                Thread t = virtual
+                        ? Thread.ofVirtual().unstarted(body)
+                        : Thread.ofPlatform().daemon().unstarted(body);
+                t.start();
+                started.add(t);
+            }
+        } <span class="kw">catch</span> (OutOfMemoryError e) {
+            note = <span class="st">"could not create any more"</span>;
+            complete = <span class="kw">false</span>;
+        } <span class="kw">catch</span> (Throwable e) {
+            note = e.getClass().getSimpleName();
+            complete = <span class="kw">false</span>;
+        }
+        <span class="kw">long</span> ms = (System.nanoTime() - t0) / <span class="nm">1_000_000</span>;
+
+        System.out.printf(<span class="st">"%,12d %,12d %11d ms   %s%n"</span>, wanted, started.size(), ms, note);
+
+        <span class="cm">// Release them and give the whole batch one shared deadline, rather than</span>
+        <span class="cm">// waiting on each thread in turn.</span>
+        release.countDown();
+        <span class="kw">long</span> deadline = System.currentTimeMillis() + <span class="nm">3_000</span>;
+        <span class="kw">for</span> (Thread t : started) {
+            <span class="kw">long</span> left = deadline - System.currentTimeMillis();
+            <span class="kw">if</span> (left &lt;= <span class="nm">0</span>) <span class="kw">break</span>;
+            <span class="kw">try</span> {
+                t.join(<span class="nm">1</span>);
+            } <span class="kw">catch</span> (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                <span class="kw">break</span>;
+            }
+        }
+        <span class="kw">return</span> complete;
+    }
+}
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

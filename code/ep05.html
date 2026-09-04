@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 5 of the Java interview study series.">
+<title>The Lost Update, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 05 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>The Lost Update</h1>
+<p class="tagline">Every number on the episode page came from running this. 5 files, 19.4 KB.</p>
+<p class="codeacts"><a class="dl" href="ep05.zip" download>Download all, 7.5 KB</a><a class="back2" href="../ep05.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">CounterRace.java</span><span class="fmeta">4.0 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep05/CounterRace.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.CountDownLatch;
+<span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.atomic.AtomicLong;
+<span class="kw">import</span> java.util.concurrent.atomic.LongAdder;
+<span class="kw">import</span> java.util.concurrent.locks.ReentrantLock;
+
+<span class="cm">/**
+ * Eight threads each add 1 to a shared counter, half a million times.
+ * A correct counter always ends at 4,000,000.
+ *
+ * Five ways of holding that counter, measured for correctness AND speed.
+ * The volatile row is the one worth staring at.
+ *
+ *   java CounterRace.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> CounterRace {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> THREADS = <span class="nm">8</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> PER_THREAD = <span class="nm">500_000</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">long</span> EXPECTED = (<span class="kw">long</span>) THREADS * PER_THREAD;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> ROUNDS = <span class="nm">5</span>;
+
+    <span class="cm">// the five counters</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> plain;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">volatile</span> <span class="kw">long</span> vol;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> guarded;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> Object LOCK = <span class="kw">new</span> Object();
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> ReentrantLock RLOCK = <span class="kw">new</span> ReentrantLock();
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> locked;
+    <span class="kw">private</span> <span class="kw">static</span> AtomicLong atomic = <span class="kw">new</span> AtomicLong();
+    <span class="kw">private</span> <span class="kw">static</span> LongAdder adder = <span class="kw">new</span> LongAdder();
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.printf(<span class="st">"%d threads, %,d increments each, so a correct counter ends at %,d%n%n"</span>,
+                THREADS, PER_THREAD, EXPECTED);
+        System.out.printf(<span class="st">"%-22s %14s %14s %10s   %s%n"</span>,
+                <span class="st">"how the counter is held"</span>, <span class="st">"best result"</span>, <span class="st">"worst result"</span>, <span class="st">"best ms"</span>, <span class="st">"correct?"</span>);
+        System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">84</span>));
+
+        run(<span class="st">"plain long"</span>,        () -&gt; plain,        () -&gt; plain = <span class="nm">0</span>,        () -&gt; plain++);
+        run(<span class="st">"volatile long"</span>,     () -&gt; vol,          () -&gt; vol = <span class="nm">0</span>,          () -&gt; vol++);
+        run(<span class="st">"synchronized"</span>,      () -&gt; guarded,      () -&gt; guarded = <span class="nm">0</span>,
+                () -&gt; { <span class="kw">synchronized</span> (LOCK) { guarded++; } });
+        run(<span class="st">"ReentrantLock"</span>,     () -&gt; locked,       () -&gt; locked = <span class="nm">0</span>,
+                () -&gt; { RLOCK.lock(); <span class="kw">try</span> { locked++; } <span class="kw">finally</span> { RLOCK.unlock(); } });
+        run(<span class="st">"AtomicLong"</span>,        () -&gt; atomic.get(), () -&gt; atomic = <span class="kw">new</span> AtomicLong(),
+                () -&gt; atomic.incrementAndGet());
+        run(<span class="st">"LongAdder"</span>,         () -&gt; adder.sum(),  () -&gt; adder = <span class="kw">new</span> LongAdder(),
+                () -&gt; adder.increment());
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> run(String label, Supplier read, Runnable reset, Runnable increment)
+            <span class="kw">throws</span> Exception {
+        <span class="kw">long</span> best = Long.MAX_VALUE, worst = Long.MIN_VALUE, bestMs = Long.MAX_VALUE;
+        <span class="kw">boolean</span> allCorrect = <span class="kw">true</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> r = <span class="nm">0</span>; r &lt; ROUNDS; r++) {
+            reset.run();
+            <span class="kw">long</span> ms = hammer(increment);
+            <span class="kw">long</span> got = read.get();
+            best = Math.max(best == Long.MAX_VALUE ? got : Math.max(best, got), got);
+            worst = (worst == Long.MIN_VALUE) ? got : Math.min(worst, got);
+            bestMs = Math.min(bestMs, ms);
+            <span class="kw">if</span> (got != EXPECTED) allCorrect = <span class="kw">false</span>;
+        }
+        System.out.printf(<span class="st">"%-22s %,14d %,14d %10d   %s%n"</span>,
+                label, best, worst, bestMs,
+                allCorrect ? <span class="st">"yes"</span> : <span class="st">"NO, lost updates"</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> hammer(Runnable increment) <span class="kw">throws</span> Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(THREADS);
+        CountDownLatch go = <span class="kw">new</span> CountDownLatch(<span class="nm">1</span>);
+        CountDownLatch done = <span class="kw">new</span> CountDownLatch(THREADS);
+        <span class="kw">for</span> (<span class="kw">int</span> t = <span class="nm">0</span>; t &lt; THREADS; t++) {
+            pool.submit(() -&gt; {
+                <span class="kw">try</span> {
+                    go.await();
+                    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; PER_THREAD; i++) increment.run();
+                } <span class="kw">catch</span> (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } <span class="kw">finally</span> {
+                    done.countDown();
+                }
+            });
+        }
+        <span class="kw">long</span> start = System.currentTimeMillis();
+        go.countDown();
+        done.await();
+        <span class="kw">long</span> ms = System.currentTimeMillis() - start;
+        pool.shutdownNow();
+        <span class="kw">return</span> ms;
+    }
+
+    <span class="kw">interface</span> Supplier { <span class="kw">long</span> get(); }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ExecutorBehaviour.java</span><span class="fmeta">3.2 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep05/ExecutorBehaviour.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.ArrayBlockingQueue;
+<span class="kw">import</span> java.util.concurrent.RejectedExecutionException;
+<span class="kw">import</span> java.util.concurrent.RejectedExecutionHandler;
+<span class="kw">import</span> java.util.concurrent.ThreadPoolExecutor;
+<span class="kw">import</span> java.util.concurrent.TimeUnit;
+<span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+
+<span class="cm">/**
+ * What a thread pool actually does when more work arrives than it can take.
+ *
+ * 2 threads, a queue that holds 4, and 20 tasks submitted as fast as possible.
+ * So at most 6 tasks can be accepted at any moment and the other 14 have to go
+ * somewhere. Where they go is the rejection policy, and the four built in ones
+ * behave very differently.
+ *
+ *   java ExecutorBehaviour.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> ExecutorBehaviour {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> THREADS = <span class="nm">2</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> QUEUE = <span class="nm">4</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> TASKS = <span class="nm">20</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.printf(<span class="st">"%d threads, queue holds %d, %d tasks submitted at once%n"</span>,
+                THREADS, QUEUE, TASKS);
+        System.out.println(<span class="st">"So only "</span> + (THREADS + QUEUE) + <span class="st">" can be accepted at a time. "</span>
+                + <span class="st">"The rest depend on the policy.%n"</span>.replace(<span class="st">"%n"</span>, <span class="st">""</span>));
+        System.out.println();
+        System.out.printf(<span class="st">"%-34s %8s %10s %14s   %s%n"</span>,
+                <span class="st">"rejection policy"</span>, <span class="st">"ran"</span>, <span class="st">"rejected"</span>, <span class="st">"ran on caller"</span>, <span class="st">"effect"</span>);
+        System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">92</span>));
+
+        run(<span class="st">"AbortPolicy (the default)"</span>, <span class="kw">new</span> ThreadPoolExecutor.AbortPolicy(),
+                <span class="st">"throws at the caller, work is lost unless you catch it"</span>);
+        run(<span class="st">"CallerRunsPolicy"</span>, <span class="kw">new</span> ThreadPoolExecutor.CallerRunsPolicy(),
+                <span class="st">"caller does the work itself, which slows the producer down"</span>);
+        run(<span class="st">"DiscardPolicy"</span>, <span class="kw">new</span> ThreadPoolExecutor.DiscardPolicy(),
+                <span class="st">"silently dropped, no error anywhere"</span>);
+        run(<span class="st">"DiscardOldestPolicy"</span>, <span class="kw">new</span> ThreadPoolExecutor.DiscardOldestPolicy(),
+                <span class="st">"drops the longest waiting task to make room"</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> run(String label, RejectedExecutionHandler policy, String effect)
+            <span class="kw">throws</span> Exception {
+        AtomicInteger ran = <span class="kw">new</span> AtomicInteger();
+        AtomicInteger rejected = <span class="kw">new</span> AtomicInteger();
+        AtomicInteger onCaller = <span class="kw">new</span> AtomicInteger();
+        <span class="kw">final</span> Thread main = Thread.currentThread();
+
+        ThreadPoolExecutor pool = <span class="kw">new</span> ThreadPoolExecutor(
+                THREADS, THREADS, <span class="nm">0L</span>, TimeUnit.MILLISECONDS,
+                <span class="kw">new</span> ArrayBlockingQueue&lt;&gt;(QUEUE), policy);
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; TASKS; i++) {
+            <span class="kw">try</span> {
+                pool.execute(() -&gt; {
+                    <span class="kw">if</span> (Thread.currentThread() == main) onCaller.incrementAndGet();
+                    ran.incrementAndGet();
+                    <span class="kw">try</span> { Thread.sleep(<span class="nm">20</span>); } <span class="kw">catch</span> (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+            } <span class="kw">catch</span> (RejectedExecutionException e) {
+                rejected.incrementAndGet();
+            }
+        }
+
+        pool.shutdown();
+        pool.awaitTermination(<span class="nm">10</span>, TimeUnit.SECONDS);
+
+        System.out.printf(<span class="st">"%-34s %8d %10d %14d   %s%n"</span>,
+                label, ran.get(), rejected.get(), onCaller.get(), effect);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">LockBenchmark.java</span><span class="fmeta">5.9 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep05/LockBenchmark.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.CountDownLatch;
+<span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.atomic.AtomicLong;
+<span class="kw">import</span> java.util.concurrent.locks.ReentrantLock;
+<span class="kw">import</span> java.util.concurrent.locks.ReentrantReadWriteLock;
+<span class="kw">import</span> java.util.concurrent.locks.StampedLock;
+
+<span class="cm">/**
+ * The same shared state, guarded four different ways, under a read heavy load:
+ * seven threads reading, one writing. This is the shape of most real caches
+ * and configuration holders.
+ *
+ * Rough measurement, not a rigorous benchmark: warmup rounds then best of
+ * several. Good enough for differences of two times or more.
+ *
+ *   java LockBenchmark.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> LockBenchmark {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> READERS = <span class="nm">7</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> WRITERS = <span class="nm">1</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> MILLIS = <span class="nm">700</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> WARMUP = <span class="nm">2</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> ROUNDS = <span class="nm">4</span>;
+
+    <span class="cm">// the shared state every variant guards</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> a, b;
+
+    <span class="cm">/** How much work happens inside the read lock. 0 = just read two fields. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">int</span> readWork = <span class="nm">0</span>;
+
+    <span class="cm">/** Stands in for real work done while holding the read lock. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> payload() {
+        <span class="kw">long</span> v = a + b;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; readWork; i++) v += (v ^ i) % <span class="nm">7</span>;
+        <span class="kw">return</span> v;
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.printf(<span class="st">"%d readers, %d writer, %d ms per round, best of %d%n"</span>,
+                READERS, WRITERS, MILLIS, ROUNDS);
+
+        <span class="kw">for</span> (<span class="kw">int</span> work : <span class="kw">new</span> <span class="kw">int</span>[]{<span class="nm">0</span>, <span class="nm">200</span>}) {
+            readWork = work;
+            System.out.println();
+            System.out.println(work == <span class="nm">0</span>
+                    ? <span class="st">"A. Tiny critical section: the read is just two field accesses"</span>
+                    : <span class="st">"B. Longer critical section: the read does some real work while holding the lock"</span>);
+            System.out.printf(<span class="st">"%-26s %16s %16s%n"</span>, <span class="st">"guarded by"</span>, <span class="st">"reads/sec"</span>, <span class="st">"writes/sec"</span>);
+            System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">62</span>));
+            synchronizedRun();
+            reentrantRun();
+            readWriteRun();
+            stampedRun();
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> report(String label, <span class="kw">long</span> reads, <span class="kw">long</span> writes) {
+        System.out.printf(<span class="st">"%-26s %,16d %,16d%n"</span>, label, reads * <span class="nm">1000</span> / MILLIS, writes * <span class="nm">1000</span> / MILLIS);
+    }
+
+    <span class="cm">// ---- 1. synchronized: readers block each other ----</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> synchronizedRun() <span class="kw">throws</span> Exception {
+        Object lock = <span class="kw">new</span> Object();
+        best(<span class="st">"synchronized"</span>,
+                () -&gt; { <span class="kw">synchronized</span> (lock) { <span class="kw">return</span> payload(); } },
+                () -&gt; { <span class="kw">synchronized</span> (lock) { a++; b++; } });
+    }
+
+    <span class="cm">// ---- 2. ReentrantLock: same, readers still block each other ----</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> reentrantRun() <span class="kw">throws</span> Exception {
+        ReentrantLock lock = <span class="kw">new</span> ReentrantLock();
+        best(<span class="st">"ReentrantLock"</span>,
+                () -&gt; { lock.lock(); <span class="kw">try</span> { <span class="kw">return</span> payload(); } <span class="kw">finally</span> { lock.unlock(); } },
+                () -&gt; { lock.lock(); <span class="kw">try</span> { a++; b++; } <span class="kw">finally</span> { lock.unlock(); } });
+    }
+
+    <span class="cm">// ---- 3. ReadWriteLock: readers share, writers exclude ----</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> readWriteRun() <span class="kw">throws</span> Exception {
+        ReentrantReadWriteLock rw = <span class="kw">new</span> ReentrantReadWriteLock();
+        best(<span class="st">"ReentrantReadWriteLock"</span>,
+                () -&gt; { rw.readLock().lock(); <span class="kw">try</span> { <span class="kw">return</span> payload(); } <span class="kw">finally</span> { rw.readLock().unlock(); } },
+                () -&gt; { rw.writeLock().lock(); <span class="kw">try</span> { a++; b++; } <span class="kw">finally</span> { rw.writeLock().unlock(); } });
+    }
+
+    <span class="cm">// ---- 4. StampedLock: optimistic reads take no lock at all ----</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> stampedRun() <span class="kw">throws</span> Exception {
+        StampedLock sl = <span class="kw">new</span> StampedLock();
+        best(<span class="st">"StampedLock (optimistic)"</span>,
+                () -&gt; {
+                    <span class="kw">long</span> stamp = sl.tryOptimisticRead();
+                    <span class="kw">long</span> v = payload();
+                    <span class="kw">if</span> (!sl.validate(stamp)) {          <span class="cm">// a writer got in, redo it properly</span>
+                        stamp = sl.readLock();
+                        <span class="kw">try</span> { v = payload(); } <span class="kw">finally</span> { sl.unlockRead(stamp); }
+                    }
+                    <span class="kw">return</span> v;
+                },
+                () -&gt; { <span class="kw">long</span> stamp = sl.writeLock(); <span class="kw">try</span> { a++; b++; } <span class="kw">finally</span> { sl.unlockWrite(stamp); } });
+    }
+
+    <span class="kw">interface</span> Read { <span class="kw">long</span> get(); }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> best(String label, Read read, Runnable write) <span class="kw">throws</span> Exception {
+        <span class="kw">long</span> bestReads = <span class="nm">0</span>, bestWrites = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> r = <span class="nm">0</span>; r &lt; WARMUP + ROUNDS; r++) {
+            <span class="kw">long</span>[] counts = round(read, write);
+            <span class="kw">if</span> (r &gt;= WARMUP &amp;&amp; counts[<span class="nm">0</span>] &gt; bestReads) {
+                bestReads = counts[<span class="nm">0</span>];
+                bestWrites = counts[<span class="nm">1</span>];
+            }
+        }
+        report(label, bestReads, bestWrites);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span>[] round(Read read, Runnable write) <span class="kw">throws</span> Exception {
+        a = <span class="nm">0</span>; b = <span class="nm">0</span>;
+        AtomicLong reads = <span class="kw">new</span> AtomicLong(), writes = <span class="kw">new</span> AtomicLong();
+        ExecutorService pool = Executors.newFixedThreadPool(READERS + WRITERS);
+        CountDownLatch go = <span class="kw">new</span> CountDownLatch(<span class="nm">1</span>);
+        volatileStop = <span class="kw">false</span>;
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; READERS; i++) {
+            pool.submit(() -&gt; {
+                <span class="kw">try</span> { go.await(); } <span class="kw">catch</span> (InterruptedException e) { <span class="kw">return</span>; }
+                <span class="kw">long</span> n = <span class="nm">0</span>, sink = <span class="nm">0</span>;
+                <span class="kw">while</span> (!volatileStop) { sink += read.get(); n++; }
+                <span class="kw">if</span> (sink == Long.MIN_VALUE) System.out.print(<span class="st">""</span>);
+                reads.addAndGet(n);
+            });
+        }
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; WRITERS; i++) {
+            pool.submit(() -&gt; {
+                <span class="kw">try</span> { go.await(); } <span class="kw">catch</span> (InterruptedException e) { <span class="kw">return</span>; }
+                <span class="kw">long</span> n = <span class="nm">0</span>;
+                <span class="kw">while</span> (!volatileStop) { write.run(); n++; }
+                writes.addAndGet(n);
+            });
+        }
+
+        go.countDown();
+        Thread.sleep(MILLIS);
+        volatileStop = <span class="kw">true</span>;
+        pool.shutdown();
+        pool.awaitTermination(<span class="nm">5</span>, java.util.concurrent.TimeUnit.SECONDS);
+        <span class="kw">return</span> <span class="kw">new</span> <span class="kw">long</span>[]{reads.get(), writes.get()};
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">volatile</span> <span class="kw">boolean</span> volatileStop;
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">PoolDeadlock.java</span><span class="fmeta">3.5 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep05/PoolDeadlock.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.CompletableFuture;
+<span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.TimeUnit;
+
+<span class="cm">/**
+ * A task that waits for another task on the SAME pool.
+ *
+ * Nothing here is obviously wrong. It is async code, using CompletableFuture,
+ * on a normal fixed pool. It still stops forever, because the outer tasks
+ * occupy every thread while waiting for inner tasks that need a thread to run.
+ *
+ *   java PoolDeadlock.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> PoolDeadlock {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> TIMEOUT_SECONDS = <span class="nm">6</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.println(<span class="st">"Each outer task waits on an inner task. Watch what actually fixes it."</span>);
+        System.out.println();
+
+        attempt(<span class="st">"2 threads, 2 tasks, same pool"</span>, <span class="nm">2</span>, <span class="nm">2</span>, <span class="kw">true</span>);
+        attempt(<span class="st">"4 threads, 2 tasks, same pool"</span>, <span class="nm">4</span>, <span class="nm">2</span>, <span class="kw">true</span>);
+        attempt(<span class="st">"4 threads, 4 tasks, same pool"</span>, <span class="nm">4</span>, <span class="nm">4</span>, <span class="kw">true</span>);
+        attempt(<span class="st">"8 threads, 8 tasks, same pool"</span>, <span class="nm">8</span>, <span class="nm">8</span>, <span class="kw">true</span>);
+        attempt(<span class="st">"2 threads, 8 tasks, separate inner pool"</span>, <span class="nm">2</span>, <span class="nm">8</span>, <span class="kw">false</span>);
+
+        System.exit(<span class="nm">0</span>);   <span class="cm">// abandon anything still stuck</span>
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> attempt(String label, <span class="kw">int</span> poolSize, <span class="kw">int</span> taskCount, <span class="kw">boolean</span> sharePool) {
+        ExecutorService outer = Executors.newFixedThreadPool(poolSize, daemon());
+        ExecutorService inner = sharePool ? outer : Executors.newFixedThreadPool(<span class="nm">2</span>, daemon());
+        <span class="kw">try</span> {
+            <span class="cm">// Every outer task must be running before any of them asks for an</span>
+            <span class="cm">// inner thread. Without this the result is a race: the pool creates</span>
+            <span class="cm">// threads lazily, so an inner task can grab a thread that no outer</span>
+            <span class="cm">// task has claimed yet, and the deadlock appears only sometimes.</span>
+            <span class="cm">// Wait until the pool is saturated, not until every task has started:</span>
+            <span class="cm">// with fewer threads than tasks, the latter can never happen.</span>
+            java.util.concurrent.CountDownLatch allStarted =
+                    <span class="kw">new</span> java.util.concurrent.CountDownLatch(Math.min(taskCount, poolSize));
+
+            CompletableFuture&lt;?&gt;[] all = <span class="kw">new</span> CompletableFuture&lt;?&gt;[taskCount];
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; taskCount; i++) {
+                all[i] = CompletableFuture.runAsync(() -&gt; {
+                    allStarted.countDown();
+                    <span class="kw">try</span> {
+                        allStarted.await(<span class="nm">2</span>, TimeUnit.SECONDS);
+                    } <span class="kw">catch</span> (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    <span class="cm">// the inner piece of work needs a thread from `inner`</span>
+                    CompletableFuture&lt;String&gt; child =
+                            CompletableFuture.supplyAsync(() -&gt; <span class="st">"done"</span>, inner);
+                    child.join();          <span class="cm">// blocks this thread until the child runs</span>
+                }, outer);
+            }
+            CompletableFuture.allOf(all).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            System.out.printf(<span class="st">"  %-42s finished%n"</span>, label);
+        } <span class="kw">catch</span> (Exception e) {
+            System.out.printf(<span class="st">"  %-42s STUCK, gave up after %ds (%s)%n"</span>,
+                    label, TIMEOUT_SECONDS, e.getClass().getSimpleName());
+        } <span class="kw">finally</span> {
+            outer.shutdownNow();
+            <span class="kw">if</span> (!sharePool) inner.shutdownNow();
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> java.util.concurrent.ThreadFactory daemon() {
+        <span class="kw">return</span> r -&gt; {
+            Thread t = <span class="kw">new</span> Thread(r);
+            t.setDaemon(<span class="kw">true</span>);   <span class="cm">// a stuck pool must not keep the JVM alive</span>
+            <span class="kw">return</span> t;
+        };
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">README.md</span><span class="fmeta">2.9 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep05/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 5 demos
+
+Needs Java 11+ for single-file source launch. Captured on Java 24.
+
+## 1. The counter, held six ways
+
+```bash
+java CounterRace.java
+```
+
+8 threads, 500,000 increments each, so a correct counter ends at 4,000,000.
+
+| How the counter is held | Best | Worst | Best ms | Correct |
+|---|---|---|---|---|
+| `long` | 4,000,000 | 1,124,713 | 0 | no |
+| `volatile long` | 1,278,827 | 1,215,619 | 56 | no |
+| `synchronized` | 4,000,000 | 4,000,000 | 185 | yes |
+| `ReentrantLock` | 4,000,000 | 4,000,000 | 96 | yes |
+| `AtomicLong` | 4,000,000 | 4,000,000 | 57 | yes |
+| `LongAdder` | 4,000,000 | 4,000,000 | 5 | yes |
+
+`volatile` lost about 70 percent of the updates, was never once correct, and was
+slower than `AtomicLong` which was always correct.
+
+The plain counter finishing in 0 ms is itself the lesson: with a non-volatile
+field the compiler may keep the value in a register and collapse the loop, which
+is why its results swing between 1.1 million and the full 4 million.
+
+## 2. Waiting for a task on the same pool
+
+```bash
+java PoolDeadlock.java
+```
+
+| Setup | Result |
+|---|---|
+| 2 threads, 2 tasks, same pool | stuck |
+| 4 threads, 2 tasks, same pool | finished |
+| 4 threads, 4 tasks, same pool | stuck |
+| 8 threads, 8 tasks, same pool | stuck |
+| 2 threads, 8 tasks, separate inner pool | finished |
+
+Row two is the trap: doubling the pool looks like the fix until row three.
+
+**This demo needed a start barrier to be trustworthy.** Without it, whether the
+deadlock appeared depended on a race in lazy thread creation, and "8 threads, 8
+tasks" would sometimes finish. The barrier makes every outer task start before
+any asks for an inner thread, and the result is now identical across runs. It
+waits for `min(taskCount, poolSize)`, not `taskCount`, because with fewer threads
+than tasks the latter can never be reached.
+
+## 3. What a pool throws away
+
+```bash
+java ExecutorBehaviour.java
+```
+
+2 threads, queue of 4, 20 tasks submitted at once.
+
+| Policy | Ran | Rejected | On caller |
+|---|---|---|---|
+| AbortPolicy (default) | 6 | 14 | 0 |
+| CallerRunsPolicy | 20 | 0 | 5 |
+| DiscardPolicy | 6 | 0 | 0 |
+| DiscardOldestPolicy | 6 | 0 | 0 |
+
+DiscardPolicy is the dangerous one: zero rejected, zero errors, 14 tasks gone.
+
+## 4. Four locks, and the result that flips
+
+```bash
+java LockBenchmark.java
+```
+
+7 readers, 1 writer. Rough measurement, warmup then best of four.
+
+Tiny critical section (reads/sec): synchronized 19.3M, ReentrantLock 38.5M,
+**ReadWriteLock 10.3M**, StampedLock optimistic 928.7M.
+
+Longer critical section (reads/sec): synchronized 1.6M, ReentrantLock 1.8M,
+**ReadWriteLock 3.9M**, StampedLock optimistic 7.8M.
+
+The read write lock goes from worst to best purely by holding the lock longer.
+The first version of this benchmark only had the tiny case, which would have
+published "ReadWriteLock is slower than a plain lock" as if it were a general
+truth. It is not: it is a statement about critical section length.
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

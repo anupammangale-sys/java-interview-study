@@ -1,0 +1,147 @@
+2026-09-03 02:03:53
+Full thread dump Java HotSpot(TM) 64-Bit Server VM (24.0.2+12-54 mixed mode, sharing):
+
+Threads class SMR info:
+_java_thread_list=0x0000021f91027330, length=13, elements={
+0x0000021f2b657360, 0x0000021f4851c0f0, 0x0000021f4851d3a0, 0x0000021f48526290,
+0x0000021f48524ca0, 0x0000021f48523e00, 0x0000021f48525b40, 0x0000021f48559d90,
+0x0000021f4855f0a0, 0x0000021f485253f0, 0x0000021f48522f60, 0x0000021f48524550,
+0x0000021f91068d50
+}
+
+"main" #3 [11896] prio=5 os_prio=0 cpu=406.25ms elapsed=24.64s tid=0x0000021f2b657360 nid=11896 in Object.wait()  [0x000000a827bfe000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on <0x0000000710a61730> (a java.lang.Thread)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.Thread.join(java.base@24.0.2/Thread.java:1860)
+	- locked <0x0000000710a61730> (a java.lang.Thread)
+	at java.lang.Thread.join(java.base@24.0.2/Thread.java:1936)
+	at DeadlockDemo.main(DeadlockDemo.java:41)
+	at java.lang.invoke.LambdaForm$DMH/0x0000021f4d020400.invokeStatic(java.base@24.0.2/LambdaForm$DMH)
+	at java.lang.invoke.LambdaForm$MH/0x0000021f4d12d400.invoke(java.base@24.0.2/LambdaForm$MH)
+	at java.lang.invoke.Invokers$Holder.invokeExact_MT(java.base@24.0.2/Invokers$Holder)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invokeImpl(java.base@24.0.2/DirectMethodHandleAccessor.java:155)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(java.base@24.0.2/DirectMethodHandleAccessor.java:104)
+	at java.lang.reflect.Method.invoke(java.base@24.0.2/Method.java:565)
+	at com.sun.tools.javac.launcher.SourceLauncher.execute(jdk.compiler@24.0.2/SourceLauncher.java:254)
+	at com.sun.tools.javac.launcher.SourceLauncher.run(jdk.compiler@24.0.2/SourceLauncher.java:138)
+	at com.sun.tools.javac.launcher.SourceLauncher.main(jdk.compiler@24.0.2/SourceLauncher.java:76)
+
+"Reference Handler" #14 [20788] daemon prio=10 os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f4851c0f0 nid=20788 waiting on condition  [0x000000a8283ff000]
+   java.lang.Thread.State: RUNNABLE
+	at java.lang.ref.Reference.waitForReferencePendingList(java.base@24.0.2/Native Method)
+	at java.lang.ref.Reference.processPendingReferences(java.base@24.0.2/Reference.java:246)
+	at java.lang.ref.Reference$ReferenceHandler.run(java.base@24.0.2/Reference.java:208)
+
+"Finalizer" #15 [22080] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=24.63s tid=0x0000021f4851d3a0 nid=22080 in Object.wait()  [0x000000a8284ff000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on <0x0000000712602330> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:351)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:138)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:229)
+	- locked <0x0000000712602330> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.Finalizer$FinalizerThread.run(java.base@24.0.2/Finalizer.java:165)
+
+"Signal Dispatcher" #16 [4880] daemon prio=9 os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f48526290 nid=4880 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Attach Listener" #17 [9412] daemon prio=5 os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f48524ca0 nid=9412 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Service Thread" #18 [25824] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=24.63s tid=0x0000021f48523e00 nid=25824 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Monitor Deflation Thread" #19 [17448] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=24.63s tid=0x0000021f48525b40 nid=17448 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"C2 CompilerThread0" #20 [21024] daemon prio=9 os_prio=2 cpu=203.12ms elapsed=24.63s tid=0x0000021f48559d90 nid=21024 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"C1 CompilerThread0" #23 [6388] daemon prio=9 os_prio=2 cpu=250.00ms elapsed=24.63s tid=0x0000021f4855f0a0 nid=6388 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"Notification Thread" #24 [27696] daemon prio=9 os_prio=0 cpu=0.00ms elapsed=24.61s tid=0x0000021f485253f0 nid=27696 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Common-Cleaner" #25 [21792] daemon prio=8 os_prio=1 cpu=0.00ms elapsed=24.61s tid=0x0000021f48522f60 nid=21792 in Object.wait()  [0x000000a828cfe000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@24.0.2/Native Method)
+	- waiting on <0x000000071243d830> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@24.0.2/Object.java:389)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@24.0.2/ReferenceQueue.java:124)
+	at java.lang.ref.ReferenceQueue.remove(java.base@24.0.2/ReferenceQueue.java:215)
+	- locked <0x000000071243d830> (a java.lang.ref.ReferenceQueue$Lock)
+	at jdk.internal.ref.CleanerImpl.run(java.base@24.0.2/CleanerImpl.java:140)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+	at jdk.internal.misc.InnocuousThread.run(java.base@24.0.2/InnocuousThread.java:148)
+
+"transfer-A-to-B" #26 [12416] prio=5 os_prio=0 cpu=0.00ms elapsed=24.25s tid=0x0000021f48524550 nid=12416 waiting for monitor entry  [0x000000a828fff000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at DeadlockDemo.lambda$main$0(DeadlockDemo.java:21)
+	- waiting to lock <0x0000000710a40628> (a java.lang.Object)
+	- locked <0x0000000710a40618> (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c218.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"transfer-B-to-A" #27 [22764] prio=5 os_prio=0 cpu=0.00ms elapsed=24.25s tid=0x0000021f91068d50 nid=22764 waiting for monitor entry  [0x000000a8290ff000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at DeadlockDemo.lambda$main$1(DeadlockDemo.java:30)
+	- waiting to lock <0x0000000710a40618> (a java.lang.Object)
+	- locked <0x0000000710a40628> (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c448.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+"VM Thread" os_prio=2 cpu=0.00ms elapsed=24.63s tid=0x0000021f4850f840 nid=17556 runnable  
+
+"VM Periodic Task Thread" os_prio=2 cpu=15.62ms elapsed=24.63s tid=0x0000021f4b0a09d0 nid=24112 waiting on condition  
+
+"G1 Service" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f4843ef60 nid=23884 runnable  
+
+"G1 Refine#0" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f4843e640 nid=13848 runnable  
+
+"G1 Conc#0" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f483c3900 nid=17248 runnable  
+
+"G1 Main Marker" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f2b6cab50 nid=18884 runnable  
+
+"GC Thread#0" os_prio=2 cpu=0.00ms elapsed=24.64s tid=0x0000021f2b6b9230 nid=22860 runnable  
+
+JNI global refs: 8, weak refs: 0
+
+
+Found one Java-level deadlock:
+=============================
+"transfer-A-to-B":
+  waiting to lock monitor 0x0000021f910ad680 (object 0x0000000710a40628, a java.lang.Object),
+  which is held by "transfer-B-to-A"
+
+"transfer-B-to-A":
+  waiting to lock monitor 0x0000021f4bd5ef90 (object 0x0000000710a40618, a java.lang.Object),
+  which is held by "transfer-A-to-B"
+
+Java stack information for the threads listed above:
+===================================================
+"transfer-A-to-B":
+	at DeadlockDemo.lambda$main$0(DeadlockDemo.java:21)
+	- waiting to lock <0x0000000710a40628> (a java.lang.Object)
+	- locked <0x0000000710a40618> (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c218.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+"transfer-B-to-A":
+	at DeadlockDemo.lambda$main$1(DeadlockDemo.java:30)
+	- waiting to lock <0x0000000710a40618> (a java.lang.Object)
+	- locked <0x0000000710a40628> (a java.lang.Object)
+	at DeadlockDemo$$Lambda/0x0000021f4d12c448.run(Unknown Source)
+	at java.lang.Thread.runWith(java.base@24.0.2/Thread.java:1460)
+	at java.lang.Thread.run(java.base@24.0.2/Thread.java:1447)
+
+Found 1 deadlock.
+

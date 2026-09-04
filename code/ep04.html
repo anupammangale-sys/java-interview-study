@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 4 of the Java interview study series.">
+<title>Inside a HashMap, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 04 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>Inside a HashMap</h1>
+<p class="tagline">Every number on the episode page came from running this. 5 files, 20.1 KB.</p>
+<p class="codeacts"><a class="dl" href="ep04.zip" download>Download all, 7.4 KB</a><a class="back2" href="../ep04.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">ConcurrentMapDemo.java</span><span class="fmeta">3.8 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep04/ConcurrentMapDemo.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.Collections;
+<span class="kw">import</span> java.util.HashMap;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+<span class="kw">import</span> java.util.concurrent.ConcurrentHashMap;
+<span class="kw">import</span> java.util.concurrent.CountDownLatch;
+<span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+
+<span class="cm">/**
+ * What actually happens when several threads write to a plain HashMap.
+ *
+ * Every thread writes a distinct set of keys, so there are no overwrites. If
+ * the map behaved correctly the final size would always be threads * perThread.
+ * It is not.
+ *
+ *   java ConcurrentMapDemo.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> ConcurrentMapDemo {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> THREADS = <span class="nm">8</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> PER_THREAD = <span class="nm">20_000</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> EXPECTED = THREADS * PER_THREAD;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> ATTEMPTS = <span class="nm">5</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> TIMEOUT_SECONDS = <span class="nm">10</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.printf(<span class="st">"%d threads, %d distinct keys each, so a correct map ends with %d entries%n%n"</span>,
+                THREADS, PER_THREAD, EXPECTED);
+
+        run(<span class="st">"HashMap (no protection)"</span>, HashMap::<span class="kw">new</span>);
+        run(<span class="st">"Collections.synchronizedMap"</span>, () -&gt; Collections.synchronizedMap(<span class="kw">new</span> HashMap&lt;&gt;()));
+        run(<span class="st">"ConcurrentHashMap"</span>, ConcurrentHashMap::<span class="kw">new</span>);
+        System.exit(<span class="nm">0</span>);   <span class="cm">// abandon any threads still spinning inside a broken HashMap</span>
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> run(String label, java.util.function.Supplier&lt;Map&lt;String, Integer&gt;&gt; factory)
+            <span class="kw">throws</span> Exception {
+        System.out.println(label);
+        List&lt;String&gt; results = <span class="kw">new</span> ArrayList&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">int</span> attempt = <span class="nm">1</span>; attempt &lt;= ATTEMPTS; attempt++) {
+            Map&lt;String, Integer&gt; map = factory.get();
+            String outcome;
+            <span class="kw">long</span> ms;
+            <span class="kw">try</span> {
+                ms = fill(map);
+                <span class="kw">int</span> size = map.size();
+                outcome = size == EXPECTED
+                        ? String.format(<span class="st">"%,d entries  correct     (%d ms)"</span>, size, ms)
+                        : String.format(<span class="st">"%,d entries  LOST %,d  (%d ms)"</span>, size, EXPECTED - size, ms);
+            } <span class="kw">catch</span> (IllegalStateException e) {
+                outcome = <span class="st">"DID NOT FINISH - threads still spinning after "</span>
+                        + TIMEOUT_SECONDS + <span class="st">"s (the map is corrupted)"</span>;
+            } <span class="kw">catch</span> (Exception | Error e) {
+                outcome = <span class="st">"threw "</span> + e.getClass().getSimpleName();
+            }
+            results.add(outcome);
+            System.out.printf(<span class="st">"  attempt %d: %s%n"</span>, attempt, outcome);
+        }
+        System.out.println();
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> fill(Map&lt;String, Integer&gt; map) <span class="kw">throws</span> Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(THREADS, r -&gt; {
+            Thread th = <span class="kw">new</span> Thread(r);
+            th.setDaemon(<span class="kw">true</span>);   <span class="cm">// a spinning HashMap must not keep the JVM alive</span>
+            <span class="kw">return</span> th;
+        });
+        CountDownLatch go = <span class="kw">new</span> CountDownLatch(<span class="nm">1</span>);
+        CountDownLatch done = <span class="kw">new</span> CountDownLatch(THREADS);
+        <span class="kw">for</span> (<span class="kw">int</span> t = <span class="nm">0</span>; t &lt; THREADS; t++) {
+            <span class="kw">int</span> id = t;
+            pool.submit(() -&gt; {
+                <span class="kw">try</span> {
+                    go.await();
+                    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; PER_THREAD; i++) {
+                        map.put(<span class="st">"t"</span> + id + <span class="st">"-k"</span> + i, i);   <span class="cm">// every key is unique</span>
+                    }
+                } <span class="kw">catch</span> (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } <span class="kw">finally</span> {
+                    done.countDown();
+                }
+            });
+        }
+        <span class="kw">long</span> start = System.currentTimeMillis();
+        go.countDown();
+        <span class="kw">boolean</span> finished = done.await(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+        <span class="kw">long</span> ms = System.currentTimeMillis() - start;
+        pool.shutdownNow();
+        <span class="kw">if</span> (!finished) {
+            <span class="kw">throw</span> <span class="kw">new</span> IllegalStateException(<span class="st">"did not finish"</span>);
+        }
+        <span class="kw">return</span> ms;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">HashMapInternals.java</span><span class="fmeta">4.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep04/HashMapInternals.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.lang.reflect.Field;
+<span class="kw">import</span> java.util.HashMap;
+<span class="kw">import</span> java.util.Map;
+
+<span class="cm">/**
+ * Looks inside a real HashMap using reflection, so the internals are observed
+ * rather than described.
+ *
+ * Needs the java.util package opened up, because modern Java hides internals
+ * by default:
+ *
+ *   java --add-opens java.base/java.util=ALL-UNNAMED HashMapInternals.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> HashMapInternals {
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        System.out.println(<span class="st">"=== 1. capacity as entries are added ==="</span>);
+        capacityGrowth();
+
+        System.out.println();
+        System.out.println(<span class="st">"=== 2. where keys actually land ==="</span>);
+        bucketSpread();
+
+        System.out.println();
+        System.out.println(<span class="st">"=== 3. what happens when every key collides ==="</span>);
+        collisions();
+    }
+
+    <span class="cm">/** Capacity doubles once size passes capacity * 0.75. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> capacityGrowth() <span class="kw">throws</span> Exception {
+        Map&lt;Integer, String&gt; map = <span class="kw">new</span> HashMap&lt;&gt;();
+        <span class="kw">int</span> lastCapacity = -<span class="nm">1</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">1</span>; i &lt;= <span class="nm">100</span>; i++) {
+            map.put(i, <span class="st">"v"</span>);
+            <span class="kw">int</span> cap = capacityOf(map);
+            <span class="kw">if</span> (cap != lastCapacity) {
+                System.out.printf(<span class="st">"size %3d -&gt; capacity became %3d  (resizes when size passes %d)%n"</span>,
+                        i, cap, (<span class="kw">int</span>) (cap * <span class="nm">0.75</span>));
+                lastCapacity = cap;
+            }
+        }
+    }
+
+    <span class="cm">/** How evenly do normal keys spread across the buckets? */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> bucketSpread() <span class="kw">throws</span> Exception {
+        Map&lt;String, String&gt; map = <span class="kw">new</span> HashMap&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">1000</span>; i++) {
+            map.put(<span class="st">"user-"</span> + i, <span class="st">"v"</span>);
+        }
+        Object[] table = tableOf(map);
+        <span class="kw">int</span> empty = <span class="nm">0</span>, used = <span class="nm">0</span>, longest = <span class="nm">0</span>;
+        <span class="kw">for</span> (Object bucket : table) {
+            <span class="kw">if</span> (bucket == <span class="kw">null</span>) {
+                empty++;
+                <span class="kw">continue</span>;
+            }
+            used++;
+            longest = Math.max(longest, chainLength(bucket));
+        }
+        System.out.printf(<span class="st">"1000 keys in a table of %d buckets%n"</span>, table.length);
+        System.out.printf(<span class="st">"  buckets used   : %d%n"</span>, used);
+        System.out.printf(<span class="st">"  buckets empty  : %d%n"</span>, empty);
+        System.out.printf(<span class="st">"  longest chain  : %d entries%n"</span>, longest);
+    }
+
+    <span class="cm">/** Every key hashes to the same bucket, so the chain grows and then changes shape. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> collisions() <span class="kw">throws</span> Exception {
+        Map&lt;Collider, String&gt; map = <span class="kw">new</span> HashMap&lt;&gt;();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">1</span>; i &lt;= <span class="nm">12</span>; i++) {
+            map.put(<span class="kw">new</span> Collider(i), <span class="st">"v"</span>);
+            Object[] table = tableOf(map);
+            Object bucket = firstNonNull(table);
+            System.out.printf(<span class="st">"after %2d puts: table=%3d  chain=%2d  bucket type = %s%n"</span>,
+                    i, table.length, chainLength(bucket), typeName(bucket));
+        }
+    }
+
+    <span class="cm">/** All instances land in the same bucket, on purpose. */</span>
+    <span class="kw">record</span> Collider(<span class="kw">int</span> id) {
+        <span class="an">@Override</span>
+        <span class="kw">public</span> <span class="kw">int</span> hashCode() {
+            <span class="kw">return</span> <span class="nm">42</span>;
+        }
+    }
+
+    <span class="cm">// ---- reflection helpers ----</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> Object[] tableOf(Map&lt;?, ?&gt; map) <span class="kw">throws</span> Exception {
+        Field f = HashMap.<span class="kw">class</span>.getDeclaredField(<span class="st">"table"</span>);
+        f.setAccessible(<span class="kw">true</span>);
+        <span class="kw">return</span> (Object[]) f.get(map);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">int</span> capacityOf(Map&lt;?, ?&gt; map) <span class="kw">throws</span> Exception {
+        Object[] table = tableOf(map);
+        <span class="kw">return</span> table == <span class="kw">null</span> ? <span class="nm">0</span> : table.length;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> Object firstNonNull(Object[] table) {
+        <span class="kw">for</span> (Object o : table) {
+            <span class="kw">if</span> (o != <span class="kw">null</span>) <span class="kw">return</span> o;
+        }
+        <span class="kw">return</span> <span class="kw">null</span>;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> String typeName(Object bucket) {
+        <span class="kw">if</span> (bucket == <span class="kw">null</span>) <span class="kw">return</span> <span class="st">"empty"</span>;
+        String n = bucket.getClass().getSimpleName();
+        <span class="kw">return</span> n.contains(<span class="st">"TreeNode"</span>) ? n + <span class="st">"   &lt;-- became a tree"</span> : n;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">int</span> chainLength(Object node) {
+        <span class="kw">int</span> n = <span class="nm">0</span>;
+        <span class="kw">try</span> {
+            <span class="kw">while</span> (node != <span class="kw">null</span>) {
+                n++;
+                Field next = node.getClass().getDeclaredField(<span class="st">"next"</span>);
+                next.setAccessible(<span class="kw">true</span>);
+                node = next.get(node);
+            }
+        } <span class="kw">catch</span> (Exception e) {
+            <span class="kw">return</span> n;   <span class="cm">// tree nodes are linked differently; count what we can</span>
+        }
+        <span class="kw">return</span> n;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">KeysAndIteration.java</span><span class="fmeta">5.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep04/KeysAndIteration.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.HashMap;
+<span class="kw">import</span> java.util.HashSet;
+<span class="kw">import</span> java.util.Iterator;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Map;
+<span class="kw">import</span> java.util.Set;
+<span class="kw">import</span> java.util.concurrent.ConcurrentHashMap;
+<span class="kw">import</span> java.util.concurrent.CopyOnWriteArrayList;
+
+<span class="cm">/**
+ * Two things that surprise people, both shown rather than described:
+ *
+ *  1. Changing a key after putting it in a map loses the entry permanently.
+ *  2. Changing a collection while walking it. Some throw, some do not.
+ *
+ *   java KeysAndIteration.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> KeysAndIteration {
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        System.out.println(<span class="st">"=== 1. changing a key after putting it in ==="</span>);
+        mutableKey();
+
+        System.out.println();
+        System.out.println(<span class="st">"=== 2. changing a collection while walking it ==="</span>);
+        whileIterating();
+
+        System.out.println();
+        System.out.println(<span class="st">"=== 3. the same key object in a HashSet ==="</span>);
+        mutableSetElement();
+    }
+
+    <span class="cm">/** Mutable class whose identity depends on a field that can change. */</span>
+    <span class="kw">static</span> <span class="kw">class</span> Customer {
+        String email;
+        Customer(String email) { <span class="kw">this</span>.email = email; }
+        <span class="an">@Override</span> <span class="kw">public</span> <span class="kw">boolean</span> equals(Object o) {
+            <span class="kw">return</span> o <span class="kw">instanceof</span> Customer c &amp;&amp; c.email.equals(email);
+        }
+        <span class="an">@Override</span> <span class="kw">public</span> <span class="kw">int</span> hashCode() { <span class="kw">return</span> email.hashCode(); }
+        <span class="an">@Override</span> <span class="kw">public</span> String toString() { <span class="kw">return</span> <span class="st">"Customer("</span> + email + <span class="st">")"</span>; }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> mutableKey() {
+        Map&lt;Customer, String&gt; orders = <span class="kw">new</span> HashMap&lt;&gt;();
+        Customer c = <span class="kw">new</span> Customer(<span class="st">"anupam@x.com"</span>);
+        orders.put(c, <span class="st">"order-1"</span>);
+
+        System.out.println(<span class="st">"before changing the email:"</span>);
+        System.out.println(<span class="st">"  get(c)      = "</span> + orders.get(c));
+        System.out.println(<span class="st">"  size        = "</span> + orders.size());
+
+        c.email = <span class="st">"new@x.com"</span>;                 <span class="cm">// the field hashCode() depends on</span>
+
+        System.out.println(<span class="st">"after changing the email:"</span>);
+        System.out.println(<span class="st">"  get(c)      = "</span> + orders.get(c) + <span class="st">"        &lt;-- gone"</span>);
+        System.out.println(<span class="st">"  containsKey = "</span> + orders.containsKey(c));
+        System.out.println(<span class="st">"  remove(c)   = "</span> + orders.remove(c) + <span class="st">"        &lt;-- cannot delete it either"</span>);
+        System.out.println(<span class="st">"  size        = "</span> + orders.size() + <span class="st">"           &lt;-- still there, taking memory"</span>);
+        System.out.print(<span class="st">"  iterating   = "</span>);
+        <span class="kw">for</span> (Map.Entry&lt;Customer, String&gt; e : orders.entrySet()) {
+            System.out.print(e.getKey() + <span class="st">" -&gt; "</span> + e.getValue());
+        }
+        System.out.println(<span class="st">"   &lt;-- visible, but unreachable by key"</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> mutableSetElement() {
+        Set&lt;Customer&gt; set = <span class="kw">new</span> HashSet&lt;&gt;();
+        Customer c = <span class="kw">new</span> Customer(<span class="st">"a@x.com"</span>);
+        set.add(c);
+        c.email = <span class="st">"b@x.com"</span>;
+        System.out.println(<span class="st">"  contains(the very same object) = "</span> + set.contains(c));
+        System.out.println(<span class="st">"  size                           = "</span> + set.size());
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> whileIterating() {
+        <span class="cm">// ArrayList, removing an early element: fails loudly</span>
+        <span class="kw">try</span> {
+            List&lt;String&gt; list = <span class="kw">new</span> ArrayList&lt;&gt;(List.of(<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>, <span class="st">"d"</span>, <span class="st">"e"</span>));
+            <span class="kw">for</span> (String s : list) {
+                <span class="kw">if</span> (s.equals(<span class="st">"b"</span>)) list.remove(s);
+            }
+            System.out.println(<span class="st">"  ArrayList, remove 'b' of 5 : no exception"</span>);
+        } <span class="kw">catch</span> (Exception e) {
+            System.out.println(<span class="st">"  ArrayList, remove 'b' of 5 : "</span> + e.getClass().getSimpleName()
+                    + <span class="st">"   &lt;-- fails fast, as expected"</span>);
+        }
+
+        <span class="cm">// ArrayList, removing the second to last element: silently does NOT fail.</span>
+        <span class="cm">// After the removal the cursor already equals the new size, so hasNext()</span>
+        <span class="cm">// returns false and the check that would have thrown never runs.</span>
+        <span class="kw">try</span> {
+            List&lt;String&gt; list = <span class="kw">new</span> ArrayList&lt;&gt;(List.of(<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>));
+            List&lt;String&gt; seen = <span class="kw">new</span> ArrayList&lt;&gt;();
+            <span class="kw">for</span> (String s : list) {
+                seen.add(s);
+                <span class="kw">if</span> (s.equals(<span class="st">"b"</span>)) list.remove(s);
+            }
+            System.out.println(<span class="st">"  ArrayList, remove 'b' of 3 : no exception, but only saw "</span> + seen
+                    + <span class="st">"   &lt;-- silently skipped 'c'"</span>);
+        } <span class="kw">catch</span> (Exception e) {
+            System.out.println(<span class="st">"  ArrayList, remove 'b' of 3 : "</span> + e.getClass().getSimpleName());
+        }
+
+        <span class="cm">// The correct way to remove during a walk</span>
+        List&lt;String&gt; list2 = <span class="kw">new</span> ArrayList&lt;&gt;(List.of(<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>));
+        Iterator&lt;String&gt; it = list2.iterator();
+        <span class="kw">while</span> (it.hasNext()) {
+            <span class="kw">if</span> (it.next().equals(<span class="st">"b"</span>)) it.remove();
+        }
+        System.out.println(<span class="st">"  ArrayList via iterator: "</span> + list2 + <span class="st">"        &lt;-- the supported way"</span>);
+
+        <span class="cm">// CopyOnWriteArrayList: walks a snapshot, so no exception</span>
+        <span class="kw">try</span> {
+            List&lt;String&gt; cow = <span class="kw">new</span> CopyOnWriteArrayList&lt;&gt;(List.of(<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>));
+            List&lt;String&gt; seen = <span class="kw">new</span> ArrayList&lt;&gt;();
+            <span class="kw">for</span> (String s : cow) {
+                seen.add(s);
+                <span class="kw">if</span> (s.equals(<span class="st">"b"</span>)) cow.remove(s);
+            }
+            System.out.println(<span class="st">"  CopyOnWriteArrayList  : no exception, walked "</span> + seen + <span class="st">", list is now "</span> + cow);
+        } <span class="kw">catch</span> (Exception e) {
+            System.out.println(<span class="st">"  CopyOnWriteArrayList  : "</span> + e.getClass().getSimpleName());
+        }
+
+        <span class="cm">// ConcurrentHashMap: walks live data, no exception</span>
+        <span class="kw">try</span> {
+            Map&lt;String, Integer&gt; m = <span class="kw">new</span> ConcurrentHashMap&lt;&gt;(Map.of(<span class="st">"a"</span>, <span class="nm">1</span>, <span class="st">"b"</span>, <span class="nm">2</span>, <span class="st">"c"</span>, <span class="nm">3</span>));
+            <span class="kw">int</span> seen = <span class="nm">0</span>;
+            <span class="kw">for</span> (String k : m.keySet()) {
+                seen++;
+                m.remove(k);
+            }
+            System.out.println(<span class="st">"  ConcurrentHashMap     : no exception, saw "</span> + seen + <span class="st">" keys, map is now "</span> + m);
+        } <span class="kw">catch</span> (Exception e) {
+            System.out.println(<span class="st">"  ConcurrentHashMap     : "</span> + e.getClass().getSimpleName());
+        }
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">ListBenchmark.java</span><span class="fmeta">4.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep04/ListBenchmark.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.Iterator;
+<span class="kw">import</span> java.util.LinkedList;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Random;
+
+<span class="cm">/**
+ * The claim everyone repeats is that LinkedList is better for inserting and
+ * removing. This measures it instead of repeating it.
+ *
+ * This is a rough measurement, not a rigorous benchmark: warmup rounds, then
+ * the best of several timed rounds. Good enough to show differences of ten
+ * times or more, which is what we are looking for. Do not read anything into
+ * differences of a few percent.
+ *
+ *   java ListBenchmark.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> ListBenchmark {
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> SIZE = <span class="nm">100_000</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> OPS = <span class="nm">20_000</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> WARMUP = <span class="nm">5</span>;
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">final</span> <span class="kw">int</span> ROUNDS = <span class="nm">7</span>;
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) {
+        System.out.printf(<span class="st">"%d elements, %d operations each, best of %d rounds%n%n"</span>, SIZE, OPS, ROUNDS);
+        System.out.printf(<span class="st">"%-28s %14s %14s   %s%n"</span>, <span class="st">"operation"</span>, <span class="st">"ArrayList"</span>, <span class="st">"LinkedList"</span>, <span class="st">"verdict"</span>);
+        System.out.println(<span class="st">"-"</span>.repeat(<span class="nm">80</span>));
+
+        row(<span class="st">"get by random index"</span>,     ListBenchmark::randomGet);
+        row(<span class="st">"add at the end"</span>,          ListBenchmark::addLast);
+        row(<span class="st">"add at the front"</span>,        ListBenchmark::addFirst);
+        row(<span class="st">"insert in the middle"</span>,    ListBenchmark::insertMiddle);
+        row(<span class="st">"walk the whole list"</span>,     ListBenchmark::iterate);
+        row(<span class="st">"remove while iterating"</span>,  ListBenchmark::removeViaIterator);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> row(String name, java.util.function.ToLongFunction&lt;List&lt;Integer&gt;&gt; work) {
+        <span class="kw">long</span> a = best(work, <span class="kw">false</span>);
+        <span class="kw">long</span> l = best(work, <span class="kw">true</span>);
+        String verdict;
+        <span class="kw">double</span> ratio = (<span class="kw">double</span>) Math.max(a, l) / Math.max(<span class="nm">1</span>, Math.min(a, l));
+        <span class="kw">if</span> (ratio &lt; <span class="nm">1.5</span>) verdict = <span class="st">"about the same"</span>;
+        <span class="kw">else</span> <span class="kw">if</span> (a &lt; l) verdict = String.format(<span class="st">"ArrayList %.0fx faster"</span>, ratio);
+        <span class="kw">else</span> verdict = String.format(<span class="st">"LinkedList %.0fx faster"</span>, ratio);
+        System.out.printf(<span class="st">"%-28s %11d us %11d us   %s%n"</span>, name, a / <span class="nm">1000</span>, l / <span class="nm">1000</span>, verdict);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> best(java.util.function.ToLongFunction&lt;List&lt;Integer&gt;&gt; work, <span class="kw">boolean</span> linked) {
+        <span class="kw">long</span> best = Long.MAX_VALUE;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; WARMUP + ROUNDS; i++) {
+            List&lt;Integer&gt; list = linked ? <span class="kw">new</span> LinkedList&lt;&gt;() : <span class="kw">new</span> ArrayList&lt;&gt;();
+            <span class="kw">for</span> (<span class="kw">int</span> j = <span class="nm">0</span>; j &lt; SIZE; j++) list.add(j);
+            <span class="kw">long</span> ns = work.applyAsLong(list);
+            <span class="kw">if</span> (i &gt;= WARMUP) best = Math.min(best, ns);
+        }
+        <span class="kw">return</span> best;
+    }
+
+    <span class="cm">// ---- the operations ----</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> randomGet(List&lt;Integer&gt; list) {
+        Random r = <span class="kw">new</span> Random(<span class="nm">42</span>);
+        <span class="kw">int</span>[] idx = <span class="kw">new</span> <span class="kw">int</span>[OPS];
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; OPS; i++) idx[i] = r.nextInt(SIZE);
+        <span class="kw">long</span> start = System.nanoTime();
+        <span class="kw">long</span> sum = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i : idx) sum += list.get(i);
+        <span class="kw">long</span> ns = System.nanoTime() - start;
+        <span class="kw">if</span> (sum == -<span class="nm">1</span>) System.out.print(<span class="st">""</span>);
+        <span class="kw">return</span> ns;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> addLast(List&lt;Integer&gt; list) {
+        <span class="kw">long</span> start = System.nanoTime();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; OPS; i++) list.add(i);
+        <span class="kw">return</span> System.nanoTime() - start;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> addFirst(List&lt;Integer&gt; list) {
+        <span class="kw">long</span> start = System.nanoTime();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; OPS; i++) list.add(<span class="nm">0</span>, i);
+        <span class="kw">return</span> System.nanoTime() - start;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> insertMiddle(List&lt;Integer&gt; list) {
+        <span class="kw">long</span> start = System.nanoTime();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; OPS; i++) list.add(list.size() / <span class="nm">2</span>, i);
+        <span class="kw">return</span> System.nanoTime() - start;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> iterate(List&lt;Integer&gt; list) {
+        <span class="kw">long</span> start = System.nanoTime();
+        <span class="kw">long</span> sum = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> v : list) sum += v;
+        <span class="kw">long</span> ns = System.nanoTime() - start;
+        <span class="kw">if</span> (sum == -<span class="nm">1</span>) System.out.print(<span class="st">""</span>);
+        <span class="kw">return</span> ns;
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">long</span> removeViaIterator(List&lt;Integer&gt; list) {
+        <span class="kw">long</span> start = System.nanoTime();
+        Iterator&lt;Integer&gt; it = list.iterator();
+        <span class="kw">int</span> n = <span class="nm">0</span>;
+        <span class="kw">while</span> (it.hasNext()) {
+            it.next();
+            <span class="kw">if</span> (n++ % <span class="nm">2</span> == <span class="nm">0</span>) it.remove();
+        }
+        <span class="kw">return</span> System.nanoTime() - start;
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">README.md</span><span class="fmeta">2.4 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep04/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 4 demos
+
+Needs Java 11+ for single-file source launch. Captured on Java 24.
+
+## 1. Look inside a real HashMap
+
+```bash
+java --add-opens java.base/java.util=ALL-UNNAMED HashMapInternals.java
+```
+
+The `--add-opens` is required because modern Java hides these internals.
+Shows capacity doubling at load factor 0.75, how unevenly 1000 keys actually
+spread, and the treeify rule. The third section is the interesting one: the
+chain reached 10 entries and the map resized twice before finally building a
+tree, because treeify needs 8 entries in a bucket AND a capacity of at least 64.
+
+## 2. ArrayList vs LinkedList
+
+```bash
+java ListBenchmark.java
+```
+
+Rough timing, not a rigorous benchmark: warmup rounds then best of seven. Fine
+for differences of ten times or more, which is what shows up. Measured:
+
+| Operation | ArrayList | LinkedList |
+|---|---|---|
+| get by random index | 91 us | 628,300 us |
+| add at the end | 193 us | 70 us |
+| add at the front | 143,017 us | 76 us |
+| insert in the middle | 71,721 us | 1,404,909 us |
+| walk the whole list | 68 us | 349 us |
+| remove while iterating | 164,400 us | 404 us |
+
+LinkedList is 1877x faster inserting at the front and 20x SLOWER inserting in
+the middle. The insert is cheap either way; getting to the position is not.
+
+## 3. Eight threads writing to one map
+
+```bash
+java ConcurrentMapDemo.java
+```
+
+Results vary per run, which is the point. One capture:
+
+```
+HashMap        attempt 1: DID NOT FINISH - threads still spinning after 10s
+               attempt 2: 105,688 entries  LOST 54,312
+               attempt 3: DID NOT FINISH - threads still spinning after 10s
+               attempt 4: 160,000 entries  correct
+               attempt 5: 151,665 entries  LOST 8,335
+```
+
+Attempt 4 is the dangerous one. It sometimes works, which is why this bug
+reaches production. synchronizedMap and ConcurrentHashMap were correct 5/5.
+
+The demo uses daemon threads and a 10 second watchdog, so a spinning HashMap
+cannot hang your terminal.
+
+## 4. Mutable keys and changing while walking
+
+```bash
+java KeysAndIteration.java
+```
+
+Shows an entry becoming permanently unreachable after its key changes: get
+returns null, remove does nothing, but size stays 1 and it is still visible when
+iterating. Also shows that fail-fast is NOT guaranteed: removing from a 5
+element list throws, but the same removal on a 3 element list throws nothing and
+silently skips the last element.
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
