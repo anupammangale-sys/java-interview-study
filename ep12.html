@@ -1,0 +1,1763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The Proxy in the Middle, episode 12 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>The Proxy in the Middle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS GOES HERE
+   Only the bespoke visualisation for this episode's simulator or
+   diagram. Never redefine a token above.
+   =================================================================== */
+
+/* ===================================================================
+   EPISODE CSS: the stage pickers
+   =================================================================== */
+.matrix{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  margin:22px 0;overflow:hidden}
+.reqs{display:flex;flex-wrap:wrap;gap:7px;padding:16px}
+.req{text-align:left;font:inherit;font-size:13.5px;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;
+  transition:background-color .15s,border-color .15s}
+.req:hover{border-color:var(--ink-faint)}
+.req:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.req[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);
+  color:var(--held);font-weight:600}
+.mout{border-top:1px solid var(--line-soft);padding:15px 17px;background:var(--surface)}
+.mout h6{margin:0 0 6px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;font-weight:600}
+.mout p{font-size:14.5px;margin:0 0 10px;color:var(--ink-soft);max-width:none}
+.mout p:last-child{margin:0}
+.mout .real{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface-2);
+  border:1px solid var(--line-soft);border-radius:6px;padding:9px 12px;color:var(--ink);
+  overflow-x:auto;white-space:pre;margin:0 0 10px}
+.verdictrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 11px}
+.vchip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:4px 10px;border-radius:99px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-soft)}
+.vchip.good{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed);font-weight:600}
+.vchip.bad{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm);font-weight:600}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep12">
+  <a class="backlink" href="index.html">All episodes</a>
+  <a class="backlink codelink" href="code/ep12.html">The code</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>The Proxy in the Middle</b>
+    <span>Episode 12 &middot; Spring Boot internals</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> The path of a request</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> The self call trap</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> Beans, scopes and the context</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Controller, RestController, Component, Bean</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> One place for every error</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Caching, and what Redis changes</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>The proxy in the middle</h1>
+      <p class="sub">Almost every Spring question people get wrong has the same answer behind it: the object you wrote is not the object anyone else is holding. Spring wrapped it. This episode runs a real Spring Boot 3.5.3 application, prints what is actually in the running context, and makes real HTTP calls to itself. The headline result is two identical methods where one returns <b>200</b> and the other returns <b>404</b>, and a transaction that silently does nothing.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+    <section class="ch" id="c1">
+      <h2><em>01</em> The path of a request</h2>
+
+      <ul class="prompts">
+        <li>Walk a GET request from the socket to your controller method and back.</li>
+        <li>What is the DispatcherServlet and what does it actually do?</li>
+        <li>What is the difference between a filter and an interceptor?</li>
+        <li>How does a Java object become JSON without any code from you?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The question.</b> "A GET request arrives. Walk me through what happens." It sounds
+        like a memory test and it is not. The interviewer wants to know whether you can debug a
+        request that goes wrong, which means knowing where you can get in the way of it.</p>
+
+        <p>Everything below was read out of a running application by asking the context what beans
+        it holds, so it is what your program really has, not a diagram.</p>
+
+      <div class="matrix">
+        <div class="simhead"><span>The path, step by step</span><span class="sp">click a stage</span></div>
+        <div class="reqs" id="pathOpts">
+          <button class="req" data-pa="tomcat" aria-pressed="false">1 &middot; Tomcat</button>
+          <button class="req" data-pa="filters" aria-pressed="false">2 &middot; Filters</button>
+          <button class="req" data-pa="dispatcher" aria-pressed="false">3 &middot; DispatcherServlet</button>
+          <button class="req" data-pa="mapping" aria-pressed="false">4 &middot; HandlerMapping</button>
+          <button class="req" data-pa="adapter" aria-pressed="false">5 &middot; HandlerAdapter</button>
+          <button class="req" data-pa="converter" aria-pressed="false">6 &middot; Message converter</button>
+        </div>
+        <div class="mout" id="pathOut">
+          <p style="color:var(--ink-faint)">Pick a stage.</p>
+        </div>
+      </div>
+
+        <p><b>Filters and interceptors are not the same thing</b>, and this is a common follow-up
+        because the answer shows whether you know where the boundary is.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th></th><th>Filter</th><th>Interceptor</th></tr></thead>
+          <tbody>
+          <tr><td>Whose idea is it</td><td>The servlet specification, so it works with any
+            servlet framework</td><td>Spring MVC, so it only exists inside Spring</td></tr>
+          <tr><td>Where it sits</td><td>Outside the DispatcherServlet. It sees every request,
+            including ones that end in a 404</td><td>Inside, after a handler has been found</td></tr>
+          <tr><td>What it can see</td><td>The raw request and response</td>
+            <td>Which controller method was chosen, and the model afterwards</td></tr>
+          <tr><td>Use it for</td><td>Logging every request, authentication, adding a request id,
+            compressing</td><td>Anything that needs to know which handler was picked, such as
+            per endpoint timing</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>The bit worth remembering:</b> a filter sees requests that never reach a controller.
+        If you put your request logging in an interceptor, the 404s will be missing from your
+        logs, and one day that will cost you an afternoon.</p>
+
+        <p><b>Something the running context showed that a diagram would not.</b> There are nine
+        message converters and two of them are repeats:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>read from the running application</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">message converters, 9 of them:
+  ByteArrayHttpMessageConverter              [application/octet-stream, */*]
+  <span class="hl">StringHttpMessageConverter                 [text/plain, */*]</span>
+  <span class="hl">StringHttpMessageConverter                 [text/plain, */*]</span>
+  ResourceHttpMessageConverter               [*/*]
+  ResourceRegionHttpMessageConverter         [*/*]
+  AllEncompassingFormHttpMessageConverter    [form and multipart types]
+  <span class="hl">MappingJackson2HttpMessageConverter        [application/json, application/*+json]</span>
+  <span class="hl">MappingJackson2HttpMessageConverter        [application/json, application/*+json]</span>
+  Jaxb2RootElementHttpMessageConverter       [application/xml, text/xml]
+
+<span class="cm">distinct objects among those 9: 9</span></pre>
+        </div>
+
+        <p>The identity check says nine separate objects, so this is two registrations of the same
+        class rather than one object listed twice. Spring walks the list and the first converter
+        that can handle the type wins, so the repeat further down is never reached. It is harmless.
+        It is also the kind of thing you only find by looking, and being the person who has looked
+        is the point of this chapter.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"The request goes to the controller."</b> True and it skips everything that
+          matters. The question is what happens before and after, because that is where the
+          problems live.</p>
+          <p><b>"Filters and interceptors are basically the same."</b> They see different things.
+          A filter sees a request that ends in a 404; an interceptor never runs for one.</p>
+          <p><b>"Jackson converts the object."</b> Jackson does the writing, but only after
+          Spring picked a converter by matching the client's Accept header against each
+          converter's supported types. Knowing that step exists is what lets you debug a 406.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How does Spring decide to return JSON rather than XML?</summary>
+      <div class="rvb">
+        <p>Content negotiation, which is a matching exercise between two lists.</p>
+        <p>The client sends an <code>Accept</code> header saying what it can handle, for example
+        <code>application/json</code>, or <code>*/*</code> meaning anything. Spring takes the type
+        your method returned and walks the converter list in order. The first converter that can
+        write that type <b>and</b> produces a media type the client accepts is the one used.</p>
+        <p>Order matters, which is why the list above is worth knowing. Jackson sits above the XML
+        converter, so when a client sends <code>*/*</code> it gets JSON. If the XML converter were
+        first, the same request would get XML and nothing in your code would have changed.</p>
+        <p>Two failure modes worth naming. A <b>406 Not Acceptable</b> means no converter could
+        produce anything the client asked for, usually a client asking for a type you do not
+        support. A <b>415 Unsupported Media Type</b> is the other direction: the client sent a
+        body in a format no converter could read.</p>
+        <p>You can override the whole thing by putting <code>produces</code> on the mapping, for
+        example <code>@GetMapping(value = "/x", produces = "application/xml")</code>, which forces
+        the choice regardless of what the client asked for.</p>
+      </div></details>
+
+      <details class="rv"><summary>What is the DispatcherServlet actually for? Why not just call the controller?</summary>
+      <div class="rvb">
+        <p>Because "just call the controller" hides about eight decisions, and the
+        DispatcherServlet is the thing that makes each of them replaceable.</p>
+        <p>It is a single servlet registered at <code>/</code> that receives every request, and
+        its job is coordination rather than work. It asks the handler mappings which handler
+        matches. It asks which adapter knows how to invoke that handler. It runs the
+        interceptors before and after. It hands the result to a converter or a view resolver.
+        When something throws, it asks the exception resolvers what to do.</p>
+        <p>Every one of those is an interface with several implementations, and that is the
+        point. Your <code>@RestController</code> method, a functional route, and a plain old
+        servlet-style handler are three completely different shapes, and the DispatcherServlet
+        treats them the same because it only talks to <code>HandlerMapping</code> and
+        <code>HandlerAdapter</code>. The running application above has six mappings and four
+        adapters for exactly that reason.</p>
+        <p>The practical value: when a request does something you did not expect, you now know
+        there are six mappings that could have claimed it, and you can find out which one did.</p>
+      </div></details>
+
+      <details class="rv"><summary>Where does the thread come from, and does that matter?</summary>
+      <div class="rvb">
+        <p>From Tomcat's thread pool, and it matters more than most people expect.</p>
+        <p>Tomcat keeps a pool, 200 threads by default in Spring Boot. One request occupies one
+        thread for its entire life, including all the time it spends waiting for a database or
+        another service. When all 200 are busy, further requests queue, and when the queue fills
+        connections are refused. Note that the limit is not how fast your code is, it is how long
+        each request holds a thread.</p>
+        <p>That is why a slow downstream service takes your service down with it. If a call that
+        normally takes 50 milliseconds starts taking 5 seconds, each thread does a hundredth of
+        the work, and 200 threads no longer cover the traffic. Nothing in your code changed.</p>
+        <p>Two things follow. First, a timeout on every outbound call is not optional, because
+        without one a hung downstream holds your threads for ever. Second, this is exactly the
+        workload virtual threads were added for: set
+        <code>spring.threads.virtual.enabled=true</code> on Java 21 or later and each request
+        gets a virtual thread instead, so waiting no longer occupies a platform thread.</p>
+        <p>One more detail worth having: request scoped beans and <code>ThreadLocal</code> values
+        work because of this one thread per request rule. That is also why they quietly stop
+        working the moment you hand work to another thread yourself.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do I add something to every request without touching every controller?</summary>
+      <div class="rvb">
+        <p>There are four places, and picking the right one is the real answer.</p>
+        <p><b>A filter</b> for anything that must see every request, including ones that end in a
+        404 or never reach a controller. Request logging, a request id, authentication. Extend
+        <code>OncePerRequestFilter</code> rather than implementing <code>Filter</code> directly,
+        because a request can be dispatched more than once internally and you rarely want your
+        code running twice.</p>
+        <p><b>An interceptor</b> when you need to know which handler was chosen. Per endpoint
+        timing, or a check that depends on an annotation on the method.</p>
+        <p><b>A <code>@ControllerAdvice</code></b> for things that are about the controller layer
+        itself: exception handling, adding a common attribute, binding rules. That is chapter
+        five.</p>
+        <p><b>A <code>HandlerMethodArgumentResolver</code></b> when you want a custom parameter
+        type in your method signature, so instead of every method reading a header, they can
+        declare <code>CurrentUser user</code> and Spring supplies it.</p>
+        <p>The mistake to avoid is doing it in a base class that every controller extends.
+        It works, it puts an inheritance chain in the middle of your web layer, and it stops
+        working the moment somebody writes a controller that forgets to extend it.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c2">
+      <h2><em>02</em> The self call trap</h2>
+
+      <ul class="prompts">
+        <li>Why does calling your own @Transactional method from the same class do nothing?</li>
+        <li>I caught the exception. Why did the whole thing still roll back?</li>
+        <li>What is the difference between REQUIRED and REQUIRES_NEW?</li>
+        <li>Which exceptions cause a rollback by default?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The mechanism behind almost every Spring surprise.</b> When a bean has
+        <code>@Transactional</code> on it, Spring does not give other beans your object. It builds
+        a wrapper around it, a proxy, and gives everyone that instead. The wrapper starts a
+        transaction, calls your method, then commits or rolls back.</p>
+
+        <p>So a method call only gets a transaction if it goes <b>through</b> the wrapper. A call
+        from inside the same object never leaves the object, so the wrapper is not involved.</p>
+
+        <p><b>Here is the same method, reached two ways, in a real application:</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>demo-ep12, real output</span><span class="sp">Spring Boot 3.5.3</span></div>
+          <pre class="dumpcode"><span class="cm">A. calling the transactional method from OUTSIDE the bean</span>
+  inside saveThenFail: transaction active? <span class="st">true</span>
+  rows left in the database: <span class="st">0</span>   rolled back, as expected
+
+<span class="cm">B. the same method, reached by a call from INSIDE the same bean</span>
+  outer: transaction active? <span class="bad">false</span>
+  inside saveThenFail: transaction active? <span class="bad">false</span>
+  rows left in the database: <span class="bad">1</span>   NOT rolled back, the data survived</pre>
+        </div>
+
+        <p>Same method. Same exception. <b>Outside: 0 rows. Inside: 1 row.</b> The
+        <code>transaction active? false</code> line is printed from inside the annotated method
+        itself, which is as direct as this gets: the annotation is there, and there is no
+        transaction.</p>
+
+        <p><b>The worst part is that nothing fails.</b> No error, no warning, no log line. The
+        code looks correct, the annotation is right there, and the data quietly stops being
+        protected. This is why it is asked so often.</p>
+
+        <p><b>Try the four cases below.</b> Every number came from running the application.</p>
+
+      <div class="matrix">
+        <div class="simhead"><span>What actually ends up in the database</span><span class="sp">real runs</span></div>
+        <div class="reqs" id="txOpts">
+          <button class="req" data-tx="outside" aria-pressed="false">Called from another bean</button>
+          <button class="req" data-tx="inside" aria-pressed="false">Called from inside the same bean</button>
+          <button class="req" data-tx="required" aria-pressed="false">Inner REQUIRED, outer catches</button>
+          <button class="req" data-tx="requiresnew" aria-pressed="false">Inner REQUIRES_NEW, outer catches</button>
+        </div>
+        <div class="mout" id="txOut">
+          <p style="color:var(--ink-faint)">Pick a case.</p>
+        </div>
+      </div>
+
+        <p><b>The second trap: catching an exception does not undo a rollback.</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>inner method uses REQUIRED, the default</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">  outer caught: inner failed, carrying on
+  <span class="bad">UnexpectedRollbackException: Transaction silently rolled back
+  because it has been marked as rollback-only</span>
+  rows left: <span class="bad">0</span>   the outer save is gone too</pre>
+        </div>
+
+        <p>With <code>REQUIRED</code>, the inner method joins the transaction the caller already
+        has. There is one transaction, not two. When the inner method throws, Spring marks that
+        one shared transaction rollback only. Your <code>catch</code> block stops the exception
+        travelling, and it cannot unmark the transaction, because the mark is on the transaction
+        and not on the exception. So the commit at the end fails, and the outer save goes too.</p>
+
+        <p>With <code>REQUIRES_NEW</code> the inner method suspends the caller's transaction and
+        runs in a genuinely separate one. That one rolls back, the outer one is untouched, and
+        catching the exception works the way you expected. Real output: <b>rows left: 1</b>.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Propagation</th><th>What it does</th><th>When you want it</th></tr></thead>
+          <tbody>
+          <tr><td><code>REQUIRED</code></td><td>Joins the caller's transaction, or starts one if
+            there is none. The default.</td><td>Almost always. One unit of work that succeeds or
+            fails together.</td></tr>
+          <tr><td><code>REQUIRES_NEW</code></td><td>Suspends the caller's transaction and runs in
+            a new one.</td><td>Work that must survive the caller failing. Writing an audit row, or
+            recording that an attempt was made.</td></tr>
+          <tr><td><code>SUPPORTS</code></td><td>Joins one if there is one, otherwise runs with no
+            transaction.</td><td>Read only work that does not care either way.</td></tr>
+          <tr><td><code>MANDATORY</code></td><td>Joins one, and throws if there is not one.</td>
+            <td>A method that must never be called on its own. It turns a silent bug into a loud
+            one.</td></tr>
+          <tr><td><code>NEVER</code> and <code>NOT_SUPPORTED</code></td><td>Throws if there is a
+            transaction, or suspends it.</td><td>Rare. Long running work you do not want holding a
+            database connection.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"@Transactional does not work on private methods."</b> True, and it is only half
+          the rule and it makes people think <code>public</code> is the fix. The real rule is that
+          the call has to arrive from outside the object. A public method called with
+          <code>this.</code> has exactly the same problem.</p>
+          <p><b>"Use REQUIRES_NEW to fix the self call."</b> It changes nothing. The proxy is
+          still not involved, so no propagation setting is ever read.</p>
+          <p><b>"Catching the exception prevents the rollback."</b> Measured above: rows left 0,
+          and an <code>UnexpectedRollbackException</code> at commit time.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>So how do I actually fix a self call?</summary>
+      <div class="rvb">
+        <p>Four options, in the order you should reach for them.</p>
+        <p><b>Move the method to another bean.</b> Almost always the right answer. If the inner
+        work is a real unit of work it usually deserves its own class anyway, and the call then
+        goes through that bean's proxy normally. This is the one to say first, because it treats
+        the trap as a design signal rather than something to work around.</p>
+        <p><b>Inject the bean into itself.</b> Take a constructor parameter of your own type, or
+        an <code>ObjectProvider</code> of it, and call <code>self.method()</code> instead of
+        <code>this.method()</code>. Now the call goes through the proxy. It works and it looks
+        strange to anyone reading it, so it needs a comment saying why.</p>
+        <p><b>Use <code>TransactionTemplate</code>.</b> Inject it and wrap the work in
+        <code>template.execute(status -&gt; { ... })</code>. No proxy, no annotation, the
+        transaction is explicit in the code. Good when the boundary is genuinely inside a method
+        rather than around one.</p>
+        <p><b><code>AopContext.currentProxy()</code>.</b> Gets the proxy from a thread local.
+        Needs <code>@EnableAspectJAutoProxy(exposeProxy = true)</code> and it ties your code to
+        Spring's AOP internals. It exists, it is worth naming so they know you have seen it, and
+        it is the last one to pick.</p>
+      </div></details>
+
+      <details class="rv"><summary>Which exceptions roll back by default, and why does that catch people out?</summary>
+      <div class="rvb">
+        <p>By default Spring rolls back on <code>RuntimeException</code> and <code>Error</code>,
+        and <b>commits</b> on checked exceptions. That last half is the one that surprises people,
+        because it is the opposite of what most expect.</p>
+        <p>So a method that throws <code>IOException</code>, or your own checked
+        <code>InsufficientFundsException</code>, will let the transaction commit. Everything
+        written before the throw is saved. Nothing warns you.</p>
+        <p>The reason is historical rather than principled: the EJB convention was that checked
+        exceptions are expected business outcomes and unchecked ones are failures, so Spring
+        matched it. Whether or not you agree, that is the behaviour and you should say so.</p>
+        <p>The fix is one attribute: <code>@Transactional(rollbackFor = Exception.class)</code>,
+        which rolls back on everything. There is also <code>noRollbackFor</code> for the reverse.
+        A reasonable house rule is to prefer unchecked exceptions for failures so the default is
+        already right, and to set <code>rollbackFor</code> explicitly anywhere a checked exception
+        can escape a transactional method.</p>
+      </div></details>
+
+      <details class="rv"><summary>Explain isolation levels with a real example of each problem.</summary>
+      <div class="rvb">
+        <p>Isolation is about what one transaction can see of another one that has not finished.
+        Three problems, in increasing order of how hard they are to stop.</p>
+        <p><b>Dirty read.</b> Transaction A updates a balance to 500 and has not committed.
+        Transaction B reads 500. A then rolls back, so the 500 never existed and B acted on a
+        number that was never real. <code>READ_UNCOMMITTED</code> allows this and almost nothing
+        uses it.</p>
+        <p><b>Non repeatable read.</b> Transaction A reads a balance and gets 100. Transaction B
+        updates it to 50 and commits. A reads the same row again and gets 50. The same query gave
+        two answers inside one transaction. <code>READ_COMMITTED</code> allows this, and it is the
+        default in Postgres, Oracle and SQL Server.</p>
+        <p><b>Phantom read.</b> Transaction A counts orders over 1000 rupees and gets 5.
+        Transaction B inserts another one and commits. A runs the same count and gets 6. No row A
+        read has changed, but the set it matched has grown. <code>REPEATABLE_READ</code> stops the
+        first two, and this is the one it does not stop. It is MySQL's default.</p>
+        <p><code>SERIALIZABLE</code> stops all three by making transactions behave as if they ran
+        one after another. It is correct and it is the slowest, because it means more locking or
+        more failed transactions that have to be retried.</p>
+        <p>The honest practical note, and a good thing to say: almost nobody changes this. The
+        default is right nearly all the time, and the two places it comes up in real work are a
+        report that must see a consistent picture, and a check then act sequence such as "is this
+        seat free, if so book it", where the usual fix is not a higher isolation level but a
+        database constraint or a lock on the specific row.</p>
+      </div></details>
+
+      <details class="rv"><summary>Does @Transactional on a read only method do anything useful?</summary>
+      <div class="rvb">
+        <p>Yes, and it is worth being specific rather than saying it is just a hint.</p>
+        <p><code>@Transactional(readOnly = true)</code> does three things. Hibernate switches the
+        flush mode to manual, so it stops checking your loaded entities for changes at the end,
+        which is real work saved when a query loaded a lot of rows. It sets the JDBC connection
+        read only, which some databases use to route the query to a replica. And it declares
+        intent, so a later reader knows this method is not supposed to write.</p>
+        <p>What it does not do is stop you writing. On most setups a save inside a read only
+        transaction will still go through, or will fail with a driver level error rather than a
+        clean Spring one. It is not a safety mechanism.</p>
+        <p>The more useful reason to put it on read methods is that it gives them a transaction at
+        all. Without one, a service method that runs three queries runs them in three separate
+        transactions and can see the database in three different states. With one, all three see
+        the same consistent snapshot. That is usually what you wanted, and it is a better answer
+        than the performance one.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c3">
+      <h2><em>03</em> Beans, scopes and the context</h2>
+
+      <ul class="prompts">
+        <li>Give the bean lifecycle in order, from constructor to destroy.</li>
+        <li>What is a BeanPostProcessor and why does it matter?</li>
+        <li>What happens when you inject a prototype into a singleton?</li>
+        <li>Are singleton beans thread safe?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The lifecycle, captured rather than recited.</b> One bean took part in every hook
+        Spring offers and recorded the order it was called in:</p>
+
+      <div class="matrix">
+        <div class="simhead"><span>The real order, from a running context</span><span class="sp">click any step</span></div>
+        <div class="reqs" id="lifeOpts">
+          <button class="req" data-lf="ctor" aria-pressed="false">1 &middot; constructor</button>
+          <button class="req" data-lf="inject" aria-pressed="false">2 &middot; injection</button>
+          <button class="req" data-lf="aware" aria-pressed="false">3 and 4 &middot; Aware callbacks</button>
+          <button class="req" data-lf="bppBefore" aria-pressed="false">5 &middot; BeanPostProcessor before</button>
+          <button class="req" data-lf="post" aria-pressed="false">6 &middot; @PostConstruct</button>
+          <button class="req" data-lf="init" aria-pressed="false">7 and 8 &middot; init callbacks</button>
+          <button class="req" data-lf="bppAfter" aria-pressed="false">9 &middot; BeanPostProcessor after</button>
+          <button class="req" data-lf="destroy" aria-pressed="false">10 to 12 &middot; shutdown</button>
+        </div>
+        <div class="mout" id="lifeOut">
+          <p style="color:var(--ink-faint)">Pick a step.</p>
+        </div>
+      </div>
+
+        <p><b>Step 9 is the one that explains the rest of this episode.</b>
+        <code>postProcessAfterInitialization</code> is allowed to return a <b>different object</b>
+        from the one it was given. That is where Spring swaps your bean for a proxy. It is how
+        <code>@Transactional</code> gets its wrapper, how <code>@Cacheable</code> gets its wrapper,
+        and therefore why the self call in chapter two silently does nothing.</p>
+
+        <p><b>Scopes, and the trap between them.</b> A singleton is one instance for the whole
+        application. A prototype is a new one every time it is asked for. Both are simple until
+        you put one inside the other:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>demo-ep12, real output</span><span class="sp">serial numbers are creation order</span></div>
+          <pre class="dumpcode">same singleton three times:            serial <span class="st">1, 1, 1</span>
+a prototype three times:               serial <span class="st">2, 3, 4</span>
+
+a prototype INJECTED into a singleton, called three times:
+                                       serial <span class="bad">1, 1, 1</span>   the scope did nothing
+the same singleton using ObjectProvider:
+                                       serial <span class="st">5, 6, 7</span>   a new one each time</pre>
+        </div>
+
+        <p>The prototype was injected once, when the singleton was built, and the singleton then
+        held that one instance for ever. The scope was not ignored: it was honoured exactly once
+        and then never asked again. <code>ObjectProvider</code> fixes it because it is a handle to
+        the factory rather than to an instance, so asking it produces a new object each time.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"@PostConstruct runs before the constructor."</b> Nothing runs before the
+          constructor. The order is measured above: constructor, injection, aware callbacks, then
+          <code>@PostConstruct</code>.</p>
+          <p><b>"Singleton beans are thread safe."</b> Spring guarantees one instance, not safe
+          concurrent access. One instance shared by 200 Tomcat threads is the opposite of safe if
+          it holds mutable state.</p>
+          <p><b>"Prototype beans are destroyed like singletons."</b> Spring hands you a prototype
+          and forgets it. No destroy callback ever runs on one, so anything holding a resource
+          leaks unless you close it yourself.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Are singleton beans thread safe? What does that mean in practice?</summary>
+      <div class="rvb">
+        <p>Spring guarantees you get one instance. It guarantees nothing about what happens when
+        several threads use it at once, and those are completely different promises.</p>
+        <p>In practice one <code>@Service</code> is shared by every Tomcat request thread, 200 of
+        them by default. If the service has only final fields holding other beans, which is the
+        normal shape, there is nothing to go wrong: nothing changes, so nothing can be seen half
+        changed. That is why the usual advice, constructor injection into final fields, quietly
+        solves this before it starts.</p>
+        <p>It goes wrong the moment somebody adds a field that changes. A counter, a cached last
+        result, a <code>SimpleDateFormat</code>, a <code>StringBuilder</code> reused between
+        calls. Now 200 threads share it and you have a data race that shows up as wrong numbers
+        under load and never in testing.</p>
+        <p>If you genuinely need per request state, put it in a local variable, which is per
+        thread by definition. If it has to be shared, use an atomic type or a concurrent
+        collection rather than a lock, for the same reasons as anywhere else.</p>
+        <p>A good line to finish on: singleton is about how many objects exist, not about how many
+        threads may touch them.</p>
+      </div></details>
+
+      <details class="rv"><summary>What is a BeanPostProcessor, and when would I write one?</summary>
+      <div class="rvb">
+        <p>An interface with two methods that Spring calls for <b>every single bean</b>, once
+        before the init callbacks and once after. Both methods receive the bean and return a bean,
+        and the returned one is what the rest of the application gets.</p>
+        <p>That return value is the whole point. <code>postProcessAfterInitialization</code> can
+        hand back a completely different object, and that is how proxying works: Spring's own
+        infrastructure returns a wrapper around your object when it sees
+        <code>@Transactional</code>, <code>@Cacheable</code>, <code>@Async</code> or any aspect.
+        So the answer to "how does an annotation change what my method does" is: a
+        <code>BeanPostProcessor</code> replaced your object at step 9.</p>
+        <p>Writing one yourself is rare and legitimate for cross cutting setup that annotations
+        cannot express: registering every bean that implements some interface with an external
+        system, validating that no bean is missing configuration, adding instrumentation to a
+        whole category of beans.</p>
+        <p>One real trap worth mentioning. A <code>BeanPostProcessor</code> has to exist before
+        the beans it processes, so Spring creates them very early. If yours injects an ordinary
+        bean, that bean gets created early too and can miss processing by other post processors,
+        including proxying. The symptom is a bean whose <code>@Transactional</code> silently stops
+        working. Depend on an <code>ObjectProvider</code> instead of the bean itself to avoid it.</p>
+      </div></details>
+
+      <details class="rv"><summary>What are request and session scope, and what is the proxy for?</summary>
+      <div class="rvb">
+        <p><code>@RequestScope</code> gives one instance per HTTP request.
+        <code>@SessionScope</code> gives one per user session. Both are useful for carrying
+        something for the length of that unit, such as the current user or a request id.</p>
+        <p>They create the same problem as the prototype trap, only worse. Your
+        <code>@Service</code> is a singleton, created at startup. A request scoped bean does not
+        exist at startup, because there is no request. So injecting one directly cannot work.</p>
+        <p>Spring's answer is to inject a proxy instead. The singleton gets a stand in object that
+        looks like the right type, and every method call on it looks up the real instance for
+        whatever request is running on the current thread and forwards the call. That is what
+        <code>proxyMode = ScopedProxyMode.TARGET_CLASS</code> means, and
+        <code>@RequestScope</code> turns it on for you.</p>
+        <p>The catch follows directly from how it works: the lookup uses the current thread. Hand
+        the work to another thread, an <code>@Async</code> method or a parallel stream, and the
+        lookup finds no request and fails. This is the same reason <code>ThreadLocal</code> values
+        and security context vanish across threads, and it is worth naming as one cause rather
+        than three separate mysteries.</p>
+      </div></details>
+
+      <details class="rv"><summary>Constructor, setter or field injection? Defend the choice.</summary>
+      <div class="rvb">
+        <p>Constructor injection, and there are four concrete reasons rather than a preference.</p>
+        <p><b>The object cannot exist half built.</b> Everything it needs is a constructor
+        parameter, so there is no window where a field is still null. With field injection the
+        object exists first and gets filled in afterwards.</p>
+        <p><b>The fields can be final.</b> That makes the class immutable in the way that matters
+        for the thread safety question above: nothing can change, so nothing can be seen half
+        changed by 200 request threads.</p>
+        <p><b>It is testable without Spring.</b> <code>new OrderService(repo, mailer)</code> in a
+        plain test, no context, no reflection. Field injection forces you to start a Spring
+        context or use reflection to get test doubles in, which is why those test suites are
+        slow.</p>
+        <p><b>It tells you when the class has grown.</b> A constructor with nine parameters is
+        embarrassing and visible. Nine <code>@Autowired</code> fields look tidy and hide the same
+        problem. Constructor injection reports a design issue that field injection conceals.</p>
+        <p>Two details that finish the answer. Since Spring 4.3 a class with a single constructor
+        does not need <code>@Autowired</code> on it at all. And setter injection still has one
+        real use: a genuinely optional dependency, or breaking a circular reference, which is
+        itself a sign the design needs a look.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c4">
+      <h2><em>04</em> Controller, RestController, Component, Bean</h2>
+
+      <ul class="prompts">
+        <li>What exactly does @RestController add over @Controller?</li>
+        <li>Two methods with identical bodies returned 200 and 404. Why?</li>
+        <li>When do you use @Bean instead of @Component?</li>
+        <li>Is there any difference between @Component, @Service and @Repository?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The definition first, because it is exact.</b>
+        <code>@RestController</code> is <code>@Controller</code> plus <code>@ResponseBody</code>,
+        applied to every method. That is the entire difference, and it is enough to change a
+        200 into a 404.</p>
+
+        <p><b>Two methods, identical bodies, real HTTP calls to a running application:</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>both methods are: return "hello";</span><span class="sp">real responses</span></div>
+          <pre class="dumpcode"><span class="cm">// on a @RestController</span>
+/api/text                     <span class="st">200</span>  text/plain          hello
+
+<span class="cm">// on a plain @Controller</span>
+/mvc/text                     <span class="bad">404</span>  application/json    {"status":404,"error":"Not Found"}
+
+<span class="cm">// the same @Controller method, with @ResponseBody added</span>
+/mvc/text-with-responsebody   <span class="st">200</span>  text/plain          hello</pre>
+        </div>
+
+        <p><b>Why the 404.</b> Without <code>@ResponseBody</code>, Spring treats the returned
+        String as the <b>name of a view to render</b>. It goes looking for a template called
+        "hello", finds nothing, and the request ends as a 404. Nothing is broken; Spring did
+        exactly what it was told. The word "hello" was an instruction, not content.</p>
+
+        <p>That is the whole reason <code>@RestController</code> exists. Before it, every method in
+        an API controller needed <code>@ResponseBody</code>, and forgetting one gave you this
+        exact confusing 404.</p>
+
+        <p><b>The rest of the real responses</b>, which also show that returning a record is all
+        it takes to get JSON:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>same application, more calls</span><span class="sp">real responses</span></div>
+          <pre class="dumpcode">/api/json                200  application/json    {"message":"hello","count":3}
+/api/order/A-77?count=4  200  application/json    {"message":"order A-77","count":4}</pre>
+        </div>
+
+        <p>The method returned a <code>Greeting</code> record. No conversion code exists anywhere
+        in the project. A message converter did it, chosen by the process in chapter one.</p>
+
+        <p><b>@Component versus @Bean.</b> Both put an object in the context. The difference is who
+        constructs it.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th></th><th><code>@Component</code></th><th><code>@Bean</code></th></tr></thead>
+          <tbody>
+          <tr><td>Goes on</td><td>The class itself</td><td>A method inside a
+            <code>@Configuration</code> class</td></tr>
+          <tr><td>Who builds it</td><td>Spring, by calling the constructor</td>
+            <td>You, in the method body</td></tr>
+          <tr><td>Needs</td><td>The class to be yours to edit, and inside the scanned
+            packages</td><td>Nothing. The class can come from a library</td></tr>
+          <tr><td>Use it when</td><td>It is your class and construction is simple</td>
+            <td>The class is not yours, or building it needs real logic, or you want several
+            differently configured instances of the same type</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>The rule of thumb:</b> if you can put the annotation on the class, use
+        <code>@Component</code>. If you cannot, because it is somebody else's class, or because
+        building it takes more than a constructor call, use <code>@Bean</code>. A
+        <code>DataSource</code>, an <code>ObjectMapper</code> with custom settings, a third party
+        client: all <code>@Bean</code>.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"@Service is for business logic and @Repository is for data, and that is enforced."</b>
+          The first half is a naming convention. <code>@Service</code> is
+          <code>@Component</code> with a different name and nothing else. <code>@Repository</code>
+          is the one real exception, and it is worth knowing why.</p>
+          <p><b>"@RestController makes it faster."</b> It changes how the return value is treated.
+          Nothing else.</p>
+          <p><b>"@Bean and @Component are interchangeable."</b> Only when the class is yours and
+          construction is trivial. You cannot put <code>@Component</code> on a class from a jar.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Is @Repository really different, or is it just a name?</summary>
+      <div class="rvb">
+        <p>It is the one stereotype that does something real, and this is a good question to get
+        right because most people say all three are identical.</p>
+        <p><code>@Repository</code> makes the bean eligible for exception translation. Spring
+        registers a post processor that wraps repository beans, catches the database specific
+        exception that came out, and rethrows it as one of Spring's own
+        <code>DataAccessException</code> types.</p>
+        <p>Concretely: a unique constraint violation arrives from the driver as a
+        <code>SQLIntegrityConstraintViolationException</code> on MySQL, or a
+        <code>PSQLException</code> with a state code on Postgres, or a Hibernate
+        <code>ConstraintViolationException</code>. With <code>@Repository</code> your service sees
+        <code>DataIntegrityViolationException</code> in every case. Your catch block stops
+        depending on which database you are running.</p>
+        <p>All of Spring Data's repositories get this already, so if you use
+        <code>JpaRepository</code> you have it without doing anything. It matters when you write a
+        DAO by hand with <code>JdbcTemplate</code> or an <code>EntityManager</code>.</p>
+        <p><code>@Service</code> and <code>@Controller</code> genuinely are just names, and the
+        value of the names is real but human: they tell a reader which layer they are in, and they
+        give you something to point aspects and component scan filters at.</p>
+      </div></details>
+
+      <details class="rv"><summary>Why does calling a @Bean method from another @Bean method not create two objects?</summary>
+      <div class="rvb">
+        <p>Because a <code>@Configuration</code> class is not a normal class. Spring subclasses it
+        at runtime and intercepts every <code>@Bean</code> method call, which is the same proxy
+        idea as chapter two showing up in a different place.</p>
+        <p>Write this:</p>
+        <p><code>@Bean A a() { return new A(b()); }</code><br>
+        <code>@Bean B b() { return new B(); }</code></p>
+        <p>The call to <code>b()</code> inside <code>a()</code> looks like an ordinary method
+        call that would build a second <code>B</code>. It does not. The interception checks
+        whether that bean already exists and returns the existing one, so there is exactly one
+        <code>B</code> in the context and <code>a</code> gets it.</p>
+        <p>This is called full mode, and it is what <code>@Configuration</code> buys you. If you
+        put <code>@Bean</code> methods on a plain <code>@Component</code> instead, you get lite
+        mode: no subclass, no interception, and that same call really does build a second object.
+        The symptom is two instances of something that was supposed to be shared, and it is
+        genuinely hard to spot by reading.</p>
+        <p>You can turn it off deliberately with
+        <code>@Configuration(proxyBeanMethods = false)</code>, which is slightly faster at startup
+        and is safe when no <code>@Bean</code> method calls another. Spring Boot's own
+        autoconfiguration classes do this. The safer habit for your own code is to take the
+        dependency as a method parameter, <code>@Bean A a(B b)</code>, which works identically in
+        both modes.</p>
+      </div></details>
+
+      <details class="rv"><summary>How does Spring find my components in the first place?</summary>
+      <div class="rvb">
+        <p><code>@SpringBootApplication</code> includes <code>@ComponentScan</code> with no
+        package argument, which means it scans <b>the package the annotated class is in, and
+        everything below it</b>. That single default explains most "my bean is not being found"
+        problems.</p>
+        <p>If your main class is in <code>com.example.app</code> and somebody adds a service in
+        <code>com.other.thing</code>, it is never scanned, is never a bean, and every injection of
+        it fails at startup. The fix is to move it under the main package, which is almost always
+        the right answer, or to add the package explicitly to <code>scanBasePackages</code>.</p>
+        <p>The failure worth knowing about is the opposite one, and it cost time while building
+        the demos for this episode. Put the main class in the <b>default package</b>, with no
+        package declaration at all, and there is no base package to scan, so Spring scans
+        everything on the classpath. Every library, every autoconfiguration. The application here
+        failed at startup trying to configure a database driver nothing had asked for. The rule is
+        simple: the main class always lives in a real package, and everything else lives under
+        it.</p>
+      </div></details>
+
+      <details class="rv"><summary>Two beans of the same type. How does Spring choose?</summary>
+      <div class="rvb">
+        <p>By default it does not choose, it fails at startup with
+        <code>NoUniqueBeanDefinitionException</code> listing the candidates. Failing loudly at
+        startup rather than picking one at random is the right behaviour and worth saying.</p>
+        <p>Four ways to resolve it, roughly in order of preference.</p>
+        <p><b><code>@Primary</code></b> on one of them. That one wins whenever nothing more
+        specific is asked for. Right when there is a clear default and the others are special
+        cases.</p>
+        <p><b><code>@Qualifier("name")</code></b> at the injection point, matching a name on the
+        bean. Explicit at both ends, and the right answer when neither bean is a natural
+        default.</p>
+        <p><b>Match the parameter name to the bean name.</b> If the beans are <code>fast</code>
+        and <code>slow</code>, a parameter called <code>slow</code> resolves to that one. It works
+        and it is invisible: renaming a parameter changes behaviour, which is a nasty property.
+        Know it, avoid relying on it.</p>
+        <p><b>Inject all of them.</b> Take a <code>List&lt;Handler&gt;</code> or a
+        <code>Map&lt;String, Handler&gt;</code> and Spring gives you every implementation, the map
+        keyed by bean name. This is often the real answer rather than a workaround: it is exactly
+        the shape you want for a set of strategies, and adding a new one requires no change to the
+        code that uses them.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c5">
+      <h2><em>05</em> One place for every error</h2>
+
+      <ul class="prompts">
+        <li>How do you turn a domain exception into a proper HTTP response?</li>
+        <li>What is @ControllerAdvice and how wide does it reach?</li>
+        <li>What does an unhandled exception produce?</li>
+        <li>What should never appear in an error response?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The problem.</b> A service throws <code>OutOfStockException</code>. Without
+        anything, the client gets a 500 saying "Internal Server Error", which is both wrong and
+        useless: nothing failed internally, the order simply cannot be fulfilled, and the caller
+        has no way to tell those apart.</p>
+
+        <p><b>The fix is one class for the whole application.</b>
+        <code>@RestControllerAdvice</code> is <code>@ControllerAdvice</code> plus
+        <code>@ResponseBody</code>, and its <code>@ExceptionHandler</code> methods apply to every
+        controller:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>demo-ep12/src/main/java/demo/web/ApiErrors.java</span><span class="sp">the whole class</span></div>
+          <pre class="dumpcode"><span class="kw">@RestControllerAdvice</span>
+<span class="kw">public class</span> ApiErrors {
+
+    <span class="kw">@ExceptionHandler</span>(OutOfStockException.<span class="kw">class</span>)
+    <span class="kw">public</span> ProblemDetail outOfStock(OutOfStockException e) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        p.setTitle(<span class="st">"Out of stock"</span>);
+        p.setProperty(<span class="st">"sku"</span>, e.getSku());
+        <span class="kw">return</span> p;
+    }
+}</pre>
+        </div>
+
+        <p><b>What the two endpoints actually returned:</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>real HTTP responses</span><span class="sp">handled and unhandled</span></div>
+          <pre class="dumpcode">/api/boom       <span class="st">409</span>  application/problem+json
+  {"type":"about:blank","title":"Out of stock","status":409,
+   "detail":"out of stock: SKU-42","instance":"/api/boom",<span class="hl">"sku":"SKU-42"</span>}
+
+/api/unhandled  <span class="bad">500</span>  application/json
+  {"status":500,"error":"Internal Server Error","path":"/api/unhandled"}</pre>
+        </div>
+
+        <p>The handled one is a 409 with a meaningful title, the detail, and a custom
+        <code>sku</code> field a client can act on. The unhandled one is a generic 500 that tells
+        the caller nothing, and Spring writes the full stack trace into your logs.</p>
+
+        <p><b><code>ProblemDetail</code> is worth knowing by name.</b> It is Spring's built in
+        implementation of RFC 7807, the standard shape for an HTTP error body: type, title,
+        status, detail, instance, plus any properties you add. Using it means not inventing your
+        own error format, and the content type comes out as
+        <code>application/problem+json</code> so a client can tell it is a structured error.</p>
+
+        <p><b>What must never go in an error response.</b> Stack traces, SQL, class names,
+        internal host names, and anything from an exception message you did not write yourself.
+        An exception message often contains the data that caused the failure, which can be
+        somebody's email address or part of a query. The message goes in the log; the client gets
+        the status and a sentence they can act on.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>Try and catch in every controller method.</b> It works and it puts the same eight
+          lines in forty places, and the fortieth one will be slightly different.</p>
+          <p><b>Returning 200 with an error field in the body.</b> Now every client has to read
+          the body to find out whether the call worked, and no proxy, cache, retry policy or
+          monitoring dashboard can tell either.</p>
+          <p><b>Putting the exception message straight into the response.</b> The quickest way to
+          leak a database error, a file path, or someone's data to a caller.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How wide does @ControllerAdvice reach, and can I narrow it?</summary>
+      <div class="rvb">
+        <p>By default it applies to every controller in the application, which is usually what you
+        want and occasionally not.</p>
+        <p>You can narrow it three ways, all as arguments to the annotation.
+        <code>@RestControllerAdvice(basePackages = "com.example.api")</code> limits it to
+        controllers in a package. <code>assignableTypes = {OrderController.class}</code> limits it
+        to named controllers. <code>annotations = {PublicApi.class}</code> limits it to controllers
+        carrying an annotation of yours.</p>
+        <p>The real use for narrowing is having two of them: one for a public API that returns
+        careful, sparse errors, and one for an internal or admin API that can afford to say more.
+        Same application, two error policies, no <code>if</code> statements.</p>
+        <p>Two details that come up. You can have several advice classes at once, and
+        <code>@Order</code> decides which is asked first. And when two handlers could both match
+        an exception, Spring picks the <b>most specific</b> one by class hierarchy, so a handler
+        for <code>OutOfStockException</code> wins over one for <code>RuntimeException</code>
+        without you doing anything.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do you handle validation failures cleanly?</summary>
+      <div class="rvb">
+        <p>Put <code>@Valid</code> on the request body parameter and constraints such as
+        <code>@NotBlank</code> or <code>@Min</code> on the record or class. When it fails, Spring
+        throws <code>MethodArgumentNotValidException</code> before your controller method runs at
+        all.</p>
+        <p>Out of the box that becomes a 400 with a body containing every violation, which is
+        already reasonable. The reason to handle it yourself is shape: the default body is
+        verbose, includes some internals, and is not the same shape as your other errors, so
+        clients end up parsing two formats.</p>
+        <p>So add a handler for it in the same advice class, walk
+        <code>e.getBindingResult().getFieldErrors()</code>, and build a
+        <code>ProblemDetail</code> with a map of field name to message. Now a validation failure
+        and a business failure look the same to a client apart from the status code.</p>
+        <p>Two things worth knowing. A different exception,
+        <code>ConstraintViolationException</code>, is thrown when constraints are on method
+        parameters directly rather than on a body object, so a complete advice class usually
+        handles both. And the messages in those violations come from your annotations, so writing
+        <code>@NotBlank(message = "order id is required")</code> is what makes the response
+        readable rather than mentioning a field path nobody outside your team recognises.</p>
+      </div></details>
+
+      <details class="rv"><summary>Which status code should I return? People argue about this.</summary>
+      <div class="rvb">
+        <p>The argument is usually about a handful of cases. The rest is settled and worth being
+        crisp about.</p>
+        <p><b>400</b> when the request itself is malformed or fails validation: a missing field, a
+        string where a number belongs. The caller can fix it by sending something different.</p>
+        <p><b>401</b> when we do not know who you are, <b>403</b> when we do and you are not
+        allowed. Getting these the wrong way round is the most common status code mistake.</p>
+        <p><b>404</b> when the thing does not exist. Also the right answer when it exists but this
+        caller must not know that, which is why some APIs return 404 rather than 403 for another
+        user's record.</p>
+        <p><b>409</b> when the request is well formed and conflicts with the current state. Out of
+        stock, already cancelled, version mismatch. This is the one people miss, and it is the
+        right code for most business rule failures.</p>
+        <p><b>422</b> when the request is well formed and semantically wrong. The overlap with 400
+        and 409 is the actual argument; pick one convention for your API and apply it
+        consistently, because a client cares far more about consistency than about which of the
+        two you chose.</p>
+        <p><b>500</b> only when your code genuinely failed. If a 500 can be caused by a caller
+        sending bad input, that is a bug in your error handling, because it makes real failures
+        impossible to find in a dashboard.</p>
+      </div></details>
+
+      <details class="rv"><summary>Where do errors go that never reach a controller?</summary>
+      <div class="rvb">
+        <p>Not to your <code>@ControllerAdvice</code>, and this catches people out because the
+        advice looks like it covers everything.</p>
+        <p><code>@ControllerAdvice</code> is part of Spring MVC and only sees exceptions thrown by
+        a handler that was found and invoked. Anything that fails earlier never reaches it.</p>
+        <p>That includes a request that matched no mapping, which is the 404 from chapter four. It
+        includes an exception thrown inside a <b>filter</b>, because filters run outside the
+        DispatcherServlet entirely. And it includes anything Spring Security rejects, since that
+        is a filter, which is why authentication failures need their own
+        <code>AuthenticationEntryPoint</code> and <code>AccessDeniedHandler</code> rather than an
+        <code>@ExceptionHandler</code>.</p>
+        <p>Those all end up at the container's error page, which in Spring Boot is
+        <code>/error</code>, handled by <code>BasicErrorController</code>. That is what produced
+        the plain 404 and 500 bodies in the output above. If you want those to match your API's
+        error shape, you replace or configure that controller, which is a separate job from
+        writing an advice class.</p>
+        <p>The short version to say out loud: an advice class covers exceptions from your
+        controllers, and everything before or around them goes to <code>/error</code>.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c6">
+      <h2><em>06</em> Caching, and what Redis changes</h2>
+
+      <ul class="prompts">
+        <li>What does @Cacheable actually do, and what is it worth?</li>
+        <li>Why does @Cacheable have the same self call problem as @Transactional?</li>
+        <li>What changes when the cache moves to Redis?</li>
+        <li>What is the danger of caching the wrong thing?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What it is.</b> Put <code>@Cacheable("prices")</code> on a method and Spring wraps
+        the bean in a proxy. The proxy builds a key from the arguments, looks in the cache, and
+        either returns what it finds or calls your method and stores the result. Your method body
+        does not change and does not know.</p>
+
+        <p><b>What it was worth, measured on a method that takes 200 milliseconds:</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>demo-ep12, real timings</span><span class="sp">same argument each time</span></div>
+          <pre class="dumpcode">first call       <span class="bad">203 ms</span>   went and did the work
+second call        <span class="st">0 ms</span>   came from the cache
+third call         <span class="st">0 ms</span>
+<span class="cm">real lookups behind three calls: 1</span>
+
+after evict      <span class="bad">200 ms</span>   the work happened again
+<span class="cm">real lookups now: 2</span></pre>
+        </div>
+
+        <p>Three calls, one real lookup. The counter is inside the method, so that is a count of
+        how many times the body actually ran, not an inference from the timing.</p>
+
+        <p><b>It is the same proxy, so it has the same trap.</b> Calling a
+        <code>@Cacheable</code> method from inside the same bean skips the cache entirely, for
+        exactly the reason chapter two showed for <code>@Transactional</code>: the call never
+        leaves the object, so the wrapper is not involved. There is no error and no warning. The
+        method simply runs every time and the cache stays empty.</p>
+
+        <p>This is why it is worth learning the mechanism once rather than the annotations
+        separately. <code>@Transactional</code>, <code>@Cacheable</code>, <code>@Async</code>,
+        <code>@Retryable</code> and every custom aspect all work the same way and all break the
+        same way.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Annotation</th><th>What it does</th><th>The detail people miss</th></tr></thead>
+          <tbody>
+          <tr><td><code>@Cacheable</code></td><td>Look first, run only on a miss</td>
+            <td>A cached <code>null</code> is a real cached value, so a method returning null gets
+            cached as null unless you set <code>unless</code></td></tr>
+          <tr><td><code>@CachePut</code></td><td>Always run, always store the result</td>
+            <td>Use it on an update method so the cache holds the new value rather than being
+            cleared</td></tr>
+          <tr><td><code>@CacheEvict</code></td><td>Remove an entry</td>
+            <td><code>allEntries = true</code> clears the whole cache, and
+            <code>beforeInvocation = true</code> clears it even if the method throws</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="note">
+          <b>Redis is not in this demo, and here is exactly why</b>
+          <p>The measurements above use an in memory cache, because there is no Redis server on
+          the machine these demos were run on. Rather than describe numbers that were not taken,
+          the next section says precisely what changes and what it costs. Everything above the
+          line was run.</p>
+        </div>
+
+        <p><b>What actually changes when the cache moves to Redis.</b></p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>What</th><th>In memory, as measured</th><th>With Redis</th></tr></thead>
+          <tbody>
+          <tr><td>Your code</td><td colspan="2">Identical. Only the
+            <code>CacheManager</code> bean changes. The annotations and the service do not.</td></tr>
+          <tr><td>A cache hit</td><td>0 ms, a map lookup</td>
+            <td>A network call. Usually under a millisecond nearby, no longer free, and it can
+            fail</td></tr>
+          <tr><td>What can be stored</td><td>Any object, as a reference</td>
+            <td>Must be serialized and deserialized, so you choose a serializer and cached types
+            have to survive it. This is where most real problems start</td></tr>
+          <tr><td>Sharing</td><td>Per instance. Ten instances means ten caches and ten misses for
+            the same key</td><td>One cache for every instance, which is usually the real reason to
+            do it</td></tr>
+          <tr><td>Restart</td><td>Gone</td><td>Survives</td></tr>
+          <tr><td>Expiry</td><td>None. Entries live until evicted by hand</td>
+            <td>A time to live per cache, which is what stops stale data living for ever</td></tr>
+          <tr><td>New failure mode</td><td>None worth naming</td>
+            <td>Redis being slow or down now affects every cached call, so it needs a timeout and
+            a decision about whether a cache failure should fail the request</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"Caching makes it faster."</b> It makes a repeated call faster and every first
+          call slightly slower. If the arguments are nearly always different, a cache is pure
+          cost, and that is a real situation rather than a hypothetical.</p>
+          <p><b>"Just add @Cacheable and you are done."</b> You have taken on a second copy of
+          the truth. The question that matters is how it gets thrown away, and if the answer is
+          "it does not", you have chosen to serve stale data for ever.</p>
+          <p><b>"Redis makes the cache faster."</b> Redis makes it <b>shared</b> and
+          <b>durable</b>. A local map is faster than Redis and always will be, because it does not
+          touch the network.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How is the cache key built, and when does that go wrong?</summary>
+      <div class="rvb">
+        <p>By default Spring builds the key from all the method arguments. One argument becomes
+        the key itself; several become a composite key of all of them; none becomes a single
+        shared key for the method.</p>
+        <p>That default breaks in three ways worth knowing.</p>
+        <p><b>An argument that is not part of the identity.</b> A method taking
+        <code>(String sku, Locale locale, TraceContext trace)</code> gets a different key for
+        every trace, so the cache never hits. Fix it with
+        <code>@Cacheable(value = "prices", key = "#sku")</code> naming only what matters.</p>
+        <p><b>An object argument without <code>equals</code> and <code>hashCode</code>.</b> Two
+        equal-looking objects are different keys, so again nothing ever hits. Records get both for
+        free, which is one more reason to use them.</p>
+        <p><b>A missing dimension.</b> Caching a price by <code>#sku</code> when it depends on the
+        customer's country means the first caller's price is served to everyone. This is the
+        dangerous one, because unlike the others it does not look broken, it just returns the
+        wrong answer to the wrong person.</p>
+        <p>Also worth naming: <code>condition</code> decides before the call whether to use the
+        cache at all, and <code>unless</code> decides after it whether to store the result.
+        <code>unless = "#result == null"</code> is the usual guard against caching nothing as if
+        it were an answer.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do you stop a cache serving stale data?</summary>
+      <div class="rvb">
+        <p>Three approaches, and the honest answer is that you pick one deliberately rather than
+        hoping.</p>
+        <p><b>Expire it by time.</b> Every entry lives for a fixed period. Simple, predictable,
+        and it means you accept being wrong for up to that long. The real question is how long
+        the business can tolerate, and for a lot of data the answer is far longer than people
+        assume. A product description can be five minutes stale; a price during a flash sale
+        cannot.</p>
+        <p><b>Evict on write.</b> The code that changes the data also removes the cache entry, with
+        <code>@CacheEvict</code>, or replaces it with <code>@CachePut</code>. Correct when every
+        write goes through your application. It quietly fails the moment anything else writes to
+        that database, such as a batch job, an admin tool or another service.</p>
+        <p><b>Do not cache it.</b> The option people skip. If the data changes constantly, or
+        being wrong is expensive, or you cannot say how it gets invalidated, the cache is a
+        liability.</p>
+        <p>The two together are the usual real answer: evict on write for correctness when you
+        control the writes, plus a time to live as a safety net for when you do not. And the
+        sentence worth having ready is that a cache with no expiry and no eviction is not a cache,
+        it is a second database that is always wrong and never checked.</p>
+      </div></details>
+
+      <details class="rv"><summary>What is a cache stampede, and does it happen here?</summary>
+      <div class="rvb">
+        <p>A popular key expires, and every request that wanted it misses at the same moment, so
+        instead of one slow call to the database you get five hundred at once. The cache was the
+        only thing protecting the database, and it stopped for a fraction of a second.</p>
+        <p>It happens with the in memory cache in this demo too. <code>@Cacheable</code> does not
+        lock by default: a hundred threads calling the method with a cold key all miss, all run
+        the body, and all store the same result.</p>
+        <p><code>sync = true</code> on <code>@Cacheable</code> is the built in answer. It makes
+        one thread compute the value while the others wait for it, so a cold key costs one call
+        rather than five hundred. It is not on by default and most people do not know it exists.
+        It only works for a single instance, though, because the lock is local.</p>
+        <p>Across instances you need the lock in the shared cache, which usually means a lock key
+        in Redis. That is real work and is worth it only for the small number of keys that are hot
+        enough to matter.</p>
+        <p>Two cheaper habits that help more than they sound like they should. Do not give every
+        entry the same expiry, because entries created together then expire together; add a small
+        random amount to each, which is jitter applied to expiry. And warm the few keys you know
+        are hot at startup, rather than letting the first unlucky user pay for them.</p>
+      </div></details>
+
+      <details class="rv"><summary>When is @Cacheable the wrong tool?</summary>
+      <div class="rvb">
+        <p>Four situations, and being able to name them is more valuable than knowing the
+        annotation.</p>
+        <p><b>The method is fast already.</b> Caching a calculation that takes microseconds adds a
+        key, a lookup and a copy of the answer to save nothing. Measure first: the 203 milliseconds
+        above is what made caching obviously worth it here.</p>
+        <p><b>The arguments are nearly always different.</b> A cache keyed by something close to
+        unique, a full text search string or a user id in a system with millions of users, never
+        hits and grows for ever. That is a memory leak with a helpful name.</p>
+        <p><b>The result must be current.</b> An account balance, remaining stock during a sale,
+        anything a person will act on immediately. Serving a value from a second ago is sometimes
+        fine and sometimes a support ticket.</p>
+        <p><b>The method has side effects.</b> A cached call does not run, so anything the method
+        did besides returning a value, writing a row, sending a message, incrementing a counter,
+        silently stops happening on the second call. <code>@Cacheable</code> assumes the method is
+        a pure function of its arguments, and nothing checks that assumption for you.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>advice</dt><dd>A class marked <code>@ControllerAdvice</code> whose methods apply to every controller, most often to turn exceptions into responses.</dd>
+        <dt>bean</dt><dd>An object that Spring built and manages. Being a bean is what makes injection, proxying and lifecycle callbacks possible.</dd>
+        <dt>BeanPostProcessor</dt><dd>A hook Spring calls for every bean, before and after initialisation. The "after" call may return a different object, which is how proxies get in.</dd>
+        <dt>content negotiation</dt><dd>Matching what the client says it accepts against what your converters can produce, to decide the response format.</dd>
+        <dt>DispatcherServlet</dt><dd>The one servlet that receives every request and coordinates finding a handler, invoking it and writing the response.</dd>
+        <dt>eviction</dt><dd>Removing an entry from a cache so the next call does the real work again.</dd>
+        <dt>filter</dt><dd>Servlet level code that sees every request, including ones that never reach a controller.</dd>
+        <dt>interceptor</dt><dd>Spring MVC code that runs after a handler has been chosen, so it knows which controller method will run.</dd>
+        <dt>isolation level</dt><dd>How much one transaction can see of another that has not finished yet.</dd>
+        <dt>message converter</dt><dd>The thing that turns your returned object into bytes, and a request body into an object. Jackson does the JSON.</dd>
+        <dt>ObjectProvider</dt><dd>A handle to the factory for a bean rather than to an instance, so asking it can give you a new object each time.</dd>
+        <dt>ProblemDetail</dt><dd>Spring's built in error body shape from RFC 7807: type, title, status, detail, instance, plus anything you add.</dd>
+        <dt>propagation</dt><dd>What a transactional method does when the caller already has a transaction: join it, suspend it, or refuse.</dd>
+        <dt>proxy</dt><dd>A wrapper Spring puts around your bean so it can run code before and after your methods. Everyone else holds the wrapper, not your object.</dd>
+        <dt>rollback only</dt><dd>A mark Spring puts on a transaction when something inside it failed. Once marked, the commit at the end fails no matter who caught what.</dd>
+        <dt>scope</dt><dd>How many instances of a bean exist and how long they live. Singleton is one for the application, prototype is a new one per request for it.</dd>
+        <dt>stereotype</dt><dd><code>@Component</code>, <code>@Service</code>, <code>@Repository</code>, <code>@Controller</code>. Names for the same idea, except <code>@Repository</code> which also translates database exceptions.</dd>
+        <dt>view resolver</dt><dd>The part of Spring MVC that turns a returned String into a template to render. It is why a plain controller returning "hello" looks for a page called hello.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---------- chapter 1: the path of a request ---------- */
+
+  var PATH = {
+    tomcat: {h: "1. Tomcat takes the connection",
+      p: "An embedded Tomcat is listening. It takes one thread from a pool of 200 and that thread belongs to this request for its whole life, including every millisecond it spends waiting on a database. That is why a slow downstream service takes your service down: the threads are held, not busy.",
+      real: "server.port=8099\nTomcat thread pool: 200 by default\n\nspring.threads.virtual.enabled=true   on Java 21 and up,\n                                      so waiting no longer holds a platform thread"},
+    filters: {h: "2. Servlet filters, in order",
+      p: "Filters sit outside the DispatcherServlet, so they see every request including ones that end in a 404. This is the list from the running application, sorted the way Spring orders them. Put request logging here, not in an interceptor, or your 404s will be missing from the logs.",
+      real: "servlet filters registered, in order:\n  OrderedCharacterEncodingFilter\n  OrderedFormContentFilter\n  OrderedRequestContextFilter"},
+    dispatcher: {h: "3. The DispatcherServlet",
+      p: "One servlet mapped at / that receives everything. It does no work itself: it asks the mappings which handler matches, asks which adapter can invoke it, runs the interceptors, and hands the result to a converter. Every one of those is an interface with several implementations, which is why the same servlet can serve an annotated controller and a functional route.",
+      real: "DispatcherServlet\n  -> HandlerMapping      which handler?\n  -> HandlerAdapter      how do I call it?\n  -> interceptors        before and after\n  -> message converter   how do I write the answer?\n  -> exception resolver  what if it threw?"},
+    mapping: {h: "4. HandlerMapping picks the handler",
+      p: "Six of them in this application, asked in this order. The first one that claims the request wins. RequestMappingHandlerMapping is the one that knows about @GetMapping and friends. If a request goes somewhere unexpected, these six are the list of suspects.",
+      real: "HandlerMappings, in the order DispatcherServlet asks them:\n  RouterFunctionMapping\n  RequestMappingHandlerMapping     <- @GetMapping lives here\n  WelcomePageHandlerMapping\n  BeanNameUrlHandlerMapping\n  WelcomePageNotAcceptableHandlerMapping\n  SimpleUrlHandlerMapping"},
+    adapter: {h: "5. HandlerAdapter invokes it",
+      p: "A handler can be an annotated method, a functional route or a plain servlet style handler. Those are three different shapes, so the DispatcherServlet does not call them itself. It finds an adapter that knows how. This is also the step that resolves your method arguments: @PathVariable, @RequestParam, @RequestBody and the rest.",
+      real: "HandlerAdapters:\n  RequestMappingHandlerAdapter     <- annotated controller methods\n  HandlerFunctionAdapter\n  HttpRequestHandlerAdapter\n  SimpleControllerHandlerAdapter"},
+    converter: {h: "6. A message converter writes the answer",
+      p: "Your method returned an object. Spring walks the converter list in order and uses the first one that can write that type and produce something the client accepts. Nine converters here, two of them repeats of the same class. The identity check confirms nine separate objects, so it is two registrations rather than one object listed twice. The first match wins, so the repeat is never reached.",
+      real: "message converters, 9 of them:\n  ByteArrayHttpMessageConverter           [application/octet-stream, */*]\n  StringHttpMessageConverter              [text/plain, */*]\n  StringHttpMessageConverter              [text/plain, */*]\n  ResourceHttpMessageConverter            [*/*]\n  ResourceRegionHttpMessageConverter      [*/*]\n  AllEncompassingFormHttpMessageConverter [form and multipart]\n  MappingJackson2HttpMessageConverter     [application/json]\n  MappingJackson2HttpMessageConverter     [application/json]\n  Jaxb2RootElementHttpMessageConverter    [application/xml]\n\ndistinct objects among those 9: 9"}
+  };
+
+  function pathHtml(d){
+    return "<h6>" + d.h + "</h6><p>" + d.p + "</p>"
+      + "<div class='real'>" + d.real + "</div>";
+  }
+  picker("[data-pa]", "pa", PATH, "#pathOut", pathHtml);
+
+  /* ---------- chapter 2: what ends up in the database ---------- */
+
+  var TX = {
+    outside: {h: "Called from another bean",
+      chips: [["transaction active: true", "good"], ["rows left: 0", "good"]],
+      p: "The call goes through the proxy, so a transaction is started before your method runs. The exception reaches the proxy, which rolls back. This is what everyone expects, and it only happens because the call arrived from outside the object.",
+      real: "A. calling the transactional method from OUTSIDE the bean\n  inside saveThenFail: transaction active? true\n  threw: something went wrong after the save\n  rows left in the database: 0   rolled back, as expected"},
+    inside: {h: "Called from inside the same bean",
+      chips: [["transaction active: false", "bad"], ["rows left: 1", "bad"]],
+      p: "this.saveThenFail(id) never leaves the object, so the proxy is not involved and no transaction is ever started. The annotation is still there and is simply never read. The save committed on its own and the exception rolled nothing back. No error, no warning, no log line.",
+      real: "B. the same method, reached by a call from INSIDE the same bean\n  outer: transaction active? false\n  inside saveThenFail: transaction active? false\n  threw: something went wrong after the save\n  rows left in the database: 1   NOT rolled back, the data survived"},
+    required: {h: "Inner uses REQUIRED, outer catches the exception",
+      chips: [["one transaction", "bad"], ["rows left: 0", "bad"]],
+      p: "REQUIRED means the inner method joins the transaction the caller already has, so there is one transaction and not two. When the inner method throws, Spring marks that shared transaction rollback only. Catching the exception stops it travelling but cannot unmark the transaction, so the commit at the end fails and the outer save goes with it.",
+      real: "A. inner method uses REQUIRED, the default\n  outer caught: inner failed, carrying on\n  UnexpectedRollbackException: Transaction silently rolled back\n  because it has been marked as rollback-only\n  rows left: 0   the outer save is gone too"},
+    requiresnew: {h: "Inner uses REQUIRES_NEW, outer catches the exception",
+      chips: [["two transactions", "good"], ["rows left: 1", "good"]],
+      p: "REQUIRES_NEW suspends the caller's transaction and runs the inner work in a genuinely separate one. That one rolls back on its own and the outer transaction is untouched, so catching the exception now works the way it reads. The outer save survives.",
+      real: "B. inner method uses REQUIRES_NEW\n  outer caught: inner failed, carrying on\n  outer finished normally\n  rows left: 1   only the inner one rolled back\n    kept: outer-b, outer work"}
+  };
+
+  function txHtml(d){
+    var chips = "<div class='verdictrow'>" + d.chips.map(function(c){
+      return "<span class='vchip " + c[1] + "'>" + c[0] + "</span>";
+    }).join("") + "</div>";
+    return "<h6>" + d.h + "</h6>" + chips
+      + "<div class='real'>" + d.real + "</div>"
+      + "<p>" + d.p + "</p>";
+  }
+  picker("[data-tx]", "tx", TX, "#txOut", txHtml);
+
+  /* ---------- chapter 3: the lifecycle ---------- */
+
+  var LIFE = {
+    ctor: {h: "1. constructor",
+      p: "Nothing runs before this. Constructor injection happens here, which is why final fields work and why the object can never exist half built. If you inject by field or setter instead, those fields are still null at this point.",
+      real: " 1. constructor"},
+    inject: {h: "2. dependency injection",
+      p: "Field and setter injection happen now, after the object exists. This is the window that constructor injection does not have: between the constructor finishing and this step, an object built this way is incomplete.",
+      real: " 2. @Autowired setter, dependency injected"},
+    aware: {h: "3 and 4. the Aware callbacks",
+      p: "Spring hands the bean pieces of the framework it asked for by implementing an interface: its own bean name, the BeanFactory, the ApplicationContext. Useful occasionally, and a sign of coupling to Spring, so most code should not need them.",
+      real: " 3. BeanNameAware.setBeanName\n 4. ApplicationContextAware.setApplicationContext"},
+    bppBefore: {h: "5. BeanPostProcessor, before initialisation",
+      p: "Runs for every bean in the context, before any init callback. This is where framework code can read annotations and prepare, and where you would hook in to validate or register beans centrally.",
+      real: " 5. BeanPostProcessor.postProcessBeforeInitialization"},
+    post: {h: "6. @PostConstruct",
+      p: "The standard Java annotation, and the one to prefer for your own startup work. It runs after everything is injected, so the object is complete. It is part of Jakarta rather than Spring, so the class stays free of Spring imports.",
+      real: " 6. @PostConstruct"},
+    init: {h: "7 and 8. the other init callbacks",
+      p: "InitializingBean.afterPropertiesSet does the same job as @PostConstruct but ties your class to a Spring interface. The custom initMethod on @Bean is for classes you cannot annotate, which is the case it exists for. All three run, in this order, if you use all three.",
+      real: " 7. InitializingBean.afterPropertiesSet\n 8. custom init method from @Bean(initMethod)"},
+    bppAfter: {h: "9. BeanPostProcessor, after initialisation",
+      p: "The most important step in this list. This method is allowed to return a DIFFERENT object from the one it was given, and whatever it returns is what the rest of the application gets. This is where Spring swaps your bean for a proxy, which is how @Transactional and @Cacheable work, and therefore why calling your own annotated method does nothing.",
+      real: " 9. BeanPostProcessor.postProcessAfterInitialization\n\n    returns Object, and the returned object is what everyone else gets"},
+    destroy: {h: "10 to 12. shutdown",
+      p: "These run when the context closes, in the same order as their init counterparts. Two things worth knowing: they do not run if the process is killed rather than shut down, and they never run at all for prototype beans, because Spring hands you a prototype and forgets it.",
+      real: "    ... context closed ...\n10. @PreDestroy\n11. DisposableBean.destroy\n12. custom destroy method from @Bean(destroyMethod)"}
+  };
+
+  function lifeHtml(d){
+    return "<h6>" + d.h + "</h6>"
+      + "<div class='real'>" + d.real + "</div>"
+      + "<p>" + d.p + "</p>";
+  }
+  picker("[data-lf]", "lf", LIFE, "#lifeOut", lifeHtml);
+
+  /* open each panel on a real example so the page shows what it does */
+  document.querySelector('[data-pa="converter"]').click();
+  document.querySelector('[data-tx="inside"]').click();
+  document.querySelector('[data-lf="bppAfter"]').click();
+
+  /* ---------- the quiz ---------- */
+
+  var Q = [
+    {c:1, q:"Walk a GET request from the socket to your controller method and back. Name the parts.",
+     a:"Tomcat takes a thread from its pool and that thread holds the request for its whole life. Servlet filters run first, outside the DispatcherServlet, so they see even requests that end in a 404. The DispatcherServlet asks each HandlerMapping which handler matches, in order, and the first to claim it wins. A HandlerAdapter knows how to invoke that shape of handler and resolves the method arguments. Interceptors run around it. The return value goes to the first message converter that can write that type and produce something the client accepts."},
+    {c:1, q:"What is the difference between a filter and an interceptor, and when does the difference bite?",
+     a:"A filter is from the servlet specification and sits outside the DispatcherServlet, so it sees every request including ones that match no handler. An interceptor is Spring MVC and runs only after a handler has been found, so it knows which controller method was chosen. The difference bites with logging: put request logging in an interceptor and every 404 is missing from your logs, because no handler was ever found."},
+    {c:2, q:"Why does calling your own @Transactional method from inside the same class do nothing? Give the evidence.",
+     a:"Because @Transactional works by wrapping the bean in a proxy, and Spring gives everyone else the proxy rather than your object. A call written as this.method() never leaves the object, so the proxy is never involved and no transaction is started. The annotation is present and simply never read. Measured: called from another bean, transaction active is true and 0 rows are left after the exception. Called from inside the same bean, transaction active prints false from inside the annotated method itself and 1 row survives. Same method, same exception, opposite outcome, and nothing logs a warning."},
+    {c:2, q:"The outer method caught the inner exception, so why did everything still roll back, and what is the fix?",
+     a:"With REQUIRED, which is the default, the inner method joins the caller's transaction. There is one transaction, not two. When the inner method throws, Spring marks that shared transaction rollback only. The catch block stops the exception travelling but cannot unmark the transaction, because the mark is on the transaction and not on the exception, so the commit fails with UnexpectedRollbackException and the outer save is lost. Measured: 0 rows left. With REQUIRES_NEW the inner work suspends the caller's transaction and runs in a separate one, so only that one rolls back and the outer save survives: 1 row left."},
+    {c:3, q:"Give the bean lifecycle in order, and say which step explains the rest of Spring.",
+     a:"Constructor, then field and setter injection, then the Aware callbacks, then BeanPostProcessor before initialisation, then @PostConstruct, then InitializingBean.afterPropertiesSet, then any custom init method, then BeanPostProcessor after initialisation. On shutdown: @PreDestroy, DisposableBean.destroy, then any custom destroy method. The step that explains the rest is postProcessAfterInitialization, because it may return a different object from the one it was given, and that is where Spring swaps your bean for a proxy. It is how @Transactional and @Cacheable work and why calling your own annotated method silently does nothing."},
+    {c:3, q:"What happens when you inject a prototype bean into a singleton, and how do you fix it?",
+     a:"The prototype is resolved once, at the moment the singleton is built, and the singleton then holds that one instance for ever. The scope was honoured exactly once and never asked again. Measured: asking the context directly gave serials 2, 3 and 4, but the singleton returned serial 1 all three times. The fix is to inject an ObjectProvider of the prototype instead, which is a handle to the factory rather than to an instance, so asking it gives a new object each time: serials 5, 6 and 7."},
+    {c:4, q:"Two methods have identical bodies, both return the String hello, and one gave 200 while the other gave 404. Explain.",
+     a:"@RestController is exactly @Controller plus @ResponseBody on every method. With @ResponseBody the returned String is the response body, so the call returned 200 with text/plain hello. Without it, Spring treats the String as the name of a view to render, goes looking for a template called hello, finds nothing, and the request ends as a 404. Adding @ResponseBody to that same method made it return 200 again. Nothing was broken: the word hello was an instruction rather than content."},
+    {c:4, q:"Is @Repository different from @Service, or are the stereotypes just names?",
+     a:"@Service and @Controller are just names for @Component, useful to a reader and to component scan filters but with no behaviour of their own. @Repository is the exception: it makes the bean eligible for exception translation, so a database specific exception, a SQLIntegrityConstraintViolationException on MySQL or a PSQLException on Postgres, is caught and rethrown as one of Spring's DataAccessException types. Your catch blocks stop depending on which database you run. Spring Data repositories get this already; it matters when you write a DAO by hand."},
+    {c:5, q:"How do you turn a domain exception into a proper HTTP response, and what should never go in the body?",
+     a:"One @RestControllerAdvice class, which is @ControllerAdvice plus @ResponseBody, with an @ExceptionHandler method per exception type. It applies to every controller. Returning a ProblemDetail gives you the RFC 7807 shape, type, title, status, detail and instance, plus any property you add, and the content type comes out as application/problem+json. Measured: a domain exception became 409 with a custom sku field, while an unhandled one became a generic 500. Never put stack traces, SQL, class names, internal host names, or a raw exception message in the body, because exception messages routinely contain the data that caused the failure."},
+    {c:5, q:"Which errors never reach your @ControllerAdvice?",
+     a:"Anything that fails before a handler is found or invoked. A request matching no mapping, which is the 404 case. Anything thrown inside a filter, because filters run outside the DispatcherServlet entirely. And anything Spring Security rejects, since that is a filter, which is why authentication failures need an AuthenticationEntryPoint and an AccessDeniedHandler rather than an @ExceptionHandler. All of those end at the container error path, which in Spring Boot is /error handled by BasicErrorController."},
+    {c:6, q:"What is @Cacheable worth, and why does it have the same trap as @Transactional?",
+     a:"Measured on a method that takes 200 milliseconds: first call 203 ms, second and third 0 ms, and a counter inside the method confirms one real execution behind three calls. After an evict the next call took 200 ms again. It has the same trap because it is the same mechanism: Spring wraps the bean in a proxy at step 9 of the lifecycle, so calling a @Cacheable method from inside the same bean skips the cache entirely, with no error and no warning. The same is true of @Async, @Retryable and any custom aspect, which is why the mechanism is worth learning once."},
+    {c:6, q:"What actually changes when the cache moves from an in memory map to Redis?",
+     a:"The annotations and the service code do not change at all; only the CacheManager bean does. What changes around it: a hit becomes a network call rather than a map lookup, so it is no longer free and it can fail. Values must be serialized, so cached types have to survive a round trip and you choose a serializer, which is where most real problems start. The cache becomes shared across instances, which is usually the real reason to do it, and it survives a restart. You get a time to live, which the in memory manager does not have. And Redis being slow or down now affects every cached call, so it needs a timeout and a decision about whether a cache failure should fail the request."}
+  ];
+
+  wireQuiz(Q, {
+    1:"the path of a request",
+    2:"the self call trap",
+    3:"beans, scopes and the context",
+    4:"Controller, RestController, Component, Bean",
+    5:"one place for every error",
+    6:"caching, and what Redis changes"
+  });
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
