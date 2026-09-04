@@ -1,0 +1,1825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Forty Five Minutes, episode 11 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>Forty Five Minutes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS GOES HERE
+   Only the bespoke visualisation for this episode's simulator or
+   diagram. Never redefine a token above.
+   =================================================================== */
+
+/* ===================================================================
+   EPISODE CSS: the phase picker and the limiter grid
+   =================================================================== */
+.matrix{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  margin:22px 0;overflow:hidden}
+.reqs{display:flex;flex-wrap:wrap;gap:7px;padding:16px}
+.req{text-align:left;font:inherit;font-size:13.5px;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;
+  transition:background-color .15s,border-color .15s}
+.req:hover{border-color:var(--ink-faint)}
+.req:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.req[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);
+  color:var(--held);font-weight:600}
+.grid4{display:grid;grid-template-columns:110px repeat(4,1fr);gap:6px;padding:16px}
+.gh{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);
+  font-weight:600;display:flex;align-items:flex-end;padding-bottom:4px}
+.rh{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft);
+  font-weight:600;display:flex;align-items:center}
+.cell{font:inherit;font-size:13px;font-family:"IBM Plex Mono",monospace;
+  border:1px solid var(--line);border-radius:8px;padding:11px 8px;cursor:pointer;
+  background:var(--surface-2);color:var(--ink-soft);text-align:center;
+  transition:background-color .15s,border-color .15s,color .15s}
+.cell:hover{border-color:var(--ink-faint)}
+.cell:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.cell.broke{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm);font-weight:600}
+.cell.held{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed);font-weight:600}
+.cell[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--held)}
+.mout{border-top:1px solid var(--line-soft);padding:15px 17px;background:var(--surface)}
+.mout h6{margin:0 0 6px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;font-weight:600}
+.mout p{font-size:14.5px;margin:0 0 10px;color:var(--ink-soft);max-width:none}
+.mout p:last-child{margin:0}
+.mout .real{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface-2);
+  border:1px solid var(--line-soft);border-radius:6px;padding:9px 12px;color:var(--ink);
+  overflow-x:auto;white-space:pre;margin:0 0 10px}
+.scoring{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 11px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:4px 9px;border-radius:99px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-soft)}
+.chip.on{background:var(--held-bg);border-color:var(--held-line);color:var(--held);font-weight:600}
+@media (max-width:700px){
+  .grid4{grid-template-columns:78px repeat(4,1fr);gap:4px}
+  .cell{font-size:11.5px;padding:9px 3px}.rh{font-size:11px}}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep11">
+  <a class="backlink" href="index.html">All episodes</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>Forty Five Minutes</b>
+    <span>Episode 11 &middot; The low level design round</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> How the round actually runs</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Three channels, one interface</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> When it fails, and when the queue is full</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Rate limiting</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Retrying without making it worse</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Idempotency and the last ten minutes</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>Forty five minutes</h1>
+      <p class="sub">You get a vague sentence, a blank screen and about an hour. "Design a notification service." This episode builds one, in plain Java with no framework, and then measures the two things the follow-up questions are really about: what a rate limiter lets through, and what happens when everybody retries at once. One of those measurements came out the opposite of what the textbook version says.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+    <section class="ch" id="c1">
+      <h2><em>01</em> How the round actually runs</h2>
+
+      <ul class="prompts">
+        <li>You get "design a notification service" and 45 minutes. What are the first five minutes for?</li>
+        <li>What is the interviewer actually scoring?</li>
+        <li>How much of the hour should be spent writing code?</li>
+        <li>What do you do when you are running out of time?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What the round is.</b> Between 45 and 60 minutes. One vague sentence as the
+        brief. You are expected to end up with running or nearly running code, usually in a
+        shared editor with no compiler and no internet.</p>
+
+        <p><b>What it is not.</b> It is not the system design round. Nobody wants a diagram with
+        Kafka and three regions. The scope is one service, in one process, with real classes and
+        real method signatures. If you find yourself drawing boxes, you are in the wrong round.</p>
+
+        <p><b>What is actually being scored.</b> Interviewers are not counting features. They are
+        watching for four things, and the last one is where most people lose:</p>
+
+        <ul class="body">
+          <li><b>Do you ask before you build?</b> The brief is deliberately thin. Someone who
+          starts typing immediately is telling you what they do at work.</li>
+          <li><b>Do your names mean anything?</b> <code>Channel</code>, <code>send</code>,
+          <code>worthRetrying</code>. Not <code>Manager</code>, <code>process</code>,
+          <code>flag</code>.</li>
+          <li><b>Can it grow?</b> The follow-up is always "now add WhatsApp" or "now add a rate
+          limit". If that means editing three existing methods, the design has already answered.</li>
+          <li><b>Do you know what you did not do?</b> Saying "this queue is in memory, so a
+          restart loses everything, and here is what I would change" scores higher than a design
+          that quietly has the same hole.</li>
+        </ul>
+
+        <p><b>How to spend the time.</b> This split is worth rehearsing until it is automatic,
+        because the failure mode is spending 30 minutes on classes and never reaching the part
+        they wanted to talk about.</p>
+
+      <div class="matrix">
+        <div class="simhead"><span>Where the hour goes</span><span class="sp">click a phase</span></div>
+        <div class="reqs" id="phaseOpts">
+          <button class="req" data-ph="ask" aria-pressed="false">0 to 5 min &middot; Ask</button>
+          <button class="req" data-ph="scope" aria-pressed="false">5 to 10 min &middot; Agree the scope</button>
+          <button class="req" data-ph="types" aria-pressed="false">10 to 20 min &middot; Types and interfaces</button>
+          <button class="req" data-ph="code" aria-pressed="false">20 to 40 min &middot; Write it</button>
+          <button class="req" data-ph="extend" aria-pressed="false">40 to 55 min &middot; The follow-ups</button>
+        </div>
+        <div class="mout" id="phaseOut">
+          <p style="color:var(--ink-faint)">Pick a phase.</p>
+        </div>
+      </div>
+
+        <p><b>The questions to ask in the first five minutes.</b> Ask three or four of these,
+        not all of them. The point is to show you know the answer changes the design:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Question</th><th>Why it changes the design</th></tr></thead>
+          <tbody>
+          <tr><td>Which channels? Email, SMS, push, more later?</td>
+            <td>Decides whether channels are an interface or just a few methods</td></tr>
+          <tr><td>Roughly how many per second?</td>
+            <td>Ten per second and ten thousand per second are different programs</td></tr>
+          <tr><td>If a message is lost, does anyone care?</td>
+            <td>An OTP is not a marketing email. This decides whether an in memory queue is
+            acceptable at all</td></tr>
+          <tr><td>Is sending the same thing twice a problem?</td>
+            <td>Decides whether you need idempotency keys, which is a whole feature</td></tr>
+          <tr><td>Do we own the sending, or call a provider?</td>
+            <td>Decides whether failures are yours to fix or someone else's to wait for</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>What to say when time runs out.</b> Do not go quiet and keep typing. Say what you
+        would do next and why, out loud. "I have not handled the case where the process restarts
+        with jobs still in the queue. In production that queue would be Redis or a database table
+        so the work survives, and the code would not change much because the interface stays the
+        same." That sentence takes fifteen seconds and it is often worth more than the code.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>Starting to code immediately.</b> The brief is thin on purpose. Building the
+          wrong thing quickly is the most common way to fail this round.</p>
+          <p><b>Drawing a distributed system.</b> Queues between services, three regions, a
+          message broker. That is the other round. Here it reads as avoiding the code.</p>
+          <p><b>Designing for a million a second when nobody asked.</b> If you did not ask about
+          scale, you cannot claim to be designing for it. Ask, then build for the answer.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How is this different from the system design round?</summary>
+      <div class="rvb">
+        <p>Different altitude, different artefact, different scoring, and mixing them up is a
+        visible mistake.</p>
+        <p><b>System design</b> is about how several services survive together. Boxes and arrows,
+        which database, how many copies of things, what happens when a whole region goes away.
+        The output is a diagram plus reasoning about trade-offs. Nobody writes a method signature.</p>
+        <p><b>Low level design</b> is about how one service is put together inside one process.
+        Classes, interfaces, method signatures, exception types, thread safety. The output is code
+        that could compile. Nobody draws a region.</p>
+        <p>The clue is in the brief. "Design a notification service" with a shared editor open is
+        the low level round. "Design a notification system for fifty million users" on a
+        whiteboard is the other one. If you genuinely cannot tell, ask: "Would you like me to
+        focus on the classes and interfaces, or on how the services fit together?" That question
+        never loses points.</p>
+        <p>One overlap worth knowing: rate limiting and retries come up in both. In system design
+        you say "we rate limit per client". Here you have to write the limiter and defend which
+        algorithm you picked.</p>
+      </div></details>
+
+      <details class="rv"><summary>They said "no framework". Why does that matter?</summary>
+      <div class="rvb">
+        <p>Because a framework hides exactly the decisions being tested, and the interviewer knows
+        it.</p>
+        <p>Say Spring is allowed. Retries become <code>@Retryable</code>. The queue becomes a
+        message listener. Injection becomes an annotation. Every one of those is a decision
+        somebody made, and reaching for the annotation means you never have to show that you
+        understand it. The round exists to find out whether you do.</p>
+        <p>There is also a practical reason. In a shared editor with no compiler and no internet,
+        anything you cannot write from memory is a risk. Plain Java is the only thing everyone in
+        the room can read without asking which version of what is on the classpath.</p>
+        <p>The right way to handle it is to write the plain version and name the framework
+        equivalent as you go. "This constructor is doing what Spring would do with an annotation."
+        "This retry loop is what <code>@Retryable</code> generates." That shows you know both, and
+        that you know which one is the actual mechanism. Reaching straight for the annotation only
+        shows you know one.</p>
+      </div></details>
+
+      <details class="rv"><summary>How much code is enough? I never finish.</summary>
+      <div class="rvb">
+        <p>Almost nobody finishes, and finishing is not the bar. The bar is that the shape is
+        clear and the important parts are real.</p>
+        <p>Write in this order. First, the interfaces and the record types, fully. These are
+        small and they carry the whole design, so an interviewer can see your thinking from them
+        alone. Second, the one class that ties it together, fully, because that is where the real
+        decisions live. Third, one complete implementation of your main interface, so there is
+        proof you can actually write a method.</p>
+        <p>Then stop writing implementations. The second and third channel can be a single line
+        each: <code>// SmsChannel and PushChannel look the same, different provider call</code>.
+        Nobody wants to watch you type the same class three times, and the minutes are worth more
+        spent on the follow-ups.</p>
+        <p>The thing to protect is the part they will ask about. If you have twenty minutes of
+        code and no rate limiter, and the follow-up is about rate limiting, you are answering in
+        the air. Better to have a slightly thinner service and a real limiter.</p>
+      </div></details>
+
+      <details class="rv"><summary>What if I get stuck and go blank?</summary>
+      <div class="rvb">
+        <p>Say what you are stuck on. Silence is the only response that costs you marks, because
+        from outside it is indistinguishable from not knowing.</p>
+        <p>"I am trying to decide whether the retry delay should block this worker or go back on
+        the queue with a timestamp. Blocking is three lines and wastes a thread. Re-queueing needs
+        a scheduler but keeps the workers free. I will re-queue, because at any real volume the
+        threads matter more than the extra class." That is not being stuck, that is thinking out
+        loud, and it is most of what the round is measuring.</p>
+        <p>If you are properly blank, go back to the data. Write the record for the thing being
+        passed around, in our case <code>Notification</code>, with its fields. Fields are easier
+        to reason about than behaviour, and once the data is on the screen the methods usually
+        suggest themselves.</p>
+        <p>And take the hint when it comes. An interviewer who says "what happens if the provider
+        is down?" is not curious, they are steering you towards the thing they want to score.
+        Follow it immediately.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c2">
+      <h2><em>02</em> Three channels, one interface</h2>
+
+      <ul class="prompts">
+        <li>Write the interface every notification channel implements.</li>
+        <li>Where do Strategy, Factory and Observer show up in this design?</li>
+        <li>How do you add a fourth channel without editing anything?</li>
+        <li>Why is Notification a record and not a class with setters?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>Start with the data.</b> One immutable thing gets passed between threads, so it is
+        a record. Nothing can change it halfway through a retry:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/Notification.java</span><span class="sp">the thing being sent</span></div>
+          <pre class="dumpcode"><span class="kw">public record</span> Notification(String id, String recipient, String channel,
+                           String body, String idempotencyKey) {
+
+    <span class="kw">public</span> Notification {
+        <span class="kw">if</span> (recipient == <span class="kw">null</span> || recipient.isBlank()) {
+            <span class="kw">throw new</span> IllegalArgumentException(<span class="st">"recipient is required"</span>);
+        }
+    }
+}</pre>
+        </div>
+
+        <p><b>Then the one interface everything hangs off.</b> Three methods would be too many.
+        Two is right: what it is called, and how to send:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/Channel.java</span><span class="sp">the strategy</span></div>
+          <pre class="dumpcode"><span class="kw">public interface</span> Channel {
+    String name();
+    <span class="kw">void</span> send(Notification n) <span class="kw">throws</span> NotificationException;
+}</pre>
+        </div>
+
+        <p><b>Three patterns are in this design and it is worth naming them out loud</b> as you
+        write, because interviewers are listening for whether you know what you are doing or
+        stumbled into it.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Pattern</th><th>Where it is</th><th>What it buys here</th></tr></thead>
+          <tbody>
+          <tr><td><b>Strategy</b></td><td><code>Channel</code> with email, SMS and push
+            implementations</td>
+            <td>A fourth channel is a new file. Nothing that already works gets edited.</td></tr>
+          <tr><td><b>Factory</b></td><td><code>Channels</code>, which hands back a channel by
+            name</td>
+            <td>The service never writes <code>new EmailChannel()</code>, so it does not know
+            which channels exist or how they are built.</td></tr>
+          <tr><td><b>Observer</b></td><td><code>NotificationListener</code>, with metrics and
+            audit implementations</td>
+            <td>The service announces what happened and does not know who is listening. Adding
+            metrics did not touch it.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>The observer is the one people forget, and it is the one that keeps the service small.
+        Without it, <code>NotificationService</code> would be counting metrics and printing audit
+        lines itself, which is two more reasons for it to change. With it, the service says
+        <code>listeners.forEach(l -&gt; l.sent(n, attempt))</code> and stops caring.</p>
+
+        <p><b>The listener interface uses default methods on purpose:</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/NotificationListener.java</span><span class="sp">the observer</span></div>
+          <pre class="dumpcode"><span class="kw">public interface</span> NotificationListener {
+    <span class="kw">default void</span> sent(Notification n, <span class="kw">int</span> attempts) {}
+    <span class="kw">default void</span> retrying(Notification n, <span class="kw">int</span> attempt, <span class="kw">long</span> delayMs) {}
+    <span class="kw">default void</span> deadLettered(Notification n, String reason) {}
+}</pre>
+        </div>
+
+        <p>Empty bodies, not bodies that throw. A listener that only cares about failures
+        implements one method and inherits three do-nothings, which is correct: doing nothing on
+        an event you do not care about is a real, sensible behaviour. This is the one honest use
+        of a default method, and it is worth saying why if you use it.</p>
+
+        <p><b>The whole thing runs.</b> Three channels, one interface, two listeners nobody had
+        to tell the service about:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/Main.java</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">=== 1. three channels, one interface ===
+      [email] delivered to asha@example.com
+      [push] delivered to device device-77
+      [audit] N-3 sent after 1 attempt(s)
+      [audit] N-1 sent after 1 attempt(s)
+      retry N-2 <span class="cm">in 50 ms, attempt 1 failed: sms provider busy</span>
+      retry N-2 <span class="cm">in 100 ms, attempt 2 failed: sms provider busy</span>
+      [sms] delivered to +919876543210 on attempt 3
+      [audit] N-2 sent after 3 attempt(s)</pre>
+        </div>
+
+        <p>The lines are interleaved because three worker threads are running. That is worth
+        pointing at rather than hiding: it is proof the queue and the workers are real.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>An enum of channel types with a switch on it.</b> It works, and it means every
+          new channel edits the switch, and usually three switches in three places. That is the
+          exact thing the follow-up question is designed to expose.</p>
+          <p><b>A base class <code>AbstractChannel</code> with the subclasses extending it.</b>
+          You do not need it yet. Reach for an interface first and add a shared base class only
+          when there is real shared code, otherwise you have committed the design to inheritance
+          for nothing.</p>
+          <p><b>Putting <code>send</code> on the notification itself.</b>
+          <code>notification.send()</code> reads nicely and means the data object now knows about
+          providers, network calls and failure handling. Keep the thing and the doing separate.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Now add WhatsApp. What changes?</summary>
+      <div class="rvb">
+        <p>One new file, and one line where the channels are listed.</p>
+        <p><code>WhatsAppChannel implements Channel</code>, with <code>name()</code> returning
+        "whatsapp" and <code>send()</code> calling the provider. Then add
+        <code>new WhatsAppChannel()</code> to the list handed to <code>Channels</code> at start
+        up. Nothing else: not the service, not the queue, not the retry logic, not the other
+        channels.</p>
+        <p>Say the wiring line out loud rather than pretending it does not exist. "Something has
+        to learn the channel exists. I have put that in one place that holds wiring and no logic,
+        so getting it wrong stops the application starting rather than breaking sending." That is
+        a better answer than claiming zero changes, because the interviewer can see the line.</p>
+        <p>If they push further, the honest next step is that the list could be built by scanning
+        for implementations rather than typed by hand. Java's <code>ServiceLoader</code> does
+        this, and so does Spring when you ask for a <code>List&lt;Channel&gt;</code>. Worth
+        naming, not worth writing in the round.</p>
+      </div></details>
+
+      <details class="rv"><summary>Why is Notification a record rather than a class with setters?</summary>
+      <div class="rvb">
+        <p>Three reasons, and the third is the one that matters here.</p>
+        <p><b>It cannot be half built.</b> A record has one constructor that takes everything, so
+        there is no window where the recipient is set and the body is not. With setters, any
+        method receiving the object has to wonder which fields are filled in yet.</p>
+        <p><b>Validation happens once, in the compact constructor.</b> The blank recipient check
+        runs on creation and can never be bypassed afterwards, because there is no later.</p>
+        <p><b>It is safe to hand to several threads.</b> This is the real reason in this design.
+        The same <code>Notification</code> sits on a queue, gets picked up by a worker, fails, is
+        scheduled for retry, and is picked up by a different worker. If any of those could change
+        it, you would need locking, and you would get it wrong under time pressure. Because the
+        fields are final, none of that applies and you can say so in one sentence.</p>
+        <p>The trade to admit: if a notification legitimately needs to change as it moves, a
+        record forces you to create a new one each time. In this design nothing needs to, which
+        is why it is the right choice here rather than always.</p>
+      </div></details>
+
+      <details class="rv"><summary>Why does the channel name live on the channel rather than in a map somewhere?</summary>
+      <div class="rvb">
+        <p>Because it keeps the two things that must agree in the same file.</p>
+        <p>With <code>name()</code> on the interface, <code>EmailChannel</code> owns both the
+        string "email" and the behaviour behind it. To add a channel you write one file and
+        everything about it is in that file. The factory just asks each channel what it is called
+        and builds the map itself:</p>
+        <p><code>for (Channel c : channels) byName.put(c.name(), c);</code></p>
+        <p>The alternative is a map written out by hand somewhere else, pairing "email" with
+        <code>new EmailChannel()</code>. Now the name and the class are in different files, and
+        the failure mode is a typo that compiles perfectly and fails at run time with "no such
+        channel". That is a genuinely nasty bug for something so small.</p>
+        <p>If an interviewer pushes on it, the honest limit is that a channel can now lie about
+        its own name, and two channels could claim the same one. That is worth one line of
+        defence in the factory: throw if a name is registered twice, because a silent overwrite
+        would be much worse than a loud failure at start up.</p>
+      </div></details>
+
+      <details class="rv"><summary>Should the channel be told to send, or should it decide?</summary>
+      <div class="rvb">
+        <p>Told. And this is worth being able to argue, because it is the kind of thing an
+        interviewer probes to see whether you have thought about where decisions live.</p>
+        <p>In this design, <code>NotificationService</code> reads
+        <code>notification.channel()</code>, asks the factory for that channel, and calls
+        <code>send</code>. The channel does one thing: it sends. It does not decide whether it
+        should, does not know about retries, does not know a queue exists.</p>
+        <p>The alternative is to hand every channel every notification and let each decide
+        whether it applies. That sounds flexible and it is worse: now the routing rule is spread
+        across every channel, two channels can both claim the same notification, and none can
+        claim it and it vanishes silently. To answer "why did this not get sent?" you have to read
+        every implementation.</p>
+        <p>Where the alternative is right is when you genuinely want more than one to fire, for
+        example send by push and also by email. That is a different requirement, and the clean
+        answer is not to let channels decide, it is to let the notification carry a list of
+        channels and have the service loop. The decision still lives in one place.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c3">
+      <h2><em>03</em> When it fails, and when the queue is full</h2>
+
+      <ul class="prompts">
+        <li>Design the exception hierarchy. What is the one method that matters?</li>
+        <li>Checked or unchecked? Defend the choice.</li>
+        <li>The queue is full. What does submit do?</li>
+        <li>Why does the retry not just sleep on the worker thread?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The exception hierarchy is the highest scoring five lines in the round</b>, because
+        most candidates write one exception class and a comment. The useful idea is that the
+        exception should carry the answer to the only question the caller has: is trying again
+        ever going to work?</p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/NotificationException.java</span><span class="sp">the base</span></div>
+          <pre class="dumpcode"><span class="kw">public abstract class</span> NotificationException <span class="kw">extends</span> Exception {
+    <span class="kw">protected</span> NotificationException(String message) { <span class="kw">super</span>(message); }
+    <span class="kw">public abstract boolean</span> worthRetrying();
+}
+
+<span class="cm">// permanent: the address is wrong and will still be wrong in ten minutes</span>
+InvalidRecipientException      worthRetrying() -&gt; <span class="bad">false</span>
+
+<span class="cm">// temporary: the provider is busy, later is genuinely worth a try</span>
+ChannelUnavailableException    worthRetrying() -&gt; <span class="st">true</span></pre>
+        </div>
+
+        <p>Now the entire retry decision in the service is one line:</p>
+
+        <p><code>if (!e.worthRetrying()) { giveUp(n, "permanent: " + e.getMessage(), attempt); }</code></p>
+
+        <p>No switch on exception type, no list of which classes are retryable kept somewhere
+        else and slowly going stale. A new exception type answers the question itself, and the
+        service never changes.</p>
+
+        <p><b>What that is worth, measured.</b> 200 notifications, 60 of them permanently broken,
+        up to 4 attempts each:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th></th><th>Attempts used</th><th>Time spent waiting</th></tr></thead>
+          <tbody>
+          <tr><td>retry everything the same way</td><td class="bad">520</td><td class="bad">56,000 ms</td></tr>
+          <tr><td>ask the exception first</td><td class="hl">340</td><td class="hl">14,000 ms</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>180 wasted attempts and 42 seconds of waiting</b>, removed by one abstract method.
+        And the waiting is the worse half, because a notification stuck in a backoff loop is
+        holding a slot that real work needs.</p>
+
+        <p><b>Checked or unchecked.</b> This one gets argued about, so have a position.
+        <code>NotificationException</code> is checked here, deliberately. Sending over a network
+        fails routinely, that is not exceptional, and every caller genuinely has to decide what to
+        do about it. Making it checked means the compiler will not let anyone forget.</p>
+
+        <p>The counter-argument is real and worth naming: checked exceptions spread through
+        signatures and people wrap them in <code>RuntimeException</code> to make the compiler stop
+        complaining, which is worse than not checking at all. The line to use is: <b>checked when
+        the caller can reasonably do something about it, unchecked when it means the program is
+        broken.</b> A provider being busy is the first. A null recipient is the second, which is
+        why the record throws <code>IllegalArgumentException</code> and not a checked exception.</p>
+
+        <p><b>The queue is bounded, and that is a decision, not a detail.</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/NotificationService.java</span><span class="sp">the honest answer</span></div>
+          <pre class="dumpcode"><span class="kw">public boolean</span> submit(Notification n) {
+    ...
+    <span class="kw">boolean</span> accepted = queue.offer(<span class="kw">new</span> Job(n, 1));   <span class="cm">// returns false when full</span>
+    <span class="kw">if</span> (!accepted) {
+        rejected.incrementAndGet();
+        System.out.println(<span class="st">"    REJECTED "</span> + n.id() + <span class="st">", queue is full"</span>);
+    }
+    <span class="kw">return</span> accepted;
+}</pre>
+        </div>
+
+        <p>An unbounded queue does not remove the problem, it hides it until the process runs out
+        of memory, and then everything is lost at once instead of the newest thing being refused.
+        Returning <code>false</code> pushes the decision to the caller, who is the only one who
+        knows whether this notification is an OTP worth waiting for or a marketing email worth
+        dropping.</p>
+
+        <p><b>And the number is not stable, which is the point.</b> Capacity 10, three workers, 40
+        submitted at once, four runs:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>four runs of the same program</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">run 1    accepted 31, rejected 9
+run 2    accepted 27, rejected 13
+run 3    accepted 29, rejected 11
+run 4    accepted 26, rejected 14
+
+<span class="cm">stable across every run: 4 retries, 1 dead lettered</span></pre>
+        </div>
+
+        <p>How many get rejected depends on how fast three workers drain the queue against how
+        fast the caller fills it. You cannot reason your way to that number. Saying so in an
+        interview is a strong answer: <b>you measure it, then you choose the capacity from what
+        you measured.</b></p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>An unbounded queue.</b> "It will never fill up" is a memory leak with a schedule.
+          The failure moves from one rejected message to the whole process dying.</p>
+          <p><b>Blocking in <code>submit</code> until there is room.</b> Tempting, and it turns a
+          full queue into a stuck caller. Whatever thread called you is now waiting, and if that
+          is a web request thread you have just spread the problem to the front door.</p>
+          <p><b>One exception class with a string message.</b> Then the retry logic has to read
+          the message text to decide what to do, which is exactly as fragile as it sounds.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Why does the retry not just sleep on the worker thread?</summary>
+      <div class="rvb">
+        <p>Because sleeping burns a worker for the whole delay, and the delay doubles each time.</p>
+        <p>With three workers and a backoff of 50, 100 and 200 milliseconds, three notifications
+        failing at once would put every worker to sleep. Nothing else moves for the length of the
+        longest delay, even though there might be a hundred perfectly healthy notifications
+        waiting. At real backoffs, which are seconds, the whole service stops for one bad
+        provider.</p>
+        <p>What this design does instead is put the job back on the queue later:</p>
+        <p><code>retryClock.schedule(() -&gt; queue.offer(new Job(n, attempt + 1)), delay,
+        MILLISECONDS);</code></p>
+        <p>One scheduler thread holds all the pending retries, and it is asleep almost all the
+        time because it is only waiting on timers. The three workers go straight back to the queue
+        and pick up the next thing. The cost is one extra class and one more thing to shut down,
+        which is a good trade.</p>
+        <p>Say the simple version out loud first though. "The three line version sleeps on the
+        worker. That works and it wastes a thread per retry, so I will re-queue with a delay
+        instead." Showing you know the cheap option and rejected it on purpose is better than
+        arriving at the good one with no explanation.</p>
+      </div></details>
+
+      <details class="rv"><summary>What happens to the queue when the process restarts?</summary>
+      <div class="rvb">
+        <p>Everything in it is lost. Say this before they ask, because it is the biggest hole in
+        the design and an interviewer who finds it themselves scores it differently from one who
+        hears you name it.</p>
+        <p>An <code>ArrayBlockingQueue</code> is memory in one process. A restart, a crash, or a
+        deploy takes every queued and every scheduled retry with it. For a marketing email that is
+        acceptable. For a one time password or a payment receipt it is not.</p>
+        <p>The fix is that the queue becomes something outside the process. A database table with
+        rows in a "pending" state, or Redis, or a real message broker. Workers claim a row, mark
+        it, and delete it when it is done. Anything left claimed but not finished after a timeout
+        gets picked up again, which is how you survive a worker dying mid send.</p>
+        <p>The part worth saying next is why this design makes that change small. Nothing outside
+        <code>NotificationService</code> knows a queue exists. Callers call <code>submit</code>,
+        listeners hear about outcomes. Swapping the queue changes one class. That is the payoff
+        for keeping the queue private, and it is worth pointing at.</p>
+        <p>And name the new problem it creates, because there always is one: once work survives
+        restarts, the same notification can be delivered twice, once by the worker that died after
+        sending and once by whoever picks the row back up. That is the idempotency problem, and it
+        is why the key is on the record from the start.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do you make this thread safe? Walk through what is shared.</summary>
+      <div class="rvb">
+        <p>Go through the shared state one item at a time. That is the answer they want, not the
+        word "synchronized".</p>
+        <p><b>The notification itself</b> is a record with final fields, so several threads can
+        read it at once with nothing to protect. This is why the choice of a record earlier pays
+        off here.</p>
+        <p><b>The queue</b> is an <code>ArrayBlockingQueue</code>, which is built for exactly this:
+        many producers, many consumers, all the locking inside. Writing your own with
+        <code>wait</code> and <code>notify</code> in an interview is a way to introduce a bug in
+        front of an audience.</p>
+        <p><b>The counters</b> are <code>AtomicInteger</code>. A plain <code>int++</code> is three
+        operations, so two workers finishing at the same moment can lose a count. Atomics make the
+        increment one indivisible step without any locking.</p>
+        <p><b>The idempotency map</b> is a <code>ConcurrentHashMap</code>, and the important detail
+        is <code>putIfAbsent</code> rather than a "check then put". Two threads can both find a key
+        missing and both proceed; <code>putIfAbsent</code> makes the check and the write one step,
+        so exactly one of them wins.</p>
+        <p><b>The listener list</b> is copied once at construction with <code>List.copyOf</code>
+        and never changed, so iterating it from several workers is safe with no locking at all.
+        Immutability is doing the work again.</p>
+        <p><b>The running flag</b> is <code>volatile</code>, so when shutdown sets it to false the
+        worker threads actually see it rather than reading a stale cached copy forever.</p>
+      </div></details>
+
+      <details class="rv"><summary>Why three workers? How would you pick the number?</summary>
+      <div class="rvb">
+        <p>Three is a demo number and you should say so rather than defend it.</p>
+        <p>The real answer depends on what the work is doing. Sending a notification is almost all
+        waiting on a network call, so the threads are idle most of the time. That means you want
+        many more threads than processors, because they are not competing for the processor at
+        all. A rough starting point for work that is mostly waiting is processors divided by one
+        minus the fraction of time spent waiting, which for work that waits 90 percent of the time
+        and 8 processors lands around 80 threads.</p>
+        <p>But the honest version is that you do not pick it from a formula, you pick a starting
+        number, measure how long the queue is and how long notifications sit in it, and adjust.
+        The formula tells you the order of magnitude, not the answer.</p>
+        <p>Two things constrain it from above regardless. The provider almost certainly rate
+        limits you, so 500 threads will just produce 500 rejections faster. And every platform
+        thread costs about a megabyte of stack, so a few thousand is a real memory decision.</p>
+        <p>If the interviewer wants to go further, the modern answer is that this is exactly the
+        workload virtual threads exist for, since they are cheap and blocking on a network call
+        does not tie up a platform thread. Naming that is a good place to end.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c4">
+      <h2><em>04</em> Rate limiting</h2>
+
+      <ul class="prompts">
+        <li>Name three rate limiting algorithms and the flaw in the cheapest one.</li>
+        <li>A fixed window let 20 requests through when the limit was 10. How?</li>
+        <li>A token bucket also let 20 through. Why is that not the same problem?</li>
+        <li>How would you rate limit per client rather than globally?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The question.</b> "The SMS provider charges per message and cuts us off above 10 a
+        second. Add a rate limit." This is the most common follow-up in the round, and the
+        interesting part is not writing one, it is knowing what each one lets through.</p>
+
+        <p>All three were given exactly the same requests, with a clock the test moves forward
+        rather than the real one, so the results are about the algorithm and not about how the
+        machine felt.</p>
+
+        <div class="matrix">
+          <div class="simhead"><span>three limiters, limit 10 per second</span><span class="sp">click any cell</span></div>
+          <div class="grid4" id="limGrid">
+            <div class="gh"></div>
+            <div class="gh">steady 5/s</div><div class="gh">burst on a boundary</div>
+            <div class="gh">quiet then 30</div><div class="gh">worst ever</div>
+
+            <div class="rh">fixed window</div>
+            <button class="cell held" data-lim="fixed|steady" aria-pressed="false">5</button>
+            <button class="cell broke" data-lim="fixed|boundary" aria-pressed="false">20</button>
+            <button class="cell held" data-lim="fixed|quiet" aria-pressed="false">10</button>
+            <button class="cell broke" data-lim="fixed|worst" aria-pressed="false">10 to 20</button>
+
+            <div class="rh">sliding log</div>
+            <button class="cell held" data-lim="sliding|steady" aria-pressed="false">5</button>
+            <button class="cell held" data-lim="sliding|boundary" aria-pressed="false">10</button>
+            <button class="cell held" data-lim="sliding|quiet" aria-pressed="false">10</button>
+            <button class="cell held" data-lim="sliding|worst" aria-pressed="false">10</button>
+
+            <div class="rh">token bucket</div>
+            <button class="cell held" data-lim="bucket|steady" aria-pressed="false">5</button>
+            <button class="cell broke" data-lim="bucket|boundary" aria-pressed="false">20</button>
+            <button class="cell broke" data-lim="bucket|quiet" aria-pressed="false">20</button>
+            <button class="cell held" data-lim="bucket|worst" aria-pressed="false">20</button>
+          </div>
+          <div class="mout" id="limOut">
+            <p style="color:var(--ink-faint)">Pick a cell above.</p>
+          </div>
+        </div>
+
+        <p><b>The result worth understanding.</b> On the boundary test, the fixed window and the
+        token bucket let through <b>exactly the same 20 requests</b> against a limit of 10. If you
+        stopped there you would conclude they are equally bad. They are not, and the difference
+        only shows up when you slide the same burst across every millisecond of the window:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>the same burst, every possible offset</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">limiter                   best case     worst case
+fixed window                     10             <span class="bad">20   depends on timing</span>
+sliding window log               10             <span class="st">10   same every time</span>
+token bucket 20/10               20             <span class="st">20   same every time</span></pre>
+        </div>
+
+        <p><b>The token bucket lets 20 through every single time, because 20 is the capacity
+        somebody chose.</b> The fixed window lets 20 through only when the traffic happens to land
+        on a boundary. One is a dial you set. The other is luck.</p>
+
+        <p>That is the sentence to say in an interview, and it is much better than "fixed window
+        is bad" because it is the actual difference. A limiter that is predictably generous is
+        fine. A limiter whose behaviour depends on where the second happened to start is not,
+        because you cannot test it and you cannot promise anything about it.</p>
+
+        <p><b>Why the fixed window does it.</b> It counts inside blocks of time and throws the
+        count away at every block boundary. Ten requests at 950 milliseconds fill block zero. At
+        1000 the count resets, so ten more go straight through. Twenty requests in 60
+        milliseconds, and every single one was allowed by a limiter set to 10 per second.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Limiter</th><th>Memory per client</th><th>Worst case</th><th>When to pick it</th></tr></thead>
+          <tbody>
+          <tr><td>fixed window</td><td>two numbers</td><td>twice the limit, unpredictably</td>
+            <td>When the limit is a rough guard and going over briefly costs nothing</td></tr>
+          <tr><td>sliding window log</td><td>one timestamp per allowed request</td>
+            <td>exactly the limit</td>
+            <td>When the limit is a hard contract and you can afford the memory</td></tr>
+          <tr><td>token bucket</td><td>two numbers</td><td>the capacity, every time</td>
+            <td>Almost always. Cheap, predictable, and the burst is a feature you control</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>Per client, not global.</b> Every one of these keeps its state in a map keyed by
+        client, which is why <code>allow</code> takes the client as an argument. A global limiter
+        means one noisy customer starves everyone else. The thing to mention is that the map grows
+        forever unless entries for clients who have gone quiet are removed, which is a real leak
+        and an easy one to say out loud.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"Fixed window is fine, it is simpler."</b> It is simpler, and it can let through
+          twice the limit at a moment you do not control. Say the number.</p>
+          <p><b>"Token bucket never goes over the limit."</b> It went over on two of the three
+          tests here. It goes up to its capacity, on purpose. Claiming otherwise means you have
+          not run one.</p>
+          <p><b>Sleeping the caller until it is allowed.</b> That is not rate limiting, it is
+          queueing with extra steps, and it turns a fast rejection into a stuck thread.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How do you make the rate limiter work across several machines?</summary>
+      <div class="rvb">
+        <p>The moment there are two instances, a limiter held in memory means each one allows the
+        full limit, so the real limit is the number of machines times what you configured. Ten a
+        second across four instances is forty a second at the provider.</p>
+        <p>The usual answer is to move the counter to something shared, normally Redis, because it
+        is fast and its operations are atomic. A token bucket becomes a small script that reads
+        the tokens and the last refill time, works out the new balance, and writes it back in one
+        indivisible step. Doing that as separate read and write invites two machines to both see
+        the same token.</p>
+        <p>Then name the costs, because this is where the good answers separate. Every request now
+        makes a network call before doing any work, so the limiter is on the critical path. If
+        Redis is slow, everything is slow. If Redis is down, you have to decide in advance whether
+        to allow everything or block everything, and both choices are defensible for different
+        products: allow for a marketing email, block for anything that costs money per send.</p>
+        <p>The cheap approximation worth mentioning is dividing the limit by the number of
+        instances and keeping it in memory. It is wrong whenever traffic is uneven or an instance
+        restarts, and it costs nothing, which is the right trade for a limit that is a guard
+        rather than a contract.</p>
+      </div></details>
+
+      <details class="rv"><summary>What should happen to a notification that gets rate limited?</summary>
+      <div class="rvb">
+        <p>Not dropped, and not retried immediately. It should go back on the queue with a delay,
+        and the delay should be how long until a token is available rather than a guess.</p>
+        <p>This is different from a failed send. A send that failed might never work, which is why
+        the exception carries <code>worthRetrying</code>. A rate limited send is known to be fine
+        and simply too early, so it deserves its own handling: no attempt counter increase, no
+        progress towards the dead letter queue, just a wait.</p>
+        <p>That distinction is worth making out loud, because the sloppy version treats being rate
+        limited as a failure, and then a busy hour quietly pushes perfectly good notifications
+        into the dead letter queue after three attempts. That is a genuinely bad bug and it is
+        entirely caused by putting two different things in the same box.</p>
+        <p>The token bucket makes the delay easy to compute, which is another point in its favour:
+        you know the refill rate, so you know exactly how many milliseconds until the next token.
+        A fixed window can only tell you when the block ends, which is why everything piles up at
+        the boundary and causes the burst in the first place.</p>
+      </div></details>
+
+      <details class="rv"><summary>The sliding window log stores every timestamp. Is that a problem?</summary>
+      <div class="rvb">
+        <p>Yes, and it is the reason it is rarely the production answer despite being the only
+        exact one.</p>
+        <p>The memory is one timestamp per allowed request per client, held for a full window. At
+        10 a second that is 10 longs per client, which is nothing. At 10,000 a second across
+        50,000 clients it is hundreds of millions of timestamps, and it is all live objects the
+        garbage collector has to walk.</p>
+        <p>The middle option, and the one worth naming because it shows you know the space, is the
+        <b>sliding window counter</b>. Keep only two numbers, the count in the current block and
+        the count in the previous one, and estimate by weighting the previous block by how far
+        into the current one you are. If you are 30 percent into this block, count 70 percent of
+        the last one plus all of this one. Two numbers per client, and the boundary problem mostly
+        disappears.</p>
+        <p>It is an approximation, and it can be slightly wrong when traffic is very uneven inside
+        a block. In exchange it costs the same memory as the fixed window. That trade is why it is
+        what a lot of real systems actually run.</p>
+      </div></details>
+
+      <details class="rv"><summary>Different clients need different limits. How does that fit?</summary>
+      <div class="rvb">
+        <p>The limit stops being a constant and becomes something looked up per client, which
+        changes the interface slightly and the algorithm not at all.</p>
+        <p>In our code the limit is a field on the limiter. Make it a lookup instead: the limiter
+        is given something that answers "what is the limit for this client", and it asks each time
+        it creates state for a new one. A free account gets 10 a second, a paying one gets 1,000,
+        and the algorithm is identical.</p>
+        <p>The token bucket handles this better than the others because it has two dials rather
+        than one, and they can be set independently per tier. A free client might get capacity 10
+        and rate 10, so no bursting at all. A paying client might get capacity 200 and rate 100,
+        so they can send a batch at the top of the hour and still be held to 100 a second on
+        average. Expressing "you may burst this much and sustain that much" in two numbers is
+        exactly what the algorithm is for.</p>
+        <p>The detail worth mentioning: when someone upgrades, their existing bucket has the old
+        capacity. Either refresh the entry on a plan change or accept that the new limit applies
+        from the next window, and saying which you chose is better than not noticing.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c5">
+      <h2><em>05</em> Retrying without making it worse</h2>
+
+      <ul class="prompts">
+        <li>500 clients all fail at the same moment. What does plain exponential backoff do?</li>
+        <li>What is jitter and what did it actually change?</li>
+        <li>When does something go to the dead letter queue?</li>
+        <li>What do you do with the dead letter queue afterwards?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>Everyone knows to use exponential backoff.</b> Wait 100 milliseconds, then 200, then
+        400. It stops one client hammering a provider that is already struggling.</p>
+
+        <p><b>It does nothing at all for the case that actually takes systems down.</b> When a
+        provider goes down, it does not fail for one client, it fails for all of them at the same
+        moment. Doubling the wait moves the whole crowd together. Here is what that looks like
+        with 500 clients, three retries each:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>RetryAndDlq.java</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">                              retries   10 ms slices      worst slice
+no jitter, plain backoff         1500              <span class="bad">3</span>              <span class="bad">500</span>
+with jitter                      1500             <span class="st">66</span>              <span class="st">78</span></pre>
+        </div>
+
+        <p>Without jitter, all 1,500 retries landed in <b>three</b> ten millisecond slices. The
+        provider that just fell over gets hit by all 500 clients at once, recovers slightly,
+        and is hit by all 500 again 200 milliseconds later. Backoff spread the retries out in
+        time and did nothing to spread them across each other.</p>
+
+        <p><b>Jitter is one line.</b> Instead of waiting exactly the backoff, wait a random amount
+        up to it:</p>
+
+        <p><code>long wait = jitter ? (long) (rnd.nextDouble() * backoff) : backoff;</code></p>
+
+        <p>That took the worst slice from 500 down to 78, about <b>6.4 times lower</b>, and spread
+        the same 1,500 retries across 66 slices instead of 3. Same number of retries, same
+        backoff, one multiplication.</p>
+
+        <div class="matrix">
+          <div class="simhead"><span>What each part of the retry design buys</span><span class="sp">measured</span></div>
+          <div class="reqs" id="retryOpts">
+            <button class="req" data-rt="backoff" aria-pressed="false">Exponential backoff</button>
+            <button class="req" data-rt="jitter" aria-pressed="false">Adding jitter</button>
+            <button class="req" data-rt="classify" aria-pressed="false">Asking if a retry can work</button>
+            <button class="req" data-rt="dlq" aria-pressed="false">The dead letter queue</button>
+            <button class="req" data-rt="cap" aria-pressed="false">A cap on attempts</button>
+          </div>
+          <div class="mout" id="retryOut">
+            <p style="color:var(--ink-faint)">Pick a part of the design.</p>
+          </div>
+        </div>
+
+        <p><b>The dead letter queue is where you put what you have given up on.</b> Two things
+        land there, and keeping them apart matters:</p>
+
+        <ul class="body">
+          <li><b>Permanent failures</b>, after one attempt. The address is malformed. Retrying is
+          pure waste.</li>
+          <li><b>Temporary failures that ran out of attempts.</b> The provider was down for the
+          whole of the retry window. This one might well succeed if sent again in an hour.</li>
+        </ul>
+
+        <p>The entry stores the reason and the attempt count, so the two are distinguishable
+        later. In the real run the dead letter queue held one item: the malformed email address,
+        <b>after a single attempt</b>, with the reason recorded.</p>
+
+        <p><b>A dead letter queue nobody reads is just a slower way of dropping things.</b> Say
+        what happens to it: someone gets alerted when it grows, the permanent ones become a report
+        for whoever owns the bad data, and the temporary ones can be replayed once the provider is
+        back. Replaying is only safe because every notification carries an idempotency key.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"Exponential backoff, done."</b> Correct and incomplete. Without jitter it is
+          synchronised backoff, and the measurement above shows what that means.</p>
+          <p><b>Retrying forever.</b> Without a cap, one permanently broken notification retries
+          until the process dies, and it holds a queue slot the whole time.</p>
+          <p><b>Retrying everything the same way.</b> 520 attempts against 340 for the same work,
+          and 56 seconds of waiting against 14.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How much jitter? Is random up to the backoff the right amount?</summary>
+      <div class="rvb">
+        <p>What the demo uses is called full jitter: wait a random amount anywhere between zero
+        and the full backoff. It is the simplest and it spreads the load best, which is why it is
+        the default worth knowing.</p>
+        <p>The objection people raise is that a random draw near zero means retrying almost
+        immediately, which feels like it defeats the backoff. In practice it is fine, because
+        only a small fraction of clients draw a small number and the point is the shape of the
+        crowd, not any one client.</p>
+        <p>If that still bothers you, the variant is equal jitter: wait half the backoff plus a
+        random amount up to the other half. Every client waits at least half, and the spread is
+        half as wide. It trades some smoothing for a guaranteed minimum wait, and both are
+        defensible. Amazon published measurements comparing these and full jitter came out best
+        on total work done, which is a good thing to be able to attribute.</p>
+        <p>The version to avoid is adding a small fixed random amount, say the backoff plus up to
+        10 milliseconds. With 500 clients that spreads them over 10 milliseconds, which is still
+        one crowd. The jitter has to be on the same scale as the backoff to do anything.</p>
+      </div></details>
+
+      <details class="rv"><summary>How many attempts, and how do you choose?</summary>
+      <div class="rvb">
+        <p>Work backwards from how long you are willing for the whole thing to take, because that
+        is the number the business actually cares about.</p>
+        <p>With a base of 100 milliseconds and doubling, the waits are 100, 200, 400, 800. Four
+        retries is 1.5 seconds of waiting. Ten retries is nearly two minutes, and the last few
+        waits are longer than most people's patience. So the question "how many retries" is really
+        "how long may this take", and three or four is common because the total stays in
+        seconds.</p>
+        <p>Then let the type of notification decide. A one time password is worthless after 60
+        seconds, so a long retry chain is not just useless, it is harmful: it delivers something
+        the user has already given up on. A payment receipt can retry for an hour because it is
+        still useful late. That argues for the attempt cap being a property of the notification
+        rather than one number for the whole service, which is a good thing to offer.</p>
+        <p>One more thing worth saying: attempts and total time are different limits and having
+        both is reasonable. Stop after 4 attempts or 30 seconds, whichever comes first. The time
+        limit is the one that protects you when someone sets a large base delay without thinking
+        it through.</p>
+      </div></details>
+
+      <details class="rv"><summary>A worker dies halfway through sending. What happens?</summary>
+      <div class="rvb">
+        <p>In this design the notification is lost, and it is worth saying so plainly.</p>
+        <p>The job was taken off the queue by that worker. It is not on the queue any more and it
+        was never written down anywhere else, so when the thread dies the job goes with it.
+        Nothing retries it because nothing knows it existed.</p>
+        <p>The fix is that taking work off the queue and finishing it have to be separate steps.
+        A worker claims the job, marks it as claimed with a timestamp and its own name, and only
+        removes it once the send has succeeded. Anything still claimed after a timeout is assumed
+        abandoned and becomes available again. This is what real queues do for you, and it is why
+        "just use a real queue" is a reasonable answer once the requirement is that nothing may be
+        lost.</p>
+        <p>Then name the problem that creates, because it is unavoidable and interviewers like to
+        hear it: if the worker died <b>after</b> the provider accepted the message but before it
+        could mark the job done, the replacement worker will send it again. You cannot design that
+        window away, only make the duplicate harmless, which is what the idempotency key is for.
+        This is the difference between at least once delivery, which you can have, and exactly
+        once, which you cannot.</p>
+      </div></details>
+
+      <details class="rv"><summary>Should a failing provider be cut off entirely rather than retried?</summary>
+      <div class="rvb">
+        <p>Yes, once the failures stop being individual and start being everything, and the name
+        for that is a circuit breaker. It is a natural thing to raise here and it scores well
+        because it shows you are thinking about the provider and not only about your own code.</p>
+        <p>The idea: count recent failures for a provider. Above a threshold, stop calling it
+        entirely for a cooling off period and fail immediately instead. After the period, let one
+        request through as a test. If it works, resume. If it does not, wait again.</p>
+        <p>Two things this buys. The provider gets a real break instead of being poked by every
+        retry, which is often what it needs to recover. And your own service stops spending
+        workers and queue slots on calls that are all going to fail, so a healthy channel keeps
+        moving while a sick one is parked.</p>
+        <p>The trade to admit is that a circuit breaker fails requests that might have worked,
+        because it stops asking. And it needs tuning, since a threshold that is too low trips on
+        normal noise and one that is too high never trips at all. In the round, describing it is
+        the right level of detail. Writing one is usually a poor use of the remaining minutes
+        unless they ask.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c6">
+      <h2><em>06</em> Idempotency and the last ten minutes</h2>
+
+      <ul class="prompts">
+        <li>What is an idempotency key and what problem does it actually solve?</li>
+        <li>Why can you not have exactly once delivery?</li>
+        <li>What should you say in the last five minutes of the round?</li>
+        <li>Name three things wrong with this design.</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>Why duplicates happen at all.</b> Not because anyone wrote a bug. A caller sends a
+        request, the network drops the response, and the caller has no way to tell whether the
+        notification was sent or not. So it sends again. That is the correct thing for the caller
+        to do, and it means your service will receive the same request twice.</p>
+
+        <p><b>The fix is a key the caller supplies.</b> Not one you generate, because a key you
+        generate is different on the second request and defeats the whole idea:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/NotificationService.java</span><span class="sp">the whole feature</span></div>
+          <pre class="dumpcode">String key = n.idempotencyKey();
+<span class="kw">if</span> (key != <span class="kw">null</span> &amp;&amp; alreadyHandled.putIfAbsent(key, n.id()) != <span class="kw">null</span>) {
+    duplicatesIgnored.incrementAndGet();
+    <span class="kw">return true</span>;                <span class="cm">// already dealt with, and that is a success</span>
+}</pre>
+        </div>
+
+        <p>Real output, the same payment notification submitted twice with the key
+        <code>pay-9912</code>:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>service/Main.java</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">[email] delivered to ravi@example.com
+<span class="st">ignored duplicate of N-7, key pay-9912</span>
+
+duplicates ignored: 1</pre>
+        </div>
+
+        <p><b>Two details in that one line matter.</b> It uses <code>putIfAbsent</code> rather
+        than checking and then putting, because two threads can both find a key missing and both
+        proceed; <code>putIfAbsent</code> makes the check and the write one indivisible step so
+        exactly one wins. And it returns <code>true</code>, not an error. From the caller's point
+        of view the notification has been dealt with, which is exactly what they wanted to know.</p>
+
+        <p><b>Where the key comes from.</b> Something the caller already has that identifies the
+        real world event: the order id, the payment id, the attempt id. "Order 9912 payment
+        received" is one event no matter how many times the request arrives. A timestamp or a
+        random value is not a key, it is a new event every time.</p>
+
+        <p><b>Exactly once delivery does not exist, and saying so is a strong answer.</b> There is
+        always a moment where the provider has accepted the message and your process has not yet
+        recorded that fact. If it dies in that window, either you resend, which is a duplicate, or
+        you do not, which is a loss. You cannot remove the window, only choose which side to fall
+        on. The usual choice is deliver at least once and make duplicates harmless, which is
+        exactly what the key is doing.</p>
+
+        <div class="note">
+          <b>The last five minutes</b>
+          <p>Do not spend them typing. Spend them naming what is wrong with what you built, and
+          be specific enough that it is clear you knew while you were writing it.</p>
+        </div>
+
+        <p><b>What to say about this design.</b> Three real holes, each with the fix in one
+        sentence:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>What is wrong</th><th>What it costs</th><th>What you would do</th></tr></thead>
+          <tbody>
+          <tr><td>The queue is in memory</td>
+            <td>A restart loses everything queued and every pending retry</td>
+            <td>Move it to a database table or a real queue. Only
+            <code>NotificationService</code> changes, because nothing else knows a queue
+            exists.</td></tr>
+          <tr><td>The idempotency map grows forever</td>
+            <td>A memory leak with a slow fuse, and it does not survive a restart either</td>
+            <td>Give keys an expiry, hours rather than days, and move the map to the same store as
+            the queue.</td></tr>
+          <tr><td>Nothing reads the dead letter queue</td>
+            <td>Failures are stored and never seen, which is a slower way of dropping them</td>
+            <td>Alert on its size, report the permanent ones to whoever owns the bad data, replay
+            the temporary ones once the provider is healthy.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>The three sentences worth having ready.</b> These cover most of what is left:</p>
+
+        <ul class="body">
+          <li>"Adding a channel is one new file and one line where channels are listed. Nothing
+          that already works gets edited."</li>
+          <li>"The retry decision is one method on the exception, so a new failure type answers
+          the question itself and the service never changes."</li>
+          <li>"This queue is in memory, so a restart loses it. For a marketing email that is fine.
+          For a one time password it is not, and the fix is a real queue."</li>
+        </ul>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"We can guarantee exactly once."</b> You cannot, and an interviewer who knows that
+          has just learned something about the rest of your answers.</p>
+          <p><b>Generating the idempotency key inside the service.</b> The second request gets a
+          different key, so it is a different event, so it gets sent. The feature does nothing at
+          all and it looks like it works.</p>
+          <p><b>Claiming the design has no problems.</b> Every design in a 45 minute round has
+          problems. Not naming them reads as not seeing them.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How long should an idempotency key be kept?</summary>
+      <div class="rvb">
+        <p>Long enough to cover every retry that could still arrive, and no longer, because the
+        store is a cost that grows with traffic.</p>
+        <p>Work it out from the callers rather than picking a round number. If a caller gives up
+        after four retries over 30 seconds, then anything arriving more than a minute or two later
+        is not that caller retrying, it is a genuinely new request. Twenty four hours is a common
+        default because it comfortably covers human scale retries, someone pressing a button
+        again, or a batch job rerunning after an overnight failure.</p>
+        <p>The cost of too long is memory or storage, growing with every request forever. The cost
+        of too short is worse and quieter: a late retry finds no key, gets treated as new, and the
+        customer receives the message twice. Since duplicates are the exact thing the key exists to
+        prevent, err long.</p>
+        <p>In our code there is no expiry at all, which is a real leak. The honest thing is to name
+        it and say what you would use: a cache with a time based eviction if it stays in memory, or
+        a column with a timestamp and a job that deletes old rows once it moves to a database.</p>
+      </div></details>
+
+      <details class="rv"><summary>Should the key be per caller, or global?</summary>
+      <div class="rvb">
+        <p>Per caller, and this is a small detail that shows real care.</p>
+        <p>A global key space means two unrelated services that both use "order-1234" collide.
+        The second one silently has its notification swallowed as a duplicate, and the failure is
+        invisible: nothing errored, the caller got success, and no message was sent. That is close
+        to the worst kind of bug.</p>
+        <p>The fix is to make the stored key the caller identity plus the key they gave, so
+        "billing:order-1234" and "shipping:order-1234" are different entries. Callers keep using
+        whatever ids they already have, with no coordination between teams.</p>
+        <p>It also fixes a security problem worth mentioning if the service is public. With a
+        global space, anyone who can guess another caller's key can suppress their notifications
+        by claiming it first. Scoping the key to the authenticated caller removes that entirely.</p>
+      </div></details>
+
+      <details class="rv"><summary>How would you test this? There are threads everywhere.</summary>
+      <div class="rvb">
+        <p>Split it, and be specific about which part gets which kind of test. "I would write unit
+        tests" is not an answer.</p>
+        <p><b>The parts with no threads get ordinary tests.</b> The rate limiters take the clock as
+        an argument, so you can feed them a timeline and assert exactly what was allowed with no
+        sleeping and no flakiness. That is exactly what the demo in this episode does, and it is
+        why the clock is a parameter rather than a call to
+        <code>System.currentTimeMillis()</code>. The exception classes are simpler still: assert
+        that <code>worthRetrying</code> returns what it should.</p>
+        <p><b>The channels get a fake.</b> A test channel that records what it was asked to send
+        and can be told to fail on demand. Then you can test the retry path by making it fail twice
+        and succeed on the third attempt, and assert the notification arrived after three
+        attempts.</p>
+        <p><b>The service gets tests that wait for an outcome, not for a duration.</b> Submit,
+        then wait until the fake channel has recorded what you expect or a timeout passes.
+        <code>Thread.sleep(500)</code> and then asserting is the classic flaky test: too short and
+        it fails on a slow machine, too long and the suite crawls. A latch or a poll with a
+        deadline is the fix, and it is what <code>drain</code> does in the demo.</p>
+        <p>The honest limit: none of this proves there is no race. Concurrency bugs are timing
+        dependent and a passing test only means it did not happen this time. Saying that, and
+        saying you would run the concurrent tests many times and under load, is better than
+        claiming coverage you do not have.</p>
+      </div></details>
+
+      <details class="rv"><summary>They ask you to add a scheduled notification. Send this tomorrow at 9am.</summary>
+      <div class="rvb">
+        <p>This is a common last question, and the trap is to reach for the retry scheduler that
+        is already there. Do not, and be able to say why.</p>
+        <p>The retry scheduler holds pending work in memory for milliseconds to seconds. A
+        notification scheduled for tomorrow morning would sit in memory for sixteen hours, so any
+        restart or deploy in that time loses it. Deploys happen more often than that.</p>
+        <p>The right shape is that a scheduled notification is stored, not held. It becomes a row
+        with a "send after" timestamp. A job runs regularly, asks for everything due, and submits
+        those to the same service the immediate ones go through. The sending path does not change
+        at all, which is the point worth making: scheduling is a source of work, not a new kind of
+        sending.</p>
+        <p>Two details that show you have thought past the happy path. The job must claim rows as
+        it takes them, or two instances will both pick up the same one and send twice. And if the
+        job has been down for a while, it will find a pile of overdue notifications at once, so it
+        needs a limit per run or it will flood the queue you just spent ten minutes bounding.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>at least once delivery</dt><dd>A promise that a message will arrive, accepting that it may arrive more than once. The only realistic option, which is why duplicates have to be made harmless.</dd>
+        <dt>backoff</dt><dd>Waiting longer before each retry, usually doubling the wait each time, so a struggling provider is not hit at the same rate.</dd>
+        <dt>bounded queue</dt><dd>A queue with a fixed maximum size. When it is full it refuses new work instead of growing until the process runs out of memory.</dd>
+        <dt>circuit breaker</dt><dd>Stopping calls to a provider entirely once too many have failed recently, then letting one through later to test whether it has recovered.</dd>
+        <dt>dead letter queue</dt><dd>Where a message goes once you have given up delivering it, so the failure is recorded rather than silently dropped.</dd>
+        <dt>fixed window</dt><dd>A rate limiter that counts requests inside blocks of time and resets the count at each block boundary. The cheapest one, and the one that can let twice the limit through.</dd>
+        <dt>idempotency key</dt><dd>A value the caller supplies that identifies one real world event, so the same request arriving twice is only acted on once.</dd>
+        <dt>jitter</dt><dd>Adding randomness to a retry wait so that many clients who failed together do not all retry at the same instant.</dd>
+        <dt>listener</dt><dd>An object that is told when something happened, without the thing that happened knowing who is listening. Also called an observer.</dd>
+        <dt>low level design round</dt><dd>An interview round of about an hour where you build one service in code: classes, interfaces and method signatures, not boxes and arrows.</dd>
+        <dt>one time password</dt><dd>A short code sent to prove someone controls a phone or an email address. Used here as the example of a notification that is worthless if it arrives late.</dd>
+        <dt>putIfAbsent</dt><dd>A map operation that writes a value only if the key is not there yet, as one indivisible step, so two threads cannot both think they were first.</dd>
+        <dt>rate limiter</dt><dd>Code that decides whether a request is allowed right now, to keep within a limit you or a provider set.</dd>
+        <dt>sliding window log</dt><dd>A rate limiter that keeps the time of every allowed request and counts the ones inside the last window. Exact, and the most memory hungry.</dd>
+        <dt>token bucket</dt><dd>A rate limiter holding tokens that refill at a steady rate. Each request spends one. Capacity and refill rate are separate dials, so a controlled burst is allowed on purpose.</dd>
+        <dt>volatile</dt><dd>A marker on a field meaning every thread reads the latest value rather than a stale cached copy.</dd>
+        <dt>worker thread</dt><dd>A thread that sits in a loop taking work off a queue and doing it.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---------- chapter 1: where the hour goes ---------- */
+
+  var PHASES = {
+    ask: {h:"0 to 5 minutes, ask",
+      chips:["do you ask before you build"],
+      p:"Three or four questions, not ten. Which channels, roughly what volume, does anyone care if a message is lost, and is sending the same thing twice a problem. Each one changes the design, and asking shows you know that.",
+      real:"Good: \"Is this one service or am I designing how several talk?\"\nGood: \"If a notification is lost, does it matter? An OTP and a\n       marketing email are different programs.\"\nBad:  no questions, straight to typing."},
+    scope: {h:"5 to 10 minutes, agree the scope out loud",
+      chips:["do you know what you did not do"],
+      p:"Say what you are building and what you are leaving out, and get a nod. This protects you later: if you named the in memory queue as a deliberate simplification at minute eight, nobody can present it as a gap at minute fifty.",
+      real:"\"I will build the sending path, channels, retries and a dead letter\n queue. I will keep the queue in memory and say what changes if it\n needs to survive a restart. I will not build the API layer.\""},
+    types: {h:"10 to 20 minutes, types and interfaces",
+      chips:["do your names mean anything","can it grow"],
+      p:"The record for the thing being passed around, then the one interface everything hangs off. These are small and they carry the entire design, so an interviewer can read your thinking from them alone. This is the highest value ten minutes of the round.",
+      real:"record Notification(String id, String recipient, String channel,\n                    String body, String idempotencyKey)\n\ninterface Channel {\n    String name();\n    void send(Notification n) throws NotificationException;\n}"},
+    code: {h:"20 to 40 minutes, write it",
+      chips:["can it grow"],
+      p:"The class that ties it together, fully, because that is where the decisions live. Then one complete channel as proof you can write a method. Then stop: the second and third channel are a comment saying they look the same with a different provider call. Nobody wants to watch you type the same class three times.",
+      real:"Write fully:  NotificationService, one Channel implementation,\n              the exception classes\nComment out:  // SmsChannel and PushChannel look the same,\n              // different provider call"},
+    extend: {h:"40 to 55 minutes, the follow-ups",
+      chips:["can it grow","do you know what you did not do"],
+      p:"This is what the round was for. Add a rate limit, add a channel, handle a provider being down, stop duplicates. Protect these minutes: a thinner service with a real rate limiter beats a fuller service where the limiter is described in the air.",
+      real:"Almost always asked:\n  \"Now add WhatsApp.\"\n  \"The provider caps us at 10 a second.\"\n  \"What if the same request arrives twice?\"\n  \"What happens when the process restarts?\""}
+  };
+
+  function phaseHtml(d){
+    var chips = "";
+    if (d.chips) {
+      chips = "<div class='scoring'>" + d.chips.map(function(c){
+        return "<span class='chip on'>" + c + "</span>";
+      }).join("") + "</div>";
+    }
+    return "<h6>" + d.h + "</h6>" + chips
+      + "<p>" + d.p + "</p>"
+      + "<div class='real'>" + d.real + "</div>";
+  }
+  picker("[data-ph]", "ph", PHASES, "#phaseOut", phaseHtml);
+
+  /* ---------- chapter 4: the limiter grid ---------- */
+
+  var LIM = {
+    "fixed|steady": {h:"fixed window, steady traffic", v:"5 in the worst second",
+      p:"One request every 200 ms for three seconds, against a limit of 10. Nothing is close to the limit, so every limiter allows everything. This case tells you nothing, which is why it is worth running: if a limiter fails here it is broken."},
+    "fixed|boundary": {h:"fixed window, a burst on a boundary", v:"20 in the worst second", bad:true,
+      real:"10 requests at 950 to 959 ms   ->  block 0, count reaches 10\n10 requests at 1000 to 1009 ms ->  block 1, count reset, all allowed\n\n20 requests inside 60 ms, against a limit of 10",
+      p:"The count is thrown away at every block boundary, so ten requests just before the mark and ten just after are both allowed. Twice the limit, and nobody chose it."},
+    "fixed|quiet": {h:"fixed window, quiet then a burst", v:"10 in the worst second",
+      p:"Nothing for five seconds, then 30 requests in 30 ms. The block is fresh, the count starts at zero, ten are allowed and twenty are refused. Correct here, and only by accident: the burst did not happen to straddle a boundary."},
+    "fixed|worst": {h:"fixed window, every possible offset", v:"between 10 and 20", bad:true,
+      real:"the same burst of 20, slid one millisecond at a time\nacross a whole window:\n\n  best case     10\n  worst case    20     depends on timing",
+      p:"This is the real objection. The answer depends on where the traffic happens to land relative to a clock you do not control. You cannot test that, and you cannot promise anything about it."},
+    "sliding|steady": {h:"sliding window log, steady traffic", v:"5 in the worst second",
+      p:"Same as the others. Well inside the limit, so nothing is refused."},
+    "sliding|boundary": {h:"sliding window log, a burst on a boundary", v:"10 in the worst second",
+      real:"allowed 10 of 20\nworst second 10, never over the limit",
+      p:"It keeps the actual time of every allowed request and counts the ones in the last second, so there is no boundary to exploit. Exactly the limit, whatever the traffic does."},
+    "sliding|quiet": {h:"sliding window log, quiet then a burst", v:"10 in the worst second",
+      p:"Ten allowed, twenty refused. It has no memory of the quiet period and no way to give credit for it, which is the trade: exact, and it never forgives a burst."},
+    "sliding|worst": {h:"sliding window log, every possible offset", v:"always 10",
+      real:"  best case     10\n  worst case    10     same every time",
+      p:"The only one of the three that is exactly the limit, always. The cost is memory: one timestamp per allowed request per client, held for a full window. At high volume that is the reason it is rarely what runs in production."},
+    "bucket|steady": {h:"token bucket, steady traffic", v:"5 in the worst second",
+      p:"Tokens refill at 10 a second and requests arrive at 5, so the bucket stays full and nothing is refused."},
+    "bucket|boundary": {h:"token bucket, a burst on a boundary", v:"20 in the worst second", bad:true,
+      real:"allowed 20 of 20\nworst second 20, over 10 by 10\n\ncapacity 20, refill 10 per second",
+      p:"The same 20 as the fixed window. But this bucket holds 20 tokens because somebody configured it to, so the burst was allowed on purpose. Set the capacity to 10 and this cell reads 10."},
+    "bucket|quiet": {h:"token bucket, quiet then a burst", v:"20 in the worst second", bad:true,
+      p:"Five quiet seconds refilled the bucket to its capacity of 20, so 20 of the 30 went through and 10 were refused. This is the feature: a client that has been well behaved is forgiven a burst. It is also why capacity is a number you have to choose rather than leave at a default."},
+    "bucket|worst": {h:"token bucket, every possible offset", v:"always 20",
+      real:"  best case     20\n  worst case    20     same every time",
+      p:"Twenty every time, wherever the burst lands. That is the whole argument for this algorithm: it goes above the sustained rate by an amount you set, and never by an amount you did not. Predictably generous beats unpredictably strict."}
+  };
+
+  function limHtml(d){
+    return "<h6>" + d.h + "</h6>"
+      + "<p><span class='tag'>" + d.v + "</span></p>"
+      + (d.real ? "<div class='real'>" + d.real + "</div>" : "")
+      + "<p>" + d.p + "</p>";
+  }
+  picker("[data-lim]", "lim", LIM, "#limOut", limHtml);
+
+  /* ---------- chapter 5: what each part of the retry design buys ---------- */
+
+  var RETRY = {
+    backoff: {h:"Exponential backoff", v:"stops one client hammering",
+      real:"attempt 1 fails -> wait 100 ms\nattempt 2 fails -> wait 200 ms\nattempt 3 fails -> wait 400 ms",
+      p:"Everyone knows this one, and on its own it solves the smaller half of the problem. It stops a single client retrying in a tight loop against a provider that is already struggling. It does nothing about the case that actually takes systems down, which is everyone failing at the same moment."},
+    jitter: {h:"Adding jitter", v:"worst slice 500 down to 78",
+      real:"                              retries   10 ms slices   worst slice\nno jitter, plain backoff         1500              3           500\nwith jitter                      1500             66            78",
+      p:"One multiplication: wait a random amount up to the backoff instead of exactly the backoff. Without it, 500 clients that failed together retry together, and all 1,500 retries landed in three ten millisecond slices. With it, the worst slice fell to 78, about 6.4 times lower, for the same number of retries."},
+    classify: {h:"Asking whether a retry could ever work", v:"180 attempts and 42 seconds saved",
+      real:"200 notifications, 60 permanently broken, up to 4 attempts\n\n                                attempts   time waiting\nretry everything the same way        520      56,000 ms\nask the exception first              340      14,000 ms",
+      p:"One abstract method on the exception base class, worthRetrying, and the whole decision in the service is one line. A malformed address is dead after a single attempt instead of after four. The waiting is the worse half, because a notification stuck in a backoff loop is holding a queue slot that real work needs."},
+    dlq: {h:"The dead letter queue", v:"the failure is recorded, not dropped",
+      real:"dead letter queue holds 1:\n  N-4 to asha-at-example.com by email\n  after 1 attempt(s), permanent: not an email address",
+      p:"Two different things land here: permanent failures after one attempt, and temporary ones that ran out of attempts. Storing the reason and the attempt count keeps them apart, which matters because the second kind can be replayed later and the first kind never can. A dead letter queue nobody reads is just a slower way of dropping things."},
+    cap: {h:"A cap on attempts", v:"stops one bad message running forever",
+      p:"Without it, a permanently broken notification retries until the process dies, holding a queue slot the entire time. Choose the cap from how long you are willing for the whole thing to take, not from a round number: base 100 ms doubling means four retries is 1.5 seconds and ten retries is nearly two minutes. A one time password is worthless after a minute, so a long chain there is not just wasteful, it delivers something the user already gave up on."}
+  };
+
+  function retryHtml(d){
+    return "<h6>" + d.h + "</h6>"
+      + "<p><span class='tag'>" + d.v + "</span></p>"
+      + (d.real ? "<div class='real'>" + d.real + "</div>" : "")
+      + "<p>" + d.p + "</p>";
+  }
+  picker("[data-rt]", "rt", RETRY, "#retryOut", retryHtml);
+
+  /* open the display panels on a real example so the page shows what it does */
+  document.querySelector('[data-ph="types"]').click();
+  document.querySelector('[data-lim="fixed|worst"]').click();
+  document.querySelector('[data-rt="jitter"]').click();
+
+  /* ---------- the quiz ---------- */
+
+  var Q = [
+    {c:1, q:"You get \"design a notification service\" and 45 minutes. What are the first five minutes for, and what are you actually being scored on?",
+     a:"Asking three or four questions that change the design: which channels, roughly what volume, does anyone care if a message is lost, and is sending the same thing twice a problem. The scoring is on four things: do you ask before you build, do your names mean anything, can the design grow when they say \"now add WhatsApp\", and do you know what you did not do. The last one is where most people lose, because naming the hole in your own design scores higher than a design that quietly has the same hole."},
+    {c:1, q:"How is this round different from the system design round, and what do you do if you cannot tell which one you are in?",
+     a:"System design is about how several services survive together: boxes, arrows, which database, what happens when a region goes away, and nobody writes a method signature. Low level design is one service inside one process: classes, interfaces, method signatures, exception types, thread safety, and the output is code that could compile. If you cannot tell, ask: \"Would you like me to focus on the classes and interfaces, or on how the services fit together?\" That question never loses points."},
+    {c:2, q:"Which three patterns are in this design, and what does each one buy?",
+     a:"Strategy is the Channel interface with email, SMS and push behind it, so a fourth channel is a new file and nothing that works gets edited. Factory is the Channels class handing back a channel by name, so the service never writes new EmailChannel() and does not know which channels exist. Observer is NotificationListener, so the service announces what happened and does not know who is listening; adding metrics did not touch it. The observer is the one people forget, and it is what keeps the service small."},
+    {c:2, q:"Why is Notification a record rather than a class with setters?",
+     a:"It cannot be half built, because one constructor takes everything. Validation runs once in the compact constructor and cannot be bypassed later. And the real reason in this design: the same notification sits on a queue, is picked up by one worker, fails, is scheduled for retry and picked up by a different worker. Because the fields are final, none of that needs locking, and you can say so in one sentence. The trade is that if a notification genuinely needed to change as it moved, a record would force a new object each time."},
+    {c:3, q:"Design the exception hierarchy. What is the one method that matters, and what is it worth?",
+     a:"An abstract base with one abstract method, worthRetrying, answered by each subclass: InvalidRecipientException returns false because a malformed address will still be malformed later, ChannelUnavailableException returns true. Then the retry decision in the service is one line, with no switch on type and no list of retryable classes going stale elsewhere. Measured on 200 notifications with 60 permanently broken: 340 attempts and 14,000 ms of waiting, against 520 attempts and 56,000 ms if everything is retried the same way."},
+    {c:3, q:"The queue is full. What should submit do, and why is the rejection count not a fixed number?",
+     a:"Return false, so the caller decides whether to wait, drop it or fail. They are the only one who knows if this is a one time password worth waiting for or a marketing email worth dropping. Blocking would turn a full queue into a stuck caller, and an unbounded queue just hides the problem until the process runs out of memory. The count is not fixed because it depends on how fast three workers drain the queue against how fast the caller fills it: four runs of the same program gave 9, 13, 11 and 14 rejections out of 40. You measure it and pick the capacity from what you measured."},
+    {c:4, q:"A fixed window limiter set to 10 a second let 20 requests through. Explain exactly how.",
+     a:"It counts inside blocks of time and throws the count away at every block boundary. Ten requests at 950 to 959 milliseconds fill block zero. At 1000 milliseconds the count resets, so ten more go straight through. That is 20 requests inside 60 milliseconds against a limit of 10. Sliding the same burst across every millisecond of the window shows the real objection: the worst second ranges from 10 to 20 depending on where the traffic lands relative to a clock you do not control."},
+    {c:4, q:"The token bucket also let 20 through. Why is that not the same problem as the fixed window?",
+     a:"Because 20 is the capacity somebody configured, and it happens every single time. Sliding the burst across every offset, the token bucket's worst second is 20 at every offset, while the fixed window's ranges from 10 to 20. One is a dial you set, the other is luck. A limiter that is predictably generous is fine, because you can test it and promise something about it. A limiter whose behaviour depends on where the second happened to start is not. Setting the bucket capacity to 10 makes it never exceed 10."},
+    {c:5, q:"500 clients all fail at the same moment. What does plain exponential backoff do, and what did jitter change?",
+     a:"Plain backoff moves the whole crowd together rather than spreading it out. All 1,500 retries landed in three ten millisecond slices, so the provider that just fell over is hit by all 500 clients at once, then again 200 ms later, then again. Jitter is one multiplication, waiting a random amount up to the backoff instead of exactly the backoff. It took the worst slice from 500 to 78, about 6.4 times lower, and spread the same 1,500 retries across 66 slices instead of 3."},
+    {c:5, q:"Why does the retry not just sleep on the worker thread, and what is the cost of doing it properly?",
+     a:"Because sleeping burns a worker for the whole delay and the delay doubles each time. Three notifications failing at once would put all three workers to sleep, and nothing else moves for the length of the longest delay even with healthy work waiting. Instead the job goes back on the queue later, using one scheduler thread that is asleep almost all the time because it only waits on timers. The cost is one extra class and one more thing to shut down. Say the simple version out loud first and explain why you rejected it."},
+    {c:6, q:"What is an idempotency key, where does it come from, and what are the two details in the one line that implements it?",
+     a:"A value the caller supplies that identifies one real world event, so the same request arriving twice is acted on once. It has to come from the caller, from something they already have like the order or payment id, because a key you generate is different on the second request and defeats the whole idea. The two details: putIfAbsent rather than check then put, because two threads can both find a key missing and both proceed, so making the check and the write one step means exactly one wins. And it returns true, not an error, because from the caller's point of view the notification has been dealt with."},
+    {c:6, q:"Name three things wrong with this design and what you would do about each.",
+     a:"The queue is in memory, so a restart loses everything queued and every pending retry; move it to a database table or a real queue, which changes only NotificationService because nothing else knows a queue exists. The idempotency map grows forever and does not survive a restart; give keys an expiry of hours and move the map to the same store. Nothing reads the dead letter queue, so failures are recorded and never seen; alert on its size, report the permanent ones to whoever owns the bad data, and replay the temporary ones once the provider is healthy, which is only safe because every notification carries a key."}
+  ];
+
+  wireQuiz(Q, {
+    1:"how the round actually runs",
+    2:"three channels, one interface",
+    3:"when it fails, and when the queue is full",
+    4:"rate limiting",
+    5:"retrying without making it worse",
+    6:"idempotency and the last ten minutes"
+  });
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
