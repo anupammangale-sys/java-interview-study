@@ -1,0 +1,1698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Stop Calling It, episode 13 of the Java interview study series">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<title>Stop Calling It</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ================= SHARED: design tokens =================
+   Do not edit these per episode. verify.py asserts they are
+   byte-identical to this template in every episode file.      */
+:root{
+  --paper:#F4F6F9; --surface:#FFFFFF; --surface-2:#E9EEF4; --line:#D2DAE4; --line-soft:#E3E9F0;
+  --ink:#131A24; --ink-soft:#4A5666; --ink-faint:#586477;
+  --held:#964307; --held-bg:#FBF1E1; --held-line:#E8C99A; --code-cm:#5D697C;
+  --freed:#0F766E; --freed-bg:#E4F2EF; --freed-line:#A4CFC8;
+  --alarm:#B0232B; --alarm-bg:#FAEBEB; --alarm-line:#E7B4B4;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+    --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+    --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+    --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+    --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1219; --surface:#141B25; --surface-2:#1B2430; --line:#2B3846; --line-soft:#212C38;
+  --ink:#E4EAF2; --ink-soft:#A4B0C1; --ink-faint:#8E9AAB;
+  --held:#F0A742; --held-bg:#2A2013; --held-line:#5A4322; --code-cm:#8793A4;
+  --freed:#4FD1C0; --freed-bg:#0F262A; --freed-line:#23514E;
+  --alarm:#F0736F; --alarm-bg:#2B1517; --alarm-line:#5B2A2B;
+}
+
+/* ================= SHARED: base ================= */
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;text-wrap:balance;margin:0}
+code,kbd,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ================= SHARED: chrome ================= */
+.topbar{position:sticky;top:0;z-index:40;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 20px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:auto}
+.brand b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;font-size:17px}
+.brand span{font-size:11px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.pbar{width:150px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-soft)}
+.pbar i{display:block;height:100%;width:0;background:var(--freed);transition:width .35s ease}
+.pcount{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:focus-visible,.rail a:focus-visible,summary:focus-visible,.hotspot:focus-visible,.opt:focus-visible,.fld:focus-visible,.chip:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.btn[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:34px;max-width:1180px;margin:0 auto;padding:28px 20px 90px}
+.rail{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 100px);overflow:auto}
+.rail h5{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;font-weight:600}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rail li{display:flex;align-items:flex-start;gap:8px}
+.rail a{flex:1;display:flex;gap:9px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:6px 8px;border-radius:8px;border-left:2px solid transparent}
+.rail a:hover{background:var(--surface-2);color:var(--ink)}
+.rail a.on{color:var(--ink);background:var(--surface-2);border-left-color:var(--held);font-weight:500}
+.rail a em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);padding-top:2px}
+.tick{appearance:none;width:16px;height:16px;margin-top:8px;flex:none;cursor:pointer;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);transition:background-color .15s,border-color .15s}
+.tick:checked{background:var(--freed);border-color:var(--freed)}
+.tick:checked::after{content:"";display:block;width:4px;height:8px;margin:1px auto 0;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* ================= SHARED: prose ================= */
+main{min-width:0}
+.lede{border-bottom:1px solid var(--line);padding-bottom:26px}
+.lede h1{font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.015em;line-height:1.08}
+.lede .sub{color:var(--ink-soft);font-size:17px;max-width:64ch;margin:12px 0 0}
+.kicker{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--held);font-weight:600;margin-bottom:9px}
+section.ch{padding:38px 0 10px;border-bottom:1px solid var(--line-soft);scroll-margin-top:78px}
+section.ch>h2{font-size:27px;font-weight:700;display:flex;gap:12px;align-items:baseline}
+section.ch>h2 em{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);font-weight:500}
+h3{font-size:17px;font-weight:600;margin:26px 0 8px}
+p{margin:0 0 13px;max-width:68ch}
+ul.body,ol.body{max-width:68ch;padding-left:20px;margin:0 0 14px}
+ul.body li,ol.body li{margin-bottom:8px}
+strong{font-weight:600}
+.hl{color:var(--held);font-weight:600}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6}
+pre code{color:var(--ink)}
+.cm{color:var(--code-cm)}
+.kw{color:var(--held)}
+.st{color:var(--freed)}
+.bad{color:var(--alarm);font-weight:600}
+
+/* Links inside the content. Without this they fall back to the browser default
+   blue, which is unreadable on the dark surface. The only ones on the page are
+   in the quiz result, which is why it went unnoticed for so long. */
+main a{color:var(--held);text-decoration:underline;text-underline-offset:2px}
+main a:hover{color:var(--ink)}
+main a:focus-visible{outline:2px solid var(--held);outline-offset:2px;border-radius:3px}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
+
+.note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.note p:last-child{margin-bottom:0}
+.note b{color:var(--held)}
+.wrong{border-left:3px solid var(--alarm);background:var(--alarm-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}
+.wrong p:last-child{margin-bottom:0}
+.wrong b{color:var(--alarm)}
+
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0}
+.tw{overflow-x:auto;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r)}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td.win{color:var(--freed);font-weight:600}
+td.lose{color:var(--alarm);font-weight:600}
+tr.win td{background:var(--freed-bg)}
+
+details.rv{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;max-width:68ch;overflow:hidden}
+details.rv[open]{border-color:var(--held-line)}
+details.rv>summary{cursor:pointer;list-style:none;padding:12px 15px;font-weight:500;font-size:15px;display:flex;gap:11px;align-items:flex-start;color:var(--ink)}
+details.rv>summary::-webkit-details-marker{display:none}
+details.rv>summary::before{content:"?";flex:none;width:19px;height:19px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+details.rv[open]>summary::before{content:"!";background:var(--held-bg);border-color:var(--held-line);color:var(--held)}
+details.rv>summary:hover{background:var(--surface-2)}
+.rvb{padding:2px 15px 14px 45px;border-top:1px solid var(--line-soft)}
+.rvb p{margin:11px 0 0}
+.rvb pre{margin-top:12px}
+
+/* ================= SHARED: figures and readouts ================= */
+figure{margin:22px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+figure .fbody{padding:18px 18px 6px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{font-size:13.5px;color:var(--ink-soft);padding:12px 18px;border-top:1px solid var(--line-soft);background:var(--surface-2)}
+figcaption b{color:var(--ink)}
+.hotspot{cursor:pointer}
+.hotspot rect,.hotspot circle{transition:fill .18s,stroke .18s}
+.hotspot:hover rect,.hotspot:hover circle{stroke:var(--held);stroke-width:2}
+.hotspot.sel rect,.hotspot.sel circle{stroke:var(--held);stroke-width:2.5}
+.readout{border-top:1px solid var(--line-soft);padding:14px 18px;background:var(--surface)}
+.readout h6{margin:0 0 5px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600}
+.readout p{font-size:14.5px;margin:0;color:var(--ink-soft);max-width:none}
+.readout .tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:99px;margin-bottom:7px;background:var(--held-bg);color:var(--held);border:1px solid var(--held-line)}
+
+/* clickable annotated code block (log lines, dump entries) */
+.dump{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dumpcode{padding:16px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:2;white-space:pre}
+.fld{background:none;border:1px dashed var(--line);border-radius:4px;padding:1px 4px;font:inherit;color:var(--held);cursor:pointer;transition:background-color .15s,border-color .15s}
+.fld:hover{background:var(--held-bg);border-color:var(--held)}
+.fld[aria-pressed="true"]{background:var(--held-bg);border-style:solid;border-color:var(--held);font-weight:600}
+
+/* ================= SHARED: simulator shell ================= */
+.sim{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.simhead{display:flex;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.simhead .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.simfoot{padding:11px 16px;border-top:1px solid var(--line-soft);font-size:14px;color:var(--ink-soft);min-height:44px}
+.simfoot.gc{background:var(--held-bg);color:var(--held)}
+.simfoot.crash{background:var(--alarm-bg);color:var(--alarm);font-weight:500}
+.simfoot.ok{background:var(--freed-bg);color:var(--freed)}
+
+/* ================= SHARED: chooser ================= */
+.dx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin:22px 0;overflow:hidden}
+.dxq{padding:15px 17px;border-bottom:1px solid var(--line-soft)}
+.dxq p{font-weight:500;margin:0 0 11px;max-width:none}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{text-align:left;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.opt:hover{background:var(--surface-2);border-color:var(--ink-faint)}
+.opt[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held);color:var(--held);font-weight:500}
+.opt code{background:none;border:none;padding:0;color:inherit;font-weight:500}
+.dxout{padding:16px 17px;background:var(--surface-2)}
+.dxout .verdict{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:17px;font-weight:600;margin:0 0 7px}
+.dxout p{font-size:14.5px;max-width:none;margin:0 0 9px}
+.dxout p:last-child{margin:0}
+.dxout .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;display:block;margin-bottom:3px}
+
+/* ================= SHARED: quiz ================= */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:20px 0}
+.qhead{display:flex;align-items:center;gap:12px;padding:12px 17px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft)}
+.qhead .qn{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.qhead .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace}
+.qbody{padding:20px 18px}
+.qbody .qtext{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:21px;font-weight:600;margin:0 0 4px;max-width:60ch;line-height:1.3}
+.qmeta{font-size:11.5px;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.qans{border-top:1px solid var(--line-soft);padding-top:15px;margin-top:15px}
+.qans p{font-size:15px}
+.qacts{display:flex;gap:9px;flex-wrap:wrap;padding:0 18px 18px}
+.btn.good:hover{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed)}
+.btn.bad2:hover{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm)}
+.result{padding:22px 18px}
+.result .big{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+
+/* ================= SHARED: revision mode and word list ================= */
+.prompts{display:none}
+body.rev .teach{display:none}
+body.rev .prompts{display:block;max-width:68ch;padding-left:20px;margin:14px 0 18px}
+body.rev .prompts li{margin-bottom:9px;font-size:15.5px;font-weight:500}
+body.rev .prompts li::marker{color:var(--held)}
+.revnote{display:none;background:var(--held-bg);border:1px solid var(--held-line);color:var(--held);border-radius:var(--r);padding:11px 15px;font-size:14px;margin:16px 0;max-width:68ch}
+body.rev .revnote{display:block}
+.gloss dt{font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--held);margin-top:14px}
+.gloss dd{margin:3px 0 0;max-width:68ch;color:var(--ink-soft);font-size:15px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:0;padding-top:20px}
+  .rail{position:static;max-height:none;margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:18px}
+  .rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:2px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================================================================
+   EPISODE CSS GOES HERE
+   Only the bespoke visualisation for this episode's simulator or
+   diagram. Never redefine a token above.
+   =================================================================== */
+
+/* ===================================================================
+   EPISODE CSS: the pattern and state pickers
+   =================================================================== */
+.matrix{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  margin:22px 0;overflow:hidden}
+.reqs{display:flex;flex-wrap:wrap;gap:7px;padding:16px}
+.req{text-align:left;font:inherit;font-size:13.5px;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:8px;padding:9px 13px;cursor:pointer;
+  transition:background-color .15s,border-color .15s}
+.req:hover{border-color:var(--ink-faint)}
+.req:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+.req[aria-pressed="true"]{background:var(--held-bg);border-color:var(--held-line);
+  color:var(--held);font-weight:600}
+.mout{border-top:1px solid var(--line-soft);padding:15px 17px;background:var(--surface)}
+.mout h6{margin:0 0 6px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;font-weight:600}
+.mout p{font-size:14.5px;margin:0 0 10px;color:var(--ink-soft);max-width:none}
+.mout p:last-child{margin:0}
+.mout .real{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--surface-2);
+  border:1px solid var(--line-soft);border-radius:6px;padding:9px 12px;color:var(--ink);
+  overflow-x:auto;white-space:pre;margin:0 0 10px}
+.verdictrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 11px}
+.vchip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;padding:4px 10px;border-radius:99px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-soft)}
+.vchip.good{background:var(--freed-bg);border-color:var(--freed-line);color:var(--freed);font-weight:600}
+.vchip.bad{background:var(--alarm-bg);border-color:var(--alarm-line);color:var(--alarm);font-weight:600}
+</style>
+<style>
+.backlink{
+  flex:none;order:-1;font-size:12px;font-weight:500;text-decoration:none;
+  color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;transition:background-color .15s,border-color .15s,color .15s;
+}
+.backlink:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-faint)}
+.backlink:focus-visible{outline:2px solid var(--held);outline-offset:2px}
+@media (max-width:640px){.backlink{order:0}}
+
+.themebtn{display:inline-grid;place-items:center;padding:6px 9px;line-height:0}
+.themebtn svg{width:15px;height:15px;display:block}
+.themebtn .sun{display:none}
+.themebtn[data-mode="dark"] .sun{display:block}
+.themebtn[data-mode="dark"] .moon{display:none}
+</style>
+</head>
+<body>
+<header class="topbar" data-key="ep13">
+  <a class="backlink" href="index.html">All episodes</a>
+  <a class="backlink codelink" href="code/ep13.html">The code</a>
+  <button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  <div class="brand">
+    <b>Stop Calling It</b>
+    <span>Episode 13 &middot; Microservices resilience</span>
+  </div>
+  <span class="pcount" id="pcount">0 / 6</span>
+  <div class="pbar" role="progressbar" aria-label="Chapters completed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="pbar"><i></i></div>
+  <button class="btn" id="revBtn" aria-pressed="false">Revision mode</button>
+  <button class="btn" id="quizBtn">Start quiz</button>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Chapters">
+    <h5>Chapters</h5>
+    <ol>
+      <li><input class="tick" type="checkbox" data-ch="1" aria-label="Mark chapter 1 done"><a href="#c1"><em>01</em> Four patterns, and why the order matters</a></li>
+      <li><input class="tick" type="checkbox" data-ch="2" aria-label="Mark chapter 2 done"><a href="#c2"><em>02</em> Writing a circuit breaker</a></li>
+      <li><input class="tick" type="checkbox" data-ch="3" aria-label="Mark chapter 3 done"><a href="#c3"><em>03</em> What the configuration decides</a></li>
+      <li><input class="tick" type="checkbox" data-ch="4" aria-label="Mark chapter 4 done"><a href="#c4"><em>04</em> Timeouts and retries</a></li>
+      <li><input class="tick" type="checkbox" data-ch="5" aria-label="Mark chapter 5 done"><a href="#c5"><em>05</em> Designing a fallback</a></li>
+      <li><input class="tick" type="checkbox" data-ch="6" aria-label="Mark chapter 6 done"><a href="#c6"><em>06</em> Bulkheads and rate limiters</a></li>
+    </ol>
+    <h5 style="margin-top:22px">Practice</h5>
+    <ol>
+      <li style="padding-left:24px"><a href="#quiz"><em>Q</em> Quiz</a></li>
+      <li style="padding-left:24px"><a href="#allq"><em>R</em> All Q&amp;A</a></li>
+      <li style="padding-left:24px"><a href="#gloss"><em>G</em> Word list</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="lede">
+      <div class="kicker">Study material</div>
+      <h1>Stop calling it</h1>
+      <p class="sub">A service you depend on is failing. Everything in this episode is about one question: when do you stop calling it, and what do you do instead. The circuit breaker is built twice, once by hand in about ninety lines so the state machine is visible, and once with Resilience4j 2.2.0. They agree, until they do not, and the run where they disagreed changed what this page says.</p>
+    </div>
+
+    <div class="revnote">Revision mode is on. Explanations are hidden. Try to answer each prompt out loud before switching back.</div>
+
+    <section class="ch" id="c1">
+      <h2><em>01</em> Four patterns, and why the order matters</h2>
+
+      <ul class="prompts">
+        <li>Name the four patterns and say what each one protects.</li>
+        <li>In what order do you wrap them, and what goes wrong if you swap two?</li>
+        <li>Why is a retry dangerous on its own?</li>
+        <li>Which one do you add first if you can only have one?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The four.</b> They get listed together because they are usually used together, and
+        each one protects something different. Being able to say what each protects is most of
+        the answer.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Pattern</th><th>What it does</th><th>What it protects</th></tr></thead>
+          <tbody>
+          <tr><td><b>Timeout</b></td><td>Gives up waiting after a set time</td>
+            <td><b>Your threads.</b> Without one, a hung call holds a thread for ever and your
+            service dies of something that happened somewhere else.</td></tr>
+          <tr><td><b>Retry</b></td><td>Tries again after a failure</td>
+            <td><b>The caller</b>, from a blip that would have worked a moment later. It protects
+            nothing else, and left alone it makes everything worse.</td></tr>
+          <tr><td><b>Circuit breaker</b></td><td>Stops calling once enough calls have failed</td>
+            <td><b>The service you are calling</b>, and your own latency. It is the only one that
+            reduces load on something that is already struggling.</td></tr>
+          <tr><td><b>Bulkhead</b></td><td>Limits how many calls run at once</td>
+            <td><b>Everything else you do.</b> It stops one sick dependency taking every thread
+            and dragging down work that has nothing to do with it.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>The order is not a style choice, and it is measurable.</b> Resilience4j documents
+        the order as <b>Retry, then CircuitBreaker, then RateLimiter, then TimeLimiter, then
+        Bulkhead</b>, outermost first. Here is what happens when the first two are swapped.</p>
+
+        <p>Twenty logical calls, three attempts each, against a service that is down. Both
+        breakers open after the same number of failures:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>the same test in both projects</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">                                       calls that   breaker
+                                       reached it     state
+  retry OUTSIDE, breaker sees attempts          <span class="st">5</span>      OPEN
+  retry INSIDE, breaker sees one call          <span class="bad">15</span>      OPEN</pre>
+        </div>
+
+        <p><b>Fifteen calls instead of five, to a service that is already down.</b></p>
+
+        <p>The reason is simple once you see it. With the retry on the outside, every attempt
+        passes through the breaker, so the breaker counts three failures per logical call and
+        opens when it should. With the retry on the inside, the breaker sees one call that
+        secretly made three, so it counts one failure for every three real ones and takes three
+        times as long to notice.</p>
+
+        <p>That is also the answer to "why is a retry dangerous on its own". A retry multiplies
+        load at exactly the moment the thing you are calling is least able to take it. Three
+        attempts from every caller during an incident is a threefold traffic increase aimed at
+        something already on the floor.</p>
+
+      <div class="matrix">
+        <div class="simhead"><span>What each pattern is for</span><span class="sp">click one</span></div>
+        <div class="reqs" id="patOpts">
+          <button class="req" data-pat="timeout" aria-pressed="false">Timeout</button>
+          <button class="req" data-pat="retry" aria-pressed="false">Retry</button>
+          <button class="req" data-pat="breaker" aria-pressed="false">Circuit breaker</button>
+          <button class="req" data-pat="bulkhead" aria-pressed="false">Bulkhead</button>
+          <button class="req" data-pat="order" aria-pressed="false">The order, measured</button>
+        </div>
+        <div class="mout" id="patOut">
+          <p style="color:var(--ink-faint)">Pick a pattern.</p>
+        </div>
+      </div>
+
+        <p><b>If you can only have one, have a timeout.</b> This is worth saying because it is
+        the least glamorous answer and the correct one. A circuit breaker cannot help if every
+        call hangs for ever, because your threads are gone before the breaker has counted
+        anything. Everything else in this episode assumes calls eventually return.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"Add retries to make it more reliable."</b> On its own a retry makes an incident
+          worse. It needs a limit, a delay, jitter, and something above it that can decide to
+          stop entirely.</p>
+          <p><b>"The circuit breaker protects my service."</b> Partly. Its main job is to stop
+          hammering the service that is failing. What protects your service from a sick
+          dependency is the bulkhead and the timeout.</p>
+          <p><b>"The order does not really matter."</b> Measured above: 5 calls against 15,
+          from swapping two decorators.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Why is a timeout the first thing to add?</summary>
+      <div class="rvb">
+        <p>Because without one, a slow dependency does not slow you down, it stops you
+        completely, and none of the other patterns can save you.</p>
+        <p>Think about where the thread goes. A web request holds one thread for its whole life,
+        including all the time it spends waiting. If a downstream call normally takes 50
+        milliseconds and starts taking 30 seconds, each thread does six hundred times less work.
+        A pool of 200 threads that comfortably served your traffic now serves almost none of it,
+        and requests to completely unrelated endpoints start queueing and failing. Nothing in
+        your code changed and nothing in your code is wrong.</p>
+        <p>A circuit breaker cannot rescue that on its own, because the breaker only counts calls
+        that have finished. If calls never finish, there are no failures to count, and the
+        breaker sits closed while every thread is stuck inside it. That is the specific reason
+        the timeout has to exist first.</p>
+        <p>The number to have ready: pick the timeout from the downstream service's real latency,
+        not from a round number. Something like the 99th percentile plus a margin. A timeout of
+        30 seconds on a call that normally takes 50 milliseconds is the same as having no timeout
+        at all, because the damage is done long before it fires.</p>
+      </div></details>
+
+      <details class="rv"><summary>Which failures should be retried, and which should never be?</summary>
+      <div class="rvb">
+        <p>The test is the same one from a well designed exception hierarchy: could trying again
+        possibly work?</p>
+        <p><b>Retry these.</b> A connection timeout, a connection refused, an HTTP 503 or 429, a
+        deadlock the database rolled back. Something was temporarily unavailable and the same
+        request might succeed in a moment.</p>
+        <p><b>Never retry these.</b> A 400, a 401, a 403, a 404, a validation failure, anything
+        where the request itself is the problem. The response will be identical every time, so a
+        retry is pure waste and it triples the load for nothing.</p>
+        <p><b>The dangerous middle.</b> A 500 or a read timeout, on a call that changes something.
+        You do not know whether the work happened. Retrying might charge a card twice; not
+        retrying might lose the order. Neither is safe, which is why the real answer is an
+        idempotency key on the request so that a duplicate is harmless, and only then a retry.</p>
+        <p>Say this out loud in an interview: <b>a retry is only safe on an operation that is
+        safe to repeat.</b> Reads almost always are. Writes are only if you made them so.</p>
+      </div></details>
+
+      <details class="rv"><summary>Where should these live, in the application or in the infrastructure?</summary>
+      <div class="rvb">
+        <p>Both, and they do different jobs, which is why the question comes up.</p>
+        <p><b>A service mesh or a sidecar</b> can do timeouts, retries, circuit breaking and rate
+        limiting for every service at once, with no code and no library. That is a real advantage:
+        it applies uniformly, it is configured by the platform team, and a service written in
+        another language gets it for free.</p>
+        <p><b>What it cannot do is know what your call means.</b> The mesh sees an HTTP request.
+        It does not know that this one is a payment that must never be retried blindly, or that
+        this other one has a perfectly good cached answer to fall back on, or that a failure here
+        should degrade the page rather than fail it. Fallbacks in particular are application
+        knowledge and cannot be pushed down.</p>
+        <p>The shape that works is the mesh handling the broad defaults, connection timeouts,
+        retries on safe methods, a general breaker, and the application handling the decisions
+        that need to know what the call is for. The trap to name is doing both without noticing:
+        three retries in the mesh and three in the application is nine attempts, and neither
+        team believes they configured that.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do these patterns interact with a load balancer having several instances?</summary>
+      <div class="rvb">
+        <p>It changes what a failure means, and it is worth thinking about before you tune
+        anything.</p>
+        <p>If the downstream service has ten instances and one is broken, roughly one call in ten
+        fails. Your breaker sees a 10 percent failure rate and, quite correctly, does not open,
+        because ninety percent of the service is fine and cutting it off entirely would turn a
+        small problem into a total outage.</p>
+        <p>That is usually the right behaviour, and it is why per instance circuit breaking exists
+        in service meshes: they can eject the one bad instance from the pool and leave the rest
+        alone. From inside your application you normally cannot see which instance answered, so
+        you cannot make that distinction.</p>
+        <p>The practical consequence for your own configuration: a breaker in the application is
+        protecting you from the service as a whole being unwell, not from one bad instance. Tune
+        it for that. If a single instance failing is a common problem in your setup, the fix
+        belongs at the load balancer or the mesh, with health checks and ejection, not in a
+        threshold you keep lowering until it catches it.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c2">
+      <h2><em>02</em> Writing a circuit breaker</h2>
+
+      <ul class="prompts">
+        <li>Describe the three states and what moves it between them.</li>
+        <li>What is half open for, and why not just close it after the wait?</li>
+        <li>Write the state machine on a whiteboard.</li>
+        <li>What should a call return when the breaker is open?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>It is three states and two counters.</b> Written out in full it is about ninety
+        lines including comments, which is worth knowing because it stops the pattern feeling
+        like something only a library can do.</p>
+
+      <div class="matrix">
+        <div class="simhead"><span>The state machine</span><span class="sp">click a state</span></div>
+        <div class="reqs" id="stateOpts">
+          <button class="req" data-st="closed" aria-pressed="false">CLOSED</button>
+          <button class="req" data-st="open" aria-pressed="false">OPEN</button>
+          <button class="req" data-st="half" aria-pressed="false">HALF_OPEN</button>
+          <button class="req" data-st="trace" aria-pressed="false">A real trace through all three</button>
+        </div>
+        <div class="mout" id="stateOut">
+          <p style="color:var(--ink-faint)">Pick a state.</p>
+        </div>
+      </div>
+
+        <p><b>The core of it, as actually written:</b></p>
+
+        <div class="dump">
+          <div class="simhead"><span>handbuilt/Breaker.java</span><span class="sp">the decision</span></div>
+          <pre class="dumpcode"><span class="cm">// Ask before calling. False means refuse without touching the service.</span>
+<span class="kw">public synchronized boolean</span> allow() {
+    <span class="kw">if</span> (state == State.OPEN) {
+        <span class="kw">if</span> (System.currentTimeMillis() - openedAt &gt;= openMillis) {
+            moveTo(State.HALF_OPEN);        <span class="cm">// time to try again</span>
+            trialsStarted = 0; trialsSucceeded = 0;
+        } <span class="kw">else</span> {
+            refused++; <span class="kw">return false</span>;      <span class="cm">// still cooling off</span>
+        }
+    }
+    <span class="kw">if</span> (state == State.HALF_OPEN) {
+        <span class="kw">if</span> (trialsStarted &gt;= trialCalls) { refused++; <span class="kw">return false</span>; }
+        trialsStarted++;
+    }
+    allowed++;
+    <span class="kw">return true</span>;
+}</pre>
+        </div>
+
+        <p><b>What it bought, measured.</b> One hundred calls to a service that is down, where
+        each failing call takes 20 milliseconds to fail:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th></th><th>Calls that reached it</th><th>Refused without calling</th>
+            <th>Total time</th></tr></thead>
+          <tbody>
+          <tr><td>no protection</td><td class="bad">100</td><td>0</td><td class="bad">2066 ms</td></tr>
+          <tr><td>hand written breaker</td><td class="hl">5</td><td>95</td><td class="hl">103 ms</td></tr>
+          <tr><td>Resilience4j</td><td class="hl">5</td><td>95</td><td class="hl">125 ms</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>Both versions agree, which is the reason for writing it twice. The library is not doing
+        anything mysterious: it is this state machine with more careful bookkeeping.</p>
+
+        <p><b>Note the second column.</b> Ninety five calls were answered without touching the
+        network at all. That is where the twenty times speed up comes from, and it is also the
+        thing people forget: an open breaker makes your service <b>faster</b>, not slower,
+        because failing immediately beats waiting to fail.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"It stops calls when the service is down."</b> True and it skips the part that
+          gets asked: how does it decide, and how does it ever start again. Half open is the
+          interesting state.</p>
+          <p><b>"After the wait it closes again."</b> No. It goes to half open and lets a small
+          number of trial calls through. Closing blindly would send the full traffic straight
+          back at a service that may still be broken.</p>
+          <p><b>"The breaker retries for you."</b> It does not retry anything. It decides whether
+          a call is allowed. Retrying is a separate pattern that sits outside it.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>What exactly is half open for?</summary>
+      <div class="rvb">
+        <p>It is the state that lets the breaker find out whether the service has recovered
+        without betting everything on the answer.</p>
+        <p>Think about what the alternatives cost. If the breaker closed automatically after the
+        wait, the full traffic would go straight back at a service that may still be broken, and
+        you would have engineered a cycle: recover slightly, get flattened, open again. If it
+        never reopened on its own, somebody would have to notice and restart something, which is
+        not a design.</p>
+        <p>Half open threads that needle. A small fixed number of calls is allowed through, two in
+        the demo here. Everything else is still refused. If those trial calls succeed, the
+        breaker closes and normal traffic resumes. If any of them fails, it opens again
+        immediately and the clock restarts, so a service that is still down absorbs two calls
+        rather than everything you have.</p>
+        <p>Two details worth having. The trial calls are real customer requests, not synthetic
+        ones, so a few real people pay the cost of finding out. And the number of trials is a
+        genuine trade: more trials means a more reliable verdict and more load on something that
+        might still be sick.</p>
+      </div></details>
+
+      <details class="rv"><summary>What should the call return when the breaker is open?</summary>
+      <div class="rvb">
+        <p>Something immediate, and the choice is yours rather than the breaker's. In Resilience4j
+        an open breaker throws <code>CallNotPermittedException</code>, and what you do with it is
+        the interesting decision.</p>
+        <p><b>A fallback</b> when you have something honest to say: a cached price with a note
+        that it may be out of date, an empty list of recommendations, a default shipping estimate.
+        This is usually the right answer and it is chapter five.</p>
+        <p><b>A clear failure</b> when there is no honest fallback. A 503 with a
+        <code>Retry-After</code> header tells the caller both that this is temporary and roughly
+        when to come back. Much better than a 500, which tells them nothing.</p>
+        <p><b>Never a silent success.</b> Returning an empty result that looks like a real answer
+        is the worst option, because the caller cannot tell the difference between "there is
+        nothing" and "we could not find out". That distinction matters and once you have thrown
+        it away nobody downstream can get it back.</p>
+        <p>The thing that makes this answer good rather than adequate: whatever you return should
+        make it obvious in your metrics that the breaker was open, so a degraded service does not
+        look like a healthy one with fewer results.</p>
+      </div></details>
+
+      <details class="rv"><summary>Should there be one breaker per service, or per endpoint?</summary>
+      <div class="rvb">
+        <p>Per thing that can fail independently, which in practice usually means per endpoint or
+        per small group of endpoints, not one for the whole downstream service.</p>
+        <p>The reason is that services rarely fail as a unit. A payments service might have a
+        search endpoint hitting a struggling database while the charge endpoint is perfectly fine.
+        One breaker for the whole service would cut off charging because search is slow, which
+        turns a partial problem into a total one.</p>
+        <p>The cost of going too far the other way is real too. A breaker per endpoint means each
+        one sees a fraction of the traffic, and a breaker with very few calls cannot measure a
+        failure rate meaningfully. That is what <code>minimumNumberOfCalls</code> is for, and on a
+        quiet endpoint the breaker may effectively never have enough data to act.</p>
+        <p>The rule that survives contact with reality: group by the resource behind the call, not
+        by the service in front of it. If three endpoints all hit the same database table, they
+        fail together and they can share a breaker. If one hits a cache and another hits a third
+        party, they are different failures and deserve different breakers.</p>
+      </div></details>
+
+      <details class="rv"><summary>Is a hand written breaker ever the right choice?</summary>
+      <div class="rvb">
+        <p>Rarely, and the honest reason is in chapter three rather than in line count.</p>
+        <p>The ninety line version in this episode matched the library exactly for a service that
+        was completely down: five calls, ninety five refused. If that were the whole problem, the
+        library would be hard to justify.</p>
+        <p>It fell apart on a service that was failing only some of the time, which is the far
+        more common real situation. Counting failures in a row missed the problem entirely in
+        four out of ten identical runs. Fixing that means a sliding window, which means deciding
+        between counting calls and counting time, which means metrics to tune it with, and by
+        then you have written the library badly instead of using it.</p>
+        <p>So the case for the library is not that it is shorter. It is that somebody has already
+        thought about sliding windows, slow call rates, half open bookkeeping and the metrics you
+        need to see what it is doing. Writing one yourself is a good way to understand it and a
+        poor way to ship it.</p>
+        <p>The exception worth naming: a small internal tool with one dependency and no operations
+        team may genuinely be better off with twenty lines it fully understands than with a
+        dependency and a configuration nobody will ever tune.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c3">
+      <h2><em>03</em> What the configuration decides</h2>
+
+      <ul class="prompts">
+        <li>A service fails 30 percent of the time. Should the breaker open?</li>
+        <li>What does the sliding window size actually change?</li>
+        <li>Count based or time based window, and when does it matter?</li>
+        <li>What is a slow call rate and why does it exist?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>This is the chapter that changed while it was being written.</b> The plan was to
+        show that a hand written breaker is not as good as the library. The measurement said
+        something more interesting.</p>
+
+        <p>A service that is <b>not down, just unwell</b>: it fails 30 percent of the time. Three
+        breakers, ten runs each, 300 calls per run. The number recorded is how many calls reached
+        the service before the breaker opened.</p>
+
+        <div class="dump">
+          <div class="simhead"><span>ten runs of each, same seeds</span><span class="sp">real output</span></div>
+          <pre class="dumpcode"><span class="cm">hand written, 5 failures IN A ROW</span>
+  per run: 236 188 <span class="bad">never</span> 234 <span class="bad">never</span> 204 7 <span class="bad">never</span> 51 <span class="bad">never</span>
+  opened in <span class="bad">6 of 10</span> runs, from 7 to 236 calls, average 153
+
+<span class="cm">Resilience4j, 50 percent over a window of 10</span>
+  per run: 48 15 13 6 24 26 5 33 50 95
+  opened in <span class="st">10 of 10</span> runs, from 5 to 95 calls, average 31
+
+<span class="cm">Resilience4j, 50 percent over a window of 100</span>
+  per run: never never never never never never never never never never
+  <span class="hl">never opened in any run</span></pre>
+        </div>
+
+        <p><b>The second and third rows use the same 50 percent threshold against the same
+        service.</b> One opened on every single run. The other never opened at all. The only
+        difference is the size of the window they measure over.</p>
+
+        <p>That is worth sitting with, because it is the opposite of how the configuration reads.
+        The threshold looks like the important number. It is not. The window size decides whether
+        the threshold is measuring the service or measuring noise.</p>
+
+        <p><b>Why the narrow window opens.</b> With only 10 samples of a process that fails 30
+        percent of the time, four or more failures in a window is common by chance. So a window
+        of 10 crosses 50 percent regularly even though the true rate never does. The wide window
+        averages that out and reports something close to the real 30 percent, which is below the
+        threshold, so it correctly stays closed.</p>
+
+        <p><b>Neither is simply right</b>, and that is the answer to give:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Window</th><th>Reacts</th><th>Risk</th><th>Suits</th></tr></thead>
+          <tbody>
+          <tr><td>Narrow, tens of calls</td><td>Fast, within seconds</td>
+            <td>Opens on a run of bad luck when the service is fine</td>
+            <td>High traffic endpoints where a real problem shows up immediately and a brief
+            false open costs little</td></tr>
+          <tr><td>Wide, hundreds of calls</td><td>Slow</td>
+            <td>Absorbs a lot of failures before acting</td>
+            <td>Anywhere a false open is expensive, and low traffic endpoints where a small
+            window is mostly noise</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>And the first row is the argument for the library.</b> Counting failures in a row
+        missed the problem entirely in four of ten identical runs, and when it did notice, it
+        took anywhere from 7 to 236 calls. One success resets the count, so a service failing 30
+        percent of the time keeps it closed almost indefinitely. That is not a tuning problem, it
+        is the wrong measurement.</p>
+
+        <div class="note">
+          <b>What this page said before the demo was run</b>
+          <p>An earlier version claimed a consecutive failure breaker "barely notices" a partly
+          failing service. The first measurement disagreed: it opened, after 14 calls. The claim
+          was wrong and was replaced by the ten run comparison above, which says something more
+          useful. The interesting property is not whether it notices but how much the answer
+          moves between identical runs.</p>
+        </div>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"Set the failure threshold to 50 percent and you are done."</b> Both Resilience4j
+          rows above are set to exactly that. They behave completely differently.</p>
+          <p><b>"A smaller window is more responsive, so it is better."</b> It is more responsive
+          to noise as well as to problems. On a healthy service it will open on bad luck.</p>
+          <p><b>"Copy the defaults."</b> The defaults are a starting point chosen without knowing
+          your traffic. On a quiet endpoint they may never gather enough calls to act at all.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Count based or time based window? How do you choose?</summary>
+      <div class="rvb">
+        <p>By how steady your traffic is, and the failure mode of each choice is the thing to
+        name.</p>
+        <p><b>A count based window</b> holds the last N calls. It is predictable in what it
+        measures, and its weakness is quiet endpoints: if an endpoint gets ten calls an hour, a
+        window of 100 holds ten hours of history, so the breaker is reacting to this morning when
+        it is the afternoon. A problem that started five minutes ago is invisible.</p>
+        <p><b>A time based window</b> holds the calls from the last N seconds. It always reflects
+        now, which is what you usually want, and its weakness is the opposite: during a quiet
+        minute the window might hold three calls, and two failures out of three is a 66 percent
+        failure rate that opens the breaker on almost no evidence.</p>
+        <p>Both have <code>minimumNumberOfCalls</code>, and that setting matters far more on a
+        time based window because it is the only thing standing between you and acting on three
+        data points.</p>
+        <p>The practical default: time based for anything user facing with steady traffic, because
+        "the last ten seconds" is what an incident actually means. Count based when traffic is
+        bursty or low, so the window is guaranteed to contain enough calls to mean something.</p>
+      </div></details>
+
+      <details class="rv"><summary>What is the slow call rate, and why is it separate from the failure rate?</summary>
+      <div class="rvb">
+        <p>Because the worst kind of failure is not an error, it is an answer that arrives too
+        late to be useful, and a failure rate cannot see it at all.</p>
+        <p>Resilience4j lets you set a duration above which a call counts as slow, and a
+        percentage of slow calls that will open the breaker. A service returning perfect
+        responses in eight seconds has a zero percent failure rate and is destroying you, because
+        every one of those calls is holding a thread of yours for eight seconds. The breaker
+        needs a way to treat that as a failure, and the slow call rate is it.</p>
+        <p>This is the setting most people have never heard of and it is often more useful than
+        the failure rate, because services degrade before they break. Latency climbing is the
+        early warning; errors are what happens after.</p>
+        <p>It also interacts with the timeout in a way worth explaining. If your timeout is two
+        seconds, every slow call already becomes a failure at two seconds, so the slow call
+        threshold only matters below that. Setting it to something like one second gives you a
+        breaker that opens while calls are still technically succeeding, which is the whole
+        point.</p>
+      </div></details>
+
+      <details class="rv"><summary>How would you tune these settings for a real service?</summary>
+      <div class="rvb">
+        <p>From measurements, in an order, and the honest first step is that you cannot do it from
+        first principles.</p>
+        <p><b>Start with the timeout</b>, because everything else depends on calls finishing. Take
+        the downstream service's real latency distribution and set the timeout somewhere above the
+        99th percentile with a margin. If you do not have that number, getting it is the task
+        before this one.</p>
+        <p><b>Then the window</b>, from traffic volume. It needs to contain enough calls that a
+        rate means something, which is a few tens at least, and few enough that it reflects now
+        rather than an hour ago. Calls per second times the number of seconds you want to react
+        within is a reasonable starting calculation.</p>
+        <p><b>Then the threshold</b>, from what is normal. If the service normally fails 2 percent
+        of the time, a 50 percent threshold is enormous headroom and it will let a bad situation
+        run for a long time. If it normally fails 20 percent, a 25 percent threshold will open
+        constantly. The threshold is relative to the baseline, and you need the baseline first.</p>
+        <p><b>Then watch it.</b> Resilience4j publishes the state, the failure rate and the number
+        of buffered calls as metrics. A breaker you cannot see the state of is a breaker you
+        cannot tune, and the most common real problem is one that has been sitting open for two
+        weeks with nobody aware.</p>
+      </div></details>
+
+      <details class="rv"><summary>What happens when the breaker opens in production and nobody expected it?</summary>
+      <div class="rvb">
+        <p>Usually a confusing incident, because the symptom does not look like the cause, and
+        that is worth being ready for.</p>
+        <p>What people see is your service returning errors or degraded results very fast. Latency
+        graphs look great, because refused calls return in microseconds. Error rate is up but the
+        downstream service you are blaming reports almost no traffic and looks perfectly healthy,
+        because your breaker is not calling it. Two teams then spend twenty minutes disagreeing
+        about whose problem it is.</p>
+        <p>Everything that avoids that is preparation rather than cleverness. Emit the breaker
+        state as a metric and put it on the dashboard next to the error rate. Log the transition,
+        once, with the failure rate that caused it, so there is a timestamp to correlate against.
+        Make the response when open distinguishable in your metrics from a normal failure.</p>
+        <p>The other half is knowing whether it was right. A breaker that opened because the
+        downstream really was failing did its job. A breaker that opened because the window was
+        too narrow and it caught a run of bad luck is a false alarm, and the measurement in this
+        chapter is what that looks like. You can only tell the two apart if you recorded the
+        failure rate at the moment it tripped.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c4">
+      <h2><em>04</em> Timeouts and retries</h2>
+
+      <ul class="prompts">
+        <li>A call hangs for three seconds. What does a timeout actually free?</li>
+        <li>Why is exponential backoff not enough on its own?</li>
+        <li>How many retries, and how do you choose?</li>
+        <li>What is the difference between a connect timeout and a read timeout?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>What a timeout does, and what it does not.</b> A call that takes three seconds,
+        with and without a 200 millisecond limit:</p>
+
+        <div class="dump">
+          <div class="simhead"><span>handbuilt/Isolation.java</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">no timeout      waited <span class="bad">3007 ms</span>, got "eventually"
+200 ms timeout  waited <span class="st">213 ms</span>, got "gave up"</pre>
+        </div>
+
+        <p>The timeout freed the <b>caller</b> after 213 milliseconds. Whether the work itself
+        stopped is a completely separate question, and this is the part that gets missed.</p>
+
+        <p>Cancelling a task only <b>interrupts</b> the thread running it. Interruption is a
+        request, not a command. Code sitting in <code>Thread.sleep</code> or a blocking queue
+        will notice. Code in a tight loop, or inside a socket read that does not have its own
+        timeout, will not, and it carries on holding that thread until it finishes on its own.</p>
+
+        <p><b>So a timeout without a way to stop the work still leaks threads.</b> The caller is
+        free and the worker is not. This is why HTTP clients have their own connect and read
+        timeouts: those stop the socket operation itself, which an interrupt cannot do.</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Timeout</th><th>Covers</th><th>Sensible size</th></tr></thead>
+          <tbody>
+          <tr><td><b>Connect</b></td><td>Establishing the connection only</td>
+            <td>Short, one or two seconds. If it takes longer than that, the host is unreachable
+            rather than busy</td></tr>
+          <tr><td><b>Read or response</b></td><td>Waiting for the answer once connected</td>
+            <td>From the downstream service's real latency, above its 99th percentile</td></tr>
+          <tr><td><b>Overall or call</b></td><td>The whole operation including any retries</td>
+            <td>The one that protects your caller. It has to account for the retries, which people
+            forget</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>The arithmetic people get wrong:</b> a two second read timeout with three attempts
+        and backoff is not a two second operation. It is up to two seconds, then a wait, then two
+        more, then a longer wait, then two more. Six seconds of calls plus the waits. If the
+        caller upstream gives up after three seconds, your retries are finishing into a void.</p>
+
+        <p><b>Backoff and jitter.</b> Waiting longer between attempts stops one client hammering a
+        struggling service. It does nothing about the case that actually causes outages, which is
+        every client failing at the same moment and therefore retrying at the same moment.</p>
+
+        <p>Plain backoff moves the whole crowd together. Adding jitter, which means waiting a
+        random amount up to the backoff rather than exactly the backoff, spreads them out. It is
+        one multiplication and it is the difference between a provider getting one wave of
+        traffic and getting the same wave repeatedly.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"The timeout kills the call."</b> It stops your thread waiting. The work may well
+          continue. Measured above: the caller was free in 213 ms and the task had three seconds
+          still to run.</p>
+          <p><b>"Exponential backoff solves the retry storm."</b> It solves one client hammering.
+          It does nothing about many clients that failed together, because it moves them all by
+          the same amount.</p>
+          <p><b>"Retry until it works."</b> Without a limit, a permanently broken call retries for
+          ever and holds a slot the whole time.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How many retries, and how do you pick the number?</summary>
+      <div class="rvb">
+        <p>Work backwards from how long the whole operation is allowed to take, because that is
+        the number the business actually cares about and the retry count follows from it.</p>
+        <p>With a base wait of 100 milliseconds and doubling, the waits are 100, 200, 400, 800.
+        Three retries is about 1.5 seconds of waiting on top of the calls themselves. Ten retries
+        is nearly two minutes, and the last few waits are longer than any user will stay. So the
+        question "how many retries" is really "how long may this take", and two or three is common
+        because that keeps the total in seconds.</p>
+        <p>Then let the operation decide. Something a person is waiting for gets one or two
+        attempts and then an honest failure, because a slow answer is worse than a fast no.
+        Something in a background job can afford far more, because nobody is watching and the
+        alternative is losing the work.</p>
+        <p>Two things worth adding. Set a total time limit as well as an attempt count, so a large
+        base wait cannot quietly turn three attempts into a minute. And remember that retries
+        multiply across layers: three in the client and three in a gateway is nine attempts, and
+        each team believes they configured three.</p>
+      </div></details>
+
+      <details class="rv"><summary>What is the difference between a connect timeout and a read timeout in practice?</summary>
+      <div class="rvb">
+        <p>They fail for different reasons, and telling them apart tells you what is wrong.</p>
+        <p>A <b>connect timeout</b> fires when you cannot establish a connection at all. In
+        practice that means the host is unreachable, DNS resolved to something wrong, a firewall
+        is dropping packets silently, or the service is not listening. None of those get better in
+        the next few seconds, which is why the timeout should be short. A connect timeout of 30
+        seconds is 30 seconds of a thread spent learning something you could have known in one.</p>
+        <p>A <b>read timeout</b> fires when the connection was established and the answer did not
+        arrive. That means the service is alive and slow: overloaded, stuck on a lock, waiting on
+        its own downstream. It might genuinely come back, which is why this is the one to size
+        from real latency rather than from a round number.</p>
+        <p>The diagnostic value is the part worth saying. A spike in connect timeouts points at
+        the network or at instances being gone. A spike in read timeouts points at the service
+        being alive and struggling. They call for different responses, and a single "timeout"
+        number in a dashboard hides which one you have.</p>
+        <p>One trap: connect timeouts can be misleading when connection pooling is in use, because
+        a healthy pool reuses connections and rarely connects at all. A sudden burst of connect
+        timeouts can mean the pool was exhausted or reset, not that the network changed.</p>
+      </div></details>
+
+      <details class="rv"><summary>Is it ever right to retry immediately, with no wait at all?</summary>
+      <div class="rvb">
+        <p>Occasionally yes, and knowing when shows you have thought about what the failure
+        means rather than applying a rule.</p>
+        <p>An immediate retry makes sense when the failure is almost certainly about the
+        connection rather than the service. A pooled connection that was closed by the other end
+        while it sat idle fails instantly on first use, and the second attempt gets a fresh
+        connection and works. Waiting achieves nothing because nothing needs time to recover.
+        Many HTTP clients and database drivers do exactly this internally, which is worth knowing
+        because it means you may already have one retry you did not configure.</p>
+        <p>The same is true of an optimistic locking failure. Two transactions collided, one lost,
+        and the right response is to read the current state and try again now. The conflict is
+        already over.</p>
+        <p>Where an immediate retry is wrong is anything that suggests the service is under
+        strain: a 503, a 429, a read timeout. There the failure is telling you it needs time, and
+        retrying instantly is the behaviour that turns a struggling service into a dead one.</p>
+        <p>A reasonable pattern is one immediate retry for connection level failures, then backoff
+        with jitter for everything else. Worth saying that the first retry is nearly free and the
+        later ones need care.</p>
+      </div></details>
+
+      <details class="rv"><summary>What is the interaction between a timeout and a circuit breaker?</summary>
+      <div class="rvb">
+        <p>They need each other, and the direction of the dependency is the interesting part.</p>
+        <p><b>The breaker needs the timeout to work at all.</b> A breaker counts calls that have
+        finished. If calls hang for ever, nothing finishes, so the breaker never records a failure
+        and sits closed while every thread is stuck inside it. Without a timeout, the breaker is
+        decoration.</p>
+        <p><b>The timeout needs the breaker to stop being expensive.</b> A two second timeout on a
+        service that is down means every single call costs you two seconds of a thread before
+        failing. At a hundred calls a second that is two hundred threads permanently occupied
+        doing nothing. The breaker turns those two seconds into microseconds once it has seen
+        enough failures, which is exactly the hundredfold improvement measured in chapter two.</p>
+        <p>The sizing detail that connects them: a timeout should count as a failure to the
+        breaker, and in Resilience4j whether it does depends on which exception the timeout
+        produces and whether you have told the breaker to record it. Getting that wrong gives you
+        a breaker that never opens during precisely the incident it was built for, and it is a
+        genuinely common misconfiguration because everything looks correct.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c5">
+      <h2><em>05</em> Designing a fallback</h2>
+
+      <ul class="prompts">
+        <li>The breaker is open. What do you return?</li>
+        <li>When is a fallback worse than an error?</li>
+        <li>What makes a fallback safe?</li>
+        <li>How do you stop a fallback hiding an outage?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>This is the chapter with no measurement, and that is worth saying.</b> Everything
+        before it is arithmetic. What to return when a dependency is gone is a judgement about
+        your product, and an interviewer asking it is testing whether you think past the code.</p>
+
+        <p><b>The question that decides it:</b> can the user still get what they came for without
+        this? Not "can I return something", but "is what I return still true".</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th>Fallback</th><th>Good for</th><th>The risk</th></tr></thead>
+          <tbody>
+          <tr><td><b>A cached answer</b></td>
+            <td>Data that changes slowly. A product description, a category list, a currency
+            rate.</td>
+            <td>Being wrong for as long as the outage lasts. Fine for a description, not for
+            stock levels during a sale.</td></tr>
+          <tr><td><b>A safe default</b></td>
+            <td>Something with an obvious conservative value. No recommendations, standard
+            shipping, no discount applied.</td>
+            <td>The default has to be safe in the direction that matters. Defaulting a
+            fraud check to "passed" is how you lose money.</td></tr>
+          <tr><td><b>Degraded but honest</b></td>
+            <td>Showing the page without the part that failed, and saying so.</td>
+            <td>Needs the front end to cope with a missing section, which is a design decision
+            made long before the outage.</td></tr>
+          <tr><td><b>Queue it and answer later</b></td>
+            <td>Writes that do not need to complete now. Sending an email, updating a
+            recommendation profile.</td>
+            <td>Only works if the caller genuinely does not need the result, and you now own a
+            queue that has to be drained.</td></tr>
+          <tr><td><b>Fail clearly</b></td>
+            <td>Anything where a wrong answer is worse than no answer. Payments, balances,
+            permissions.</td>
+            <td>None, and it is underused. A fast honest failure is a legitimate design.</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+      <div class="matrix">
+        <div class="simhead"><span>The dependency is down. What do you return?</span><span class="sp">pick a scenario</span></div>
+        <div class="reqs" id="fbOpts">
+          <button class="req" data-fb="search" aria-pressed="false">Search, on a product page</button>
+          <button class="req" data-fb="price" aria-pressed="false">Pricing, at checkout</button>
+          <button class="req" data-fb="recs" aria-pressed="false">Recommendations, on a home page</button>
+          <button class="req" data-fb="perm" aria-pressed="false">Permission check, on any page</button>
+          <button class="req" data-fb="email" aria-pressed="false">Order confirmation email</button>
+        </div>
+        <div class="mout" id="fbOut">
+          <p style="color:var(--ink-faint)">Pick a scenario.</p>
+        </div>
+      </div>
+
+        <p><b>The rule that covers most of it.</b> A fallback is safe when the caller can tell the
+        difference between a real answer and a fallback, or when they genuinely do not need to.
+        It is dangerous the moment a made up answer is indistinguishable from a true one.</p>
+
+        <p><b>Two fallbacks that look reasonable and are not.</b></p>
+
+        <p>Returning an empty list when a search service is down. The page says "no results", the
+        user believes there is nothing, and they leave. Nothing errored, no alert fired, and the
+        business lost a customer to something that looked like a working page. An error would have
+        been better, because it is true.</p>
+
+        <p>Defaulting a permission check to "allowed" so the site stays up. It will stay up right
+        up until somebody notices, and the failure mode is a security incident rather than an
+        outage. The direction a default fails in matters more than whether it exists.</p>
+
+        <div class="note">
+          <b>The one that hides an outage</b>
+          <p>A cached fallback that works well is the most dangerous kind, because the service
+          looks healthy. Latency is fine, errors are zero, and a dependency has been down for
+          three days. The fix is not to avoid the fallback, it is to make it visible: count
+          fallback responses as their own metric and alert on the rate, not on errors.</p>
+        </div>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"Return an empty list, it is safer than an error."</b> It is quieter, not safer.
+          The caller cannot tell "there is nothing" from "we could not find out", and that
+          distinction is often the whole point.</p>
+          <p><b>"Always have a fallback."</b> For a payment, a balance or a permission check
+          there is no honest fallback, and inventing one turns an outage into a correctness
+          problem.</p>
+          <p><b>"Fall back to a second provider."</b> Reasonable and rarely as simple as it
+          sounds: the second provider is usually less tested, may have different semantics, and
+          gets its first real traffic during your worst hour.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>How do you stop a fallback hiding an outage for days?</summary>
+      <div class="rvb">
+        <p>By measuring the fallback rather than the failure, because the whole point of a good
+        fallback is that the failure stops being visible.</p>
+        <p>The mechanism is straightforward and rarely done. Count every fallback response as its
+        own metric, separate from errors and separate from successes. Then alert on that count
+        being above zero for longer than some period, rather than on the error rate, which will
+        be flat.</p>
+        <p>The reason it gets missed is that dashboards are usually built around the golden
+        signals: latency, traffic, errors, saturation. A dependency behind a working fallback
+        moves none of them. Latency improves, because a cached answer is faster than a real one.
+        Errors go to zero. Everything looks better than usual, which is the tell.</p>
+        <p>Two extra habits worth naming. Put the age of the cached data in the response or at
+        least in the logs, so "we are serving a fallback" and "we are serving a fallback from
+        Tuesday" are different alerts. And exercise the fallback deliberately, because a fallback
+        path that has never run in production is code you are hoping works during the one hour it
+        matters.</p>
+      </div></details>
+
+      <details class="rv"><summary>Where should the fallback live in the code?</summary>
+      <div class="rvb">
+        <p>Close to the caller who knows what the data is for, not next to the client that fetches
+        it, and the reason is that the right fallback depends on the use.</p>
+        <p>The same call to a pricing service has different correct answers depending on who asked.
+        On a product listing page, a slightly stale cached price is fine and much better than a
+        gap. On the checkout page, charging a stale price is a real problem and the honest
+        response is to fail and ask them to try again. A fallback hidden inside the pricing client
+        cannot tell those apart, so it will be wrong for one of them.</p>
+        <p>The shape that works: the client throws, and each caller decides. Resilience4j supports
+        this directly, since the decorated supplier throws
+        <code>CallNotPermittedException</code> and the caller catches it, and Spring's
+        <code>@CircuitBreaker</code> takes a <code>fallbackMethod</code> per method rather than
+        per client.</p>
+        <p>The exception worth naming: a genuinely universal fallback, such as an empty list of
+        optional recommendations that nothing depends on, can live in the client. But if you find
+        yourself writing "unless the caller is checkout" inside a client, the fallback is in the
+        wrong place.</p>
+      </div></details>
+
+      <details class="rv"><summary>What do you tell the user when there is no good fallback?</summary>
+      <div class="rvb">
+        <p>The truth, at the right level of detail, and this gets asked more than people expect
+        because it is where engineering meets the product.</p>
+        <p>The three things a user needs: that it is not their fault, that it is temporary, and
+        what to do now. "Something went wrong" fails all three. "We cannot reach our payment
+        provider right now, your basket is saved, please try again in a few minutes" satisfies all
+        three and takes no more code.</p>
+        <p>Preserving their work is the part engineers most often skip. An outage that loses a
+        half filled form turns a two minute annoyance into a lost customer. If the failure happens
+        on submit, the state should still be there on retry, and that is a design decision made
+        long before the incident.</p>
+        <p>For an API rather than a person, the equivalents are concrete: return 503 rather than
+        500, so the caller knows it is worth retrying, and include a <code>Retry-After</code>
+        header so they know roughly when. If you have a request id, return it, because it is the
+        difference between a support conversation that takes five minutes and one that takes a
+        day.</p>
+      </div></details>
+
+      <details class="rv"><summary>Should a fallback ever call a different service?</summary>
+      <div class="rvb">
+        <p>Sometimes, and it is worth being sceptical about, because it is the fallback that most
+        often fails when it is finally needed.</p>
+        <p>The appeal is obvious: a second payment provider, a second maps API, a second email
+        service. If the first is down, use the other one. For genuinely commodity services with
+        the same shape, this can work well.</p>
+        <p>Three reasons it disappoints. The second provider has almost no production traffic, so
+        its integration is the least tested code you own, and it gets its first real load during
+        your worst hour. The semantics are rarely identical: different error codes, different
+        rounding, different limits, different idempotency behaviour. And you now maintain two
+        integrations for ever, including the one nobody uses, which quietly rots.</p>
+        <p>The thing that makes it work is exercising it. Send a small percentage of normal
+        traffic to the secondary all the time, so it is warm, monitored and known to work. A
+        failover path that only runs during failures is a plan, not a capability.</p>
+        <p>And for anything that moves money, the harder question is not whether you can call the
+        other provider but whether you can tell afterwards which one took the payment. That is a
+        reconciliation problem and it usually dwarfs the routing.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="c6">
+      <h2><em>06</em> Bulkheads and rate limiters</h2>
+
+      <ul class="prompts">
+        <li>One dependency goes slow. Why does everything else get slow too?</li>
+        <li>What is the difference between a bulkhead and a rate limiter?</li>
+        <li>How do you size a bulkhead?</li>
+        <li>What does a thread pool bulkhead give you that a semaphore does not?</li>
+      </ul>
+
+      <div class="teach">
+        <p><b>The failure this prevents.</b> A pool of 10 threads serves two dependencies. The
+        reports service has gone slow, two seconds a call. The prices service is completely
+        healthy at 10 milliseconds. Twenty report requests arrive, then twenty price requests.</p>
+
+        <p>The measurement is the slowest price call, timed <b>from submission</b>, because the
+        entire cost of a starved pool is the wait before the work even starts:</p>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th></th><th>Report calls refused</th><th>Price calls that worked</th>
+            <th>Slowest price call</th></tr></thead>
+          <tbody>
+          <tr><td>no bulkhead</td><td>0</td><td>20</td><td class="bad">3986 ms</td></tr>
+          <tr><td>bulkhead, 4 permits</td><td>16</td><td>20</td><td class="hl">60 ms</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><b>A call to a perfectly healthy service went from four seconds to sixty
+        milliseconds.</b> Nothing about the prices service changed in either run. It was fine the
+        whole time. It was simply queued behind a dependency that had nothing to do with it.</p>
+
+        <p>That is the failure worth being able to describe: <b>one sick dependency makes
+        everything slow, including things that do not use it</b>, because they share a pool. The
+        bulkhead fixes it by refusing 16 report calls, which is the trade. You deliberately give
+        up some of the sick dependency to keep everything else moving.</p>
+
+        <div class="note">
+          <b>A measurement that nearly went out wrong</b>
+          <p>The first version of this demo timed the price calls from <b>inside</b> the task and
+          reported 25 ms against 15 ms, which proved nothing at all. The queue wait was the entire
+          effect and it was being measured out of the result. Timing from submission is what
+          turned a meaningless table into a sixty six times difference.</p>
+        </div>
+
+        <p><b>A bulkhead and a rate limiter are different questions.</b> They get confused because
+        both refuse work.</p>
+
+        <div class="dump">
+          <div class="simhead"><span>resilience4j/demo/Main.java</span><span class="sp">real output</span></div>
+          <pre class="dumpcode">bulkhead of 4, hit with 20 calls at once:
+  ran 4, rejected immediately 16, service received <span class="hl">4</span>
+
+rate limiter of 10 per second, hit with 25 calls at once:
+  allowed 10, blocked 15, service received <span class="hl">10</span></pre>
+        </div>
+
+        <div class="tw">
+        <table>
+          <thead><tr><th></th><th>Bulkhead</th><th>Rate limiter</th></tr></thead>
+          <tbody>
+          <tr><td>Limits</td><td>How many run <b>at once</b></td><td>How many run <b>per
+            period</b></td></tr>
+          <tr><td>Protects</td><td>Your own threads and memory</td><td>The downstream service, or
+            a quota you are charged against</td></tr>
+          <tr><td>Cares about</td><td>How long each call takes</td><td>Nothing about duration</td></tr>
+          <tr><td>Typical reason</td><td>A dependency that can go slow</td><td>A provider that
+            charges per call or cuts you off above a limit</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>A thousand instant calls a second pass a bulkhead of 4 happily, because none of them
+        overlap for long, and are cut down hard by a rate limiter of 10 per second. Four calls
+        that each take a minute pass a rate limiter of 10 per second happily and fill a bulkhead
+        of 4 completely. A service under strain often needs both.</p>
+
+        <div class="wrong">
+          <b>Common wrong answers</b>
+          <p><b>"A bulkhead is just a thread pool."</b> A semaphore bulkhead uses the caller's
+          thread and only counts permits. There is a thread pool variant, and they behave very
+          differently under load.</p>
+          <p><b>"A bulkhead and a rate limiter do the same thing."</b> One is about concurrency,
+          the other about frequency. Measured above: same code, completely different numbers.</p>
+          <p><b>"Make the pool bigger."</b> That buys time and does not fix anything. The sick
+          dependency will fill whatever you give it, and now you have more threads doing nothing.</p>
+        </div>
+      </div>
+
+      <h3>Follow-up questions</h3>
+
+      <details class="rv"><summary>Semaphore or thread pool bulkhead? What actually differs?</summary>
+      <div class="rvb">
+        <p>Where the work runs, and it changes what you can do about a slow call.</p>
+        <p>A <b>semaphore bulkhead</b> is a permit count. The call runs on the caller's own thread;
+        the bulkhead only decides whether it may start. It is nearly free, it adds no context
+        switching, and anything relying on the current thread, such as a request scoped bean or a
+        security context, keeps working. Its limit is that it cannot impose a timeout, because
+        there is nothing to interrupt except the caller itself.</p>
+        <p>A <b>thread pool bulkhead</b> runs the call on its own separate pool and hands the
+        caller a future. That means you can time out and walk away, leaving the stuck call on the
+        isolated pool where it cannot take your request threads. It also means the work runs on a
+        different thread, so thread local state does not travel with it unless you carry it
+        deliberately.</p>
+        <p>The practical guidance: semaphore by default, because it is simpler and cheaper.
+        Thread pool when the dependency can hang in a way you cannot otherwise interrupt, which
+        in practice means a client library with no timeout of its own.</p>
+        <p>Worth noting that this is what Hystrix did years ago, and Resilience4j's default is the
+        semaphore because the thread pool version costs more than most calls need.</p>
+      </div></details>
+
+      <details class="rv"><summary>How do you size a bulkhead?</summary>
+      <div class="rvb">
+        <p>From how much of your capacity you are willing to lose to this one dependency, which is
+        a different question from how much traffic it gets.</p>
+        <p>The starting sum is Little's law. Calls per second multiplied by the average duration
+        in seconds gives the average number in flight. Twenty calls a second at 100 milliseconds
+        each is two in flight on average, so a bulkhead of two is already tight and something like
+        five gives headroom for bursts.</p>
+        <p>Then apply the real constraint. If the pool has 200 threads and this dependency can go
+        slow, a bulkhead of 20 means the worst case is 20 threads stuck, leaving 180 for
+        everything else. That is the number you actually care about, and it is why the answer is
+        usually a small fraction of the pool rather than a comfortable multiple of normal
+        traffic.</p>
+        <p>Two failure modes to name. Too large is the common one and it is invisible in normal
+        operation: everything works fine until the dependency slows down, and then the bulkhead
+        was never a limit at all. Too small shows up immediately as rejections during ordinary
+        bursts, which is annoying but at least it is obvious.</p>
+        <p>And say the last part out loud: you size it, then you watch the rejection count. A
+        bulkhead that has never rejected anything is either well sized or pointless, and only the
+        metric can tell you which.</p>
+      </div></details>
+
+      <details class="rv"><summary>Should a rate limiter make callers wait, or reject them?</summary>
+      <div class="rvb">
+        <p>It depends entirely on who is waiting, and Resilience4j makes this a single setting,
+        <code>timeoutDuration</code>, which is zero in the demo above.</p>
+        <p><b>Reject immediately</b> when a person is waiting. A user's request holding a thread
+        for two seconds waiting for a permit is a thread you cannot use and a user who thinks the
+        site is broken. Fail fast, return 429, let them retry.</p>
+        <p><b>Wait for a permit</b> when the caller is a background job with nowhere else to be. A
+        batch that has ten thousand records to push through a provider limited to 100 a second
+        should absolutely wait; rejecting would just mean writing your own retry loop around it,
+        which is the same thing with more code.</p>
+        <p>The trap in the waiting version is that it turns a rate limit into a queue, and queues
+        need a bound. If work arrives faster than the limit allows, and everyone waits, the number
+        of waiting threads grows without limit and you have moved the failure rather than fixed
+        it. That is why the timeout exists at all: it is the bound.</p>
+        <p>The answer that shows you have used one: set it to zero for anything user facing, set
+        it to something small for internal calls, and never leave it unbounded.</p>
+      </div></details>
+
+      <details class="rv"><summary>Do these still matter with virtual threads?</summary>
+      <div class="rvb">
+        <p>The bulkhead's original reason weakens considerably. The rest matter as much as ever,
+        and this is a good question to have a real position on because it is current.</p>
+        <p>The classic argument for a bulkhead is that platform threads are scarce, about a
+        megabyte of stack each, so a few hundred is the practical limit and a slow dependency
+        eating them is fatal. Virtual threads are cheap enough that a million is reasonable, and
+        blocking one does not hold a platform thread. So the specific failure measured in this
+        chapter, healthy calls queued behind a slow dependency because the pool was full, largely
+        goes away.</p>
+        <p>What does not go away is everything downstream of your process. Each in flight call
+        still holds a database connection, or a slot in an HTTP client's connection pool, or
+        memory for its request and response. Those are still finite and still worth protecting, so
+        the bulkhead's job shifts from protecting threads to protecting connections. That is a
+        real shift, not a removal.</p>
+        <p>And the pressure moves outward. Ten thousand virtual threads all calling a struggling
+        service is a much bigger hammer than two hundred platform threads were. If anything, the
+        circuit breaker and the rate limiter become more important once the thread pool is no
+        longer accidentally doing that job for you.</p>
+        <p>The line to finish on: virtual threads remove a limit, they do not remove the need for
+        limits. They just mean you now have to choose them deliberately instead of inheriting them
+        from the size of a pool.</p>
+      </div></details>
+    </section>
+
+    <section class="ch" id="quiz">
+      <h2><em>Q</em> Quiz</h2>
+      <p>Twelve questions across all six chapters. Read it, answer out loud, <em>then</em> reveal. Mark yourself honestly and you get your weakest chapters at the end.</p>
+      <div class="quiz">
+        <div class="qhead">
+          <span class="qn" id="qNum">1 / 12</span>
+          <span id="qChap">Chapter 1</span>
+          <span class="sc" id="qScore">0 correct</span>
+        </div>
+        <div class="qbody" id="qBody"></div>
+        <div class="qacts" id="qActs"></div>
+      </div>
+    </section>
+
+    <section class="ch" id="allq">
+      <h2><em>R</em> Every question, with answers</h2>
+      <p>The same twelve questions as a plain list, for revising quickly.</p>
+      <div id="allqList"></div>
+    </section>
+
+    <section class="ch" id="gloss" style="border-bottom:none">
+      <h2><em>G</em> Word list</h2>
+      <p>Every term on this page that you might not already know.</p>
+      <dl class="gloss">
+        <dt>backoff</dt><dd>Waiting longer before each retry, usually doubling the wait, so a struggling service is not hit at the same rate.</dd>
+        <dt>bulkhead</dt><dd>A limit on how many calls to one dependency may run at once, so a slow dependency cannot take every thread.</dd>
+        <dt>circuit breaker</dt><dd>Code that stops calling a service once enough calls have failed, and starts again cautiously later.</dd>
+        <dt>CLOSED, OPEN, HALF_OPEN</dt><dd>The three states of a circuit breaker: calls go through, calls are refused, and a few trial calls are allowed to test whether it has recovered.</dd>
+        <dt>connect timeout</dt><dd>How long to wait to establish a connection. Firing means the host is unreachable rather than busy.</dd>
+        <dt>fallback</dt><dd>What you return instead when the real call cannot be made.</dd>
+        <dt>failure rate threshold</dt><dd>The percentage of failed calls in the window that will open a breaker.</dd>
+        <dt>jitter</dt><dd>Adding randomness to a retry wait so clients that failed together do not all retry at the same instant.</dd>
+        <dt>Little's law</dt><dd>Calls per second times average duration gives the average number in flight. The starting sum for sizing a bulkhead.</dd>
+        <dt>rate limiter</dt><dd>A limit on how many calls may happen per period, as opposed to how many at once.</dd>
+        <dt>read timeout</dt><dd>How long to wait for an answer once connected. Firing means the service is alive and slow.</dd>
+        <dt>Resilience4j</dt><dd>The Java library that implements these patterns. Version 2.2.0 is what the demos in this episode run.</dd>
+        <dt>retry storm</dt><dd>Many clients failing at the same moment and therefore retrying at the same moment, multiplying load on a service that is already struggling.</dd>
+        <dt>sliding window</dt><dd>The set of recent calls a breaker measures its failure rate over. Sized by a number of calls or by a period of time.</dd>
+        <dt>slow call rate</dt><dd>A second threshold that treats calls above a set duration as failures, so a breaker can open on a service that is answering but far too slowly.</dd>
+        <dt>timeout</dt><dd>Giving up waiting after a set time. It frees the caller; whether it stops the work is a separate question.</dd>
+      </dl>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SHARED HELPERS =================
+     Do not edit this block per episode. Episode wiring goes in the
+     marked section at the bottom.                                  */
+
+  var KEY = (document.querySelector(".topbar").dataset.key || "ep") + ".";
+  var LS = {
+    get:function(k){try{return localStorage.getItem(KEY+k)}catch(e){return null}},
+    set:function(k,v){try{localStorage.setItem(KEY+k,v)}catch(e){}}
+  };
+
+  /* progress ticks and bar */
+  var ticks=[].slice.call(document.querySelectorAll(".tick"));
+  var pbar=document.querySelector("#pbar i"),pbarEl=document.getElementById("pbar"),pcount=document.getElementById("pcount");
+  function paintProgress(){
+    var n=ticks.filter(function(t){return t.checked}).length;
+    pbar.style.width=(n/ticks.length*100)+"%";
+    pcount.textContent=n+" / "+ticks.length;
+    pbarEl.setAttribute("aria-valuenow",n);
+  }
+  ticks.forEach(function(t){
+    if(LS.get("ch"+t.dataset.ch)==="1") t.checked=true;
+    t.addEventListener("change",function(){LS.set("ch"+t.dataset.ch,t.checked?"1":"0");paintProgress()});
+  });
+  paintProgress();
+
+  /* rail highlighting */
+  var links=[].slice.call(document.querySelectorAll(".rail a"));
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting) return;
+        links.forEach(function(a){a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)});
+      });
+    },{rootMargin:"-80px 0px -70% 0px"});
+    [].slice.call(document.querySelectorAll("section.ch")).forEach(function(s){io.observe(s)});
+  }
+
+  /* revision mode */
+  var revBtn=document.getElementById("revBtn");
+  function setRev(on){
+    document.body.classList.toggle("rev",on);
+    revBtn.setAttribute("aria-pressed",on?"true":"false");
+    revBtn.textContent=on?"Show explanations":"Revision mode";
+    LS.set("rev",on?"1":"0");
+  }
+  revBtn.addEventListener("click",function(){setRev(!document.body.classList.contains("rev"))});
+  if(LS.get("rev")==="1") setRev(true);
+
+  /* generic picker: wires a set of clickable elements to a readout panel.
+     sel      css selector for the clickable elements
+     attr     data attribute holding the key into data
+     data     object of key -> whatever render() expects
+     outSel   css selector for the panel to fill
+     render   function(d, el) returning html                        */
+  function picker(sel, attr, data, outSel, render){
+    var out=document.querySelector(outSel);
+    if(!out) return;
+    [].slice.call(document.querySelectorAll(sel)).forEach(function(el){
+      function pick(){
+        var d=data[el.dataset[attr]]; if(!d) return;
+        [].slice.call(document.querySelectorAll(sel)).forEach(function(x){
+          x.classList.remove("sel");
+          if(x.hasAttribute("aria-pressed")) x.setAttribute("aria-pressed","false");
+        });
+        el.classList.add("sel");
+        if(el.hasAttribute("aria-pressed")) el.setAttribute("aria-pressed","true");
+        out.innerHTML=render(d, el);
+      }
+      el.addEventListener("click",pick);
+      el.addEventListener("keydown",function(e){
+        if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}
+      });
+    });
+  }
+
+  /* three standard renderers */
+  function readoutHtml(d){
+    return '<span class="tag">'+d.tag+'</span><h6>'+d.h+'</h6><p>'+d.p+'</p>';
+  }
+  function fieldHtml(d, el){
+    return '<span class="tag">'+el.textContent.trim()+'</span><h6>'+d.t+'</h6><p>'+d.p+'</p>';
+  }
+  function chooserHtml(d){
+    return '<span class="lbl">'+(d.lbl||"Answer")+'</span><p class="verdict">'+d.v+'</p><p>'+d.n+'</p>'
+      + (d.x?'<p><span class="lbl">'+(d.xlbl||"What to run")+'</span><code>'+d.x+'</code></p>':'');
+  }
+
+  /* quiz engine plus flat list. Q is [{c:chapter, q:question, a:answer}] */
+  function wireQuiz(Q, chapterNames){
+    var qi=0,score=0,answered=[];
+    var qBody=document.getElementById("qBody"),qActs=document.getElementById("qActs"),
+        qNum=document.getElementById("qNum"),qChap=document.getElementById("qChap"),
+        qScore=document.getElementById("qScore");
+    function draw(){
+      if(qi>=Q.length){drawResult();return}
+      var q=Q[qi];
+      qNum.textContent=(qi+1)+" / "+Q.length;
+      qChap.textContent="Chapter "+q.c;
+      qScore.textContent=score+" correct";
+      qBody.innerHTML='<p class="qtext">'+q.q+'</p><div class="qmeta">answer out loud first</div>';
+      qActs.innerHTML='';
+      var reveal=document.createElement("button");
+      reveal.className="btn"; reveal.textContent="Reveal answer";
+      reveal.addEventListener("click",function(){
+        qBody.insertAdjacentHTML("beforeend",'<div class="qans"><p>'+q.a+'</p></div>');
+        qActs.innerHTML='';
+        var g=document.createElement("button");g.className="btn good";g.textContent="I had it";
+        var b=document.createElement("button");b.className="btn bad2";b.textContent="I missed it";
+        g.addEventListener("click",function(){score++;answered.push({c:q.c,ok:true});qi++;draw()});
+        b.addEventListener("click",function(){answered.push({c:q.c,ok:false});qi++;draw()});
+        qActs.appendChild(g);qActs.appendChild(b);
+      });
+      qActs.appendChild(reveal);
+    }
+    function drawResult(){
+      qNum.textContent="done"; qChap.textContent=""; qScore.textContent=score+" / "+Q.length;
+      var weak={};
+      answered.forEach(function(a){if(!a.ok){weak[a.c]=(weak[a.c]||0)+1}});
+      var ks=Object.keys(weak).sort(function(a,b){return weak[b]-weak[a]});
+      var html='<div class="result"><div class="big">'+score+' / '+Q.length+'</div>';
+      if(ks.length===0){html+='<p style="margin-top:12px">Nothing missed. Go and record the video.</p>'}
+      else{
+        html+='<p style="margin-top:12px">Weakest areas, worst first:</p><ul class="body">';
+        ks.forEach(function(k){html+='<li><a href="#c'+k+'">Chapter '+k+', '+chapterNames[k]+'</a>, '+weak[k]+' missed</li>'});
+        html+='</ul>';
+      }
+      html+='</div>';
+      qBody.innerHTML=html; qActs.innerHTML='';
+      var again=document.createElement("button");again.className="btn";again.textContent="Run it again";
+      again.addEventListener("click",function(){qi=0;score=0;answered=[];draw()});
+      qActs.appendChild(again);
+    }
+    draw();
+    document.getElementById("quizBtn").addEventListener("click",function(){
+      qi=0;score=0;answered=[];draw();
+      document.getElementById("quiz").scrollIntoView({behavior:"smooth"});
+    });
+    var list=document.getElementById("allqList");
+    Q.forEach(function(q,i){
+      var d=document.createElement("details");d.className="rv";
+      d.innerHTML='<summary>'+(i+1)+'. '+q.q+'</summary><div class="rvb"><p>'+q.a
+        +'</p><p style="font-size:13px;opacity:.7">Chapter '+q.c+'</p></div>';
+      list.appendChild(d);
+    });
+  }
+
+  /* ===================================================================
+     EPISODE SCRIPT GOES HERE
+
+     Available helpers:
+       picker(sel, attr, data, outSel, render)
+       readoutHtml / fieldHtml / chooserHtml   (renderers for picker)
+       wireQuiz(Q, chapterNames)
+       LS.get(k) / LS.set(k,v)                 (namespaced by data-key)
+
+     Example:
+       picker('[data-r]','r',REGIONS,'#regionOut',readoutHtml);
+       picker('.fld','f',FIELDS,'#fldOut',fieldHtml);
+       picker('#colOpts .opt','k',COLLECTORS,'#colOut',chooserHtml);
+       wireQuiz(Q,{1:"...",2:"...",3:"...",4:"...",5:"...",6:"..."});
+     =================================================================== */
+
+  /* ---------- chapter 1: what each pattern is for ---------- */
+
+  var PAT = {
+    timeout: {h:"Timeout", chips:[["protects your threads","good"]],
+      p:"Gives up waiting after a set time. This is the one to add first, because a breaker counts calls that have finished, and if calls never finish there is nothing to count. Without a timeout your threads are gone before any other pattern has noticed anything.",
+      real:"no timeout      waited 3007 ms, got \"eventually\"\n200 ms timeout  waited  213 ms, got \"gave up\"\n\nthe CALLER was freed. whether the work stopped is separate:\ncancelling only interrupts, and code that ignores interruption\nkeeps running and keeps holding a thread."},
+    retry: {h:"Retry", chips:[["protects the caller","good"],["multiplies load","bad"]],
+      p:"Tries again after a failure. It protects the caller from a blip and it protects nothing else. On its own it makes an incident worse, because three attempts from every caller is a threefold traffic increase aimed at something already struggling. It needs a limit, a delay, jitter, and something above it that can decide to stop entirely.",
+      real:"only retry what could work on a second try:\n\n  retry     connect timeout, connection refused, 503, 429,\n            a deadlock the database rolled back\n  never     400, 401, 403, 404, validation failures\n  careful   500 or read timeout on a write, because you do not\n            know whether the work happened"},
+    breaker: {h:"Circuit breaker", chips:[["protects the service you call","good"]],
+      p:"Stops calling once enough calls have failed. It is the only one of the four that reduces load on something that is already struggling, and it makes your own service faster rather than slower, because failing immediately beats waiting to fail.",
+      real:"100 calls to a service that is down:\n\n                        reached it   refused    total time\n  no protection                100         0       2066 ms\n  hand written breaker           5        95        103 ms\n  Resilience4j                   5        95        125 ms"},
+    bulkhead: {h:"Bulkhead", chips:[["protects everything else","good"]],
+      p:"Limits how many calls to one dependency run at once. It stops a single sick dependency taking every thread and dragging down work that has nothing to do with it. The cost is deliberate: you refuse some calls to the sick dependency to keep the rest of the service moving.",
+      real:"one slow dependency, one shared pool of 10 threads,\nslowest call to a HEALTHY service, timed from submission:\n\n  no bulkhead            3986 ms\n  bulkhead, 4 permits      60 ms"},
+    order: {h:"The order, measured", chips:[["retry outside: 5 calls","good"],["retry inside: 15 calls","bad"]],
+      p:"Resilience4j documents the order as Retry, then CircuitBreaker, then RateLimiter, then TimeLimiter, then Bulkhead, outermost first. Swap the first two and the breaker sees one failure for every three real calls, so it takes three times as long to open and the service that is already down absorbs three times the load. Identical result in both the hand written and the library version.",
+      real:"20 logical calls, 3 attempts each, service is down:\n\n                                       reached it   state\n  retry OUTSIDE, breaker sees attempts          5    OPEN\n  retry INSIDE, breaker sees one call          15    OPEN"}
+  };
+
+  /* ---------- chapter 2: the state machine ---------- */
+
+  var ST = {
+    closed: {h:"CLOSED", chips:[["calls go through","good"]],
+      p:"The normal state. Every call is allowed and the breaker counts what happens. When enough of the recent calls have failed, it trips to OPEN. What counts as enough is the whole of chapter three, and it is a much bigger decision than it looks.",
+      real:"public synchronized void recordFailure() {\n    if (state == State.HALF_OPEN) { trip(); return; }\n    if (++consecutiveFailures >= failureThreshold) {\n        trip();\n    }\n}"},
+    open: {h:"OPEN", chips:[["calls refused without being made","good"]],
+      p:"Calls are refused immediately without touching the service. This is where the speed comes from: 95 of 100 calls were answered in microseconds rather than waiting 20 milliseconds each to fail. An open breaker makes your service faster, not slower. After a cooling off period it moves to HALF_OPEN on its own.",
+      real:"if (state == State.OPEN) {\n    if (System.currentTimeMillis() - openedAt >= openMillis) {\n        moveTo(State.HALF_OPEN);   // time to try again\n    } else {\n        refused++; return false;   // still cooling off\n    }\n}"},
+    half: {h:"HALF_OPEN", chips:[["a few trial calls only","good"]],
+      p:"The state that lets the breaker find out whether the service recovered without betting everything on the answer. A small fixed number of trial calls is allowed through and everything else is still refused. If they succeed it closes. If one fails it opens again immediately and the clock restarts, so a service that is still down absorbs two calls rather than all of your traffic.",
+      real:"if (state == State.HALF_OPEN) {\n    if (trialsStarted >= trialCalls) { refused++; return false; }\n    trialsStarted++;\n}\n\n// and on the way back\nif (++trialsSucceeded >= trialCalls) {\n    moveTo(State.CLOSED);\n}"},
+    trace: {h:"All three, from a real run", chips:[["9 of 12 calls reached the service","good"]],
+      p:"Twelve calls in order, against a service that is down and then recovers. Three failures open it. The next three are refused without a call being made. After the cooling off period it allows trial calls, they succeed, and it closes.",
+      real:"xxx--- |......\n\n  .  went through and worked\n  x  went through and failed\n  -  refused by the breaker without touching the service\n  |  waited out the open period, and the service recovered\n\nstate path: CLOSED -> OPEN   OPEN -> HALF_OPEN   HALF_OPEN -> CLOSED\ncalls the service actually received: 9 out of 12 attempted"}
+  };
+
+  /* ---------- chapter 5: what do you return ---------- */
+
+  var FB = {
+    search: {h:"Search is down, on a product page", chips:[["fail clearly","good"],["empty list","bad"]],
+      p:"An empty list is the tempting answer and it is the wrong one. The page says no results, the user believes there is nothing, and they leave. Nothing errored, no alert fired, and the business lost a customer to something that looked like a working page. Say plainly that search is unavailable and offer browsing by category instead, which is a real path to the same goal."},
+    price: {h:"Pricing is down, at checkout", chips:[["fail clearly","good"],["cached price","bad"]],
+      p:"A stale price on a listing page is fine. Charging a stale price is a different thing entirely, and no amount of caching makes it acceptable. Fail, keep the basket, and ask them to try again shortly. Note that the same call has a different right answer on a listing page, which is exactly why a fallback belongs with the caller rather than inside the pricing client."},
+    recs: {h:"Recommendations are down, on a home page", chips:[["degrade quietly","good"]],
+      p:"The clearest case for a fallback there is. Nobody came to the site for the recommendations strip, so show the page without it. This only works if the front end was built to cope with a missing section, which is a design decision made long before the outage rather than during it. Count the fallback as its own metric or the outage will be invisible."},
+    perm: {h:"The permission check is down", chips:[["deny","good"],["allow to stay up","bad"]],
+      p:"There is no safe fallback that returns an answer, so the choice is which way to fail. Deny. An outage is a bad hour; wrongly granting access is a security incident with a much longer tail. The general rule this illustrates: a default has to be safe in the direction that matters, and defaulting a check to passed is how you lose money or data."},
+    email: {h:"The email service is down, after an order", chips:[["queue it","good"]],
+      p:"The best case for queueing. The customer does not need the email to have been sent before their order is confirmed, so accept the order, put the email on a queue and send it when the service returns. The catch to say out loud: you now own a queue that has to be drained, monitored and bounded, so this is a real piece of work rather than a free win."}
+  };
+
+  function panelHtml(d){
+    var chips = "";
+    if (d.chips) {
+      chips = "<div class='verdictrow'>" + d.chips.map(function(c){
+        return "<span class='vchip " + c[1] + "'>" + c[0] + "</span>";
+      }).join("") + "</div>";
+    }
+    return "<h6>" + d.h + "</h6>" + chips
+      + (d.real ? "<div class='real'>" + d.real + "</div>" : "")
+      + "<p>" + d.p + "</p>";
+  }
+
+  picker("[data-pat]", "pat", PAT, "#patOut", panelHtml);
+  picker("[data-st]",  "st",  ST,  "#stateOut", panelHtml);
+  picker("[data-fb]",  "fb",  FB,  "#fbOut", panelHtml);
+
+  /* open each panel on a real example so the page shows what it does */
+  document.querySelector('[data-pat="order"]').click();
+  document.querySelector('[data-st="trace"]').click();
+  document.querySelector('[data-fb="price"]').click();
+
+  /* ---------- the quiz ---------- */
+
+  var Q = [
+    {c:1, q:"Name the four patterns and say what each one protects. Which do you add first?",
+     a:"A timeout protects your threads: without one a hung call holds a thread for ever and your service dies of something that happened elsewhere. A retry protects the caller from a blip and protects nothing else. A circuit breaker protects the service you are calling, and your own latency, and it is the only one that reduces load on something already struggling. A bulkhead protects everything else you do, by stopping one sick dependency taking every thread. Add the timeout first, because a breaker counts calls that have finished, so if calls never finish there is nothing to count and the breaker sits closed while every thread is stuck inside it."},
+    {c:1, q:"In what order do you wrap them, and what did swapping two actually cost?",
+     a:"Retry outermost, then CircuitBreaker, then RateLimiter, then TimeLimiter, then Bulkhead. Measured with 20 logical calls of 3 attempts each against a service that was down: with the retry outside, every attempt passed through the breaker, so it counted three failures per logical call and 5 calls reached the service. With the retry inside, the breaker saw one call that secretly made three, counted one failure for every three real ones, and 15 calls reached the service. Three times the load on something already down, from swapping two decorators."},
+    {c:2, q:"Describe the three states of a circuit breaker and what moves it between them.",
+     a:"CLOSED lets calls through and counts what happens; enough recent failures trip it to OPEN. OPEN refuses calls immediately without touching the service, which is where the speed comes from, and after a cooling off period it moves to HALF_OPEN on its own. HALF_OPEN lets a small fixed number of trial calls through while still refusing everything else: if they succeed it closes, and if one fails it opens again immediately and the clock restarts. Half open exists so the breaker can find out whether the service recovered without sending full traffic back at something that may still be broken."},
+    {c:2, q:"What did a circuit breaker actually buy, and why does an open breaker make your service faster?",
+     a:"One hundred calls to a service that was down, each failing call taking 20 ms: no protection gave 100 calls reaching the service and 2066 ms total. Both the hand written breaker and Resilience4j gave 5 calls reaching it, 95 refused, and about 100 ms. It is faster because 95 of the calls were answered without touching the network at all. Failing immediately beats waiting to fail, so an open breaker improves your latency rather than harming it."},
+    {c:3, q:"A service fails 30 percent of the time. Three breakers were run ten times each. What happened, and what does it mean?",
+     a:"Counting five failures in a row opened in only 6 of 10 identical runs, and when it did it took anywhere from 7 to 236 calls, because a single success resets the count. Resilience4j with a 50 percent threshold over a window of 10 opened in all 10 runs, averaging 31 calls. The same 50 percent threshold over a window of 100 never opened at all. The two library rows differ only in window size, so the window, not the threshold, decided the outcome. With 10 samples of a 30 percent process, crossing 50 percent is common by chance, so the narrow window is largely measuring noise; the wide window measures the real rate, which is below the threshold."},
+    {c:3, q:"What is the slow call rate and why does it exist separately from the failure rate?",
+     a:"It is a second threshold that treats any call above a set duration as a failure. It exists because the worst failure is often not an error but an answer that arrives too late to be useful, and a failure rate cannot see that at all. A service returning perfect responses in eight seconds has a zero percent failure rate and is destroying you, because every call holds one of your threads for eight seconds. Services usually degrade before they break, so latency climbing is the early warning and errors are what happens after. It only matters below your timeout, since above that every slow call is already a failure."},
+    {c:4, q:"A call takes three seconds and you set a 200 ms timeout. What exactly did the timeout free?",
+     a:"The caller, measured at 213 ms against 3007 ms without one. Whether the work stopped is a separate question. Cancelling only interrupts the thread, and interruption is a request rather than a command: code in Thread.sleep or a blocking queue notices, but code in a tight loop or inside a socket read with no timeout of its own does not, and carries on holding that thread. So a timeout with no way to stop the work still leaks threads, which is why HTTP clients have their own connect and read timeouts."},
+    {c:4, q:"Why is exponential backoff not enough on its own, and what is the arithmetic people get wrong?",
+     a:"Backoff stops one client hammering a struggling service. It does nothing about the case that causes outages, which is every client failing at the same moment and therefore retrying at the same moment: doubling the wait moves the whole crowd together. Jitter, meaning a random wait up to the backoff rather than exactly the backoff, is what spreads them out. The arithmetic error is treating a two second read timeout with three attempts as a two second operation. It is up to six seconds of calls plus the waits between them, so if the caller upstream gives up after three seconds your retries are finishing into a void."},
+    {c:5, q:"The pricing service is down. What do you return, and why does the answer depend on the page?",
+     a:"On a product listing page a slightly stale cached price is fine and much better than a gap. At checkout, charging a stale price is a real problem, so the honest response is to fail, keep the basket and ask them to try again. That difference is exactly why a fallback belongs with the caller who knows what the data is for, not inside the pricing client, which cannot tell the two situations apart and will therefore be wrong for one of them."},
+    {c:5, q:"When is a fallback worse than an error, and how do you stop a good fallback hiding an outage?",
+     a:"A fallback is dangerous the moment a made up answer is indistinguishable from a true one. An empty list when search is down means the user believes there is nothing and leaves, with no error and no alert. Defaulting a permission check to allowed keeps the site up until it becomes a security incident. To stop a working fallback hiding an outage, count fallback responses as their own metric and alert on that, not on the error rate: a good fallback makes latency improve and errors go to zero, so every normal signal looks better than usual, which is the tell."},
+    {c:6, q:"One dependency goes slow. Why does everything else get slow, and what did a bulkhead change?",
+     a:"Because they share a thread pool. A pool of 10 threads served a slow reports dependency at 2 seconds a call and a completely healthy prices dependency at 10 ms. With no bulkhead, the slowest price call took 3986 ms measured from submission, because it queued behind work that had nothing to do with it. With a bulkhead of 4 permits it took 60 ms, achieved by refusing 16 report calls. That is the trade: you deliberately give up some of the sick dependency to keep everything else moving. Nothing about the prices service changed in either run."},
+    {c:6, q:"What is the difference between a bulkhead and a rate limiter?",
+     a:"A bulkhead limits how many calls run at once and protects your own threads, connections and memory. A rate limiter limits how many run per period and protects the downstream service or a quota you are charged against. A thousand instant calls a second pass a bulkhead of 4 happily because none overlap for long, and are cut down hard by a rate limiter of 10 per second. Four calls that each take a minute pass a rate limiter of 10 per second happily and fill a bulkhead of 4 completely. Measured: a bulkhead of 4 hit with 20 calls let 4 through; a rate limiter of 10 per second hit with 25 calls let 10 through."}
+  ];
+
+  wireQuiz(Q, {
+    1:"four patterns, and why the order matters",
+    2:"writing a circuit breaker",
+    3:"what the configuration decides",
+    4:"timeouts and retries",
+    5:"designing a fallback",
+    6:"bulkheads and rate limiters"
+  });
+
+})();
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

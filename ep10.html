@@ -97,6 +97,13 @@ pre code{color:var(--ink)}
 .kw{color:var(--held)}
 .st{color:var(--freed)}
 .bad{color:var(--alarm);font-weight:600}
+
+/* Links inside the content. Without this they fall back to the browser default
+   blue, which is unreadable on the dark surface. The only ones on the page are
+   in the quiz result, which is why it went unnoticed for so long. */
+main a{color:var(--held);text-decoration:underline;text-underline-offset:2px}
+main a:hover{color:var(--ink)}
+main a:focus-visible{outline:2px solid var(--held);outline-offset:2px;border-radius:3px}
 :not(pre)>code{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px;font-size:.885em}
 
 .note{border-left:3px solid var(--held);background:var(--held-bg);padding:13px 16px;border-radius:0 var(--r) var(--r) 0;margin:0 0 16px;max-width:68ch}

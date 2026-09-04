@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="The runnable code behind episode 13 of the Java interview study series.">
+<title>Stop Calling It, the code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Condensed:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>
+(function(){try{var t=localStorage.getItem('site-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+</head>
+<body>
+<header class="sitehead"><div class="wrap">
+<div class="headtop"><p class="kicker">Episode 13 code</p><button class="btn themebtn" id="themeBtn" type="button" aria-label="Switch theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
+<h1>Stop Calling It</h1>
+<p class="tagline">Every number on the episode page came from running this. 7 files, 37.9 KB.</p>
+<p class="codeacts"><a class="dl" href="ep13.zip" download>Download all, 12.8 KB</a><a class="back2" href="../ep13.html">Read the episode</a><a class="back2" href="../index.html">All episodes</a></p>
+</div></header>
+<main class="wrap">
+<section class="grp">
+<h2 class="grph">top level</h2>
+<details class="f" open>
+<summary><span class="fname">README.md</span><span class="fmeta">6.2 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep13/README.md">raw file</a><button class="copy" type="button">copy</button></div><pre><code># Episode 13 demos
+
+Two projects. `handbuilt/` is plain Java with no dependencies, so the state
+machine is visible. `resilience4j/` runs the same scenarios through the real
+library, Resilience4j 2.2.0, on Java 24.
+
+```bash
+cd handbuilt     &amp;&amp; java Main.java &amp;&amp; java Isolation.java
+cd resilience4j  &amp;&amp; mvn compile &amp;&amp; java -cp "target/classes;$(cat cp.txt)" demo.Main
+```
+
+Every number below came from those two commands.
+
+## 1. One hundred calls to a service that is down
+
+| | calls that reached it | refused without calling | total time |
+|---|---|---|---|
+| no protection | 100 | 0 | 2066 ms |
+| hand written breaker | **5** | 95 | **103 ms** |
+| Resilience4j | **5** | 95 | **125 ms** |
+
+The failing service took 5 calls instead of 100, and the caller got its answer
+twenty times faster. Both versions agree, which is the point of writing it twice:
+the library is not doing anything mysterious.
+
+## 2. The one that changed what this episode says
+
+A service that is not down, just unwell: it fails **30 percent** of the time.
+Three breakers, ten runs each, 300 calls per run. The number recorded is how
+many calls reached the service before the breaker opened.
+
+```
+hand written, 5 failures IN A ROW
+  per run: 236 188 never 234 never 204 7 never 51 never
+  opened in 6 of 10 runs, from 7 to 236 calls, average 153
+
+Resilience4j, 50 percent over a window of 10
+  per run: 48 15 13 6 24 26 5 33 50 95
+  opened in 10 of 10 runs, from 5 to 95 calls, average 31
+
+Resilience4j, 50 percent over a window of 100
+  per run: never never never never never never never never never never
+  never opened in any run
+```
+
+Three things worth taking from that, and the second one was a surprise.
+
+**Counting failures in a row is unreliable.** The hand written breaker missed the
+problem entirely in 4 of 10 identical runs, and when it did notice, it took
+anywhere from 7 to 236 calls. A single success resets the count, so a service
+failing 30 percent of the time can keep it closed almost indefinitely.
+
+**The window size decided the outcome, not the threshold.** Both Resilience4j
+rows use the same 50 percent threshold against the same 30 percent failure rate.
+One opened on every single run. The other never opened at all. With only 10
+samples of a 30 percent process, exceeding 50 percent is common, so the narrow
+window is largely measuring noise. The wide window measures the real rate, which
+is below the threshold, so it correctly leaves the breaker closed.
+
+**Neither is simply right.** A narrow window reacts fast and cries wolf. A wide
+window is accurate and slow to protect you. That trade is the actual decision,
+and it is not visible from reading the configuration.
+
+An earlier version of this demo claimed a consecutive breaker "barely notices" a
+partly failing service. The measurement disagreed: it opened, at 14 calls. The
+claim was replaced with what the runs actually show.
+
+## 3. Retry outside the breaker, or inside it
+
+20 logical calls, 3 attempts each, against a service that is down.
+
+| | calls that reached it |
+|---|---|
+| retry OUTSIDE, breaker sees every attempt | **5** |
+| retry INSIDE, breaker sees one call per three | **15** |
+
+Identical in both projects. Put the retry inside, and the breaker counts one
+failure for every three real calls, so it takes three times as long to open and
+the service that is already down absorbs three times the load.
+
+This is why Resilience4j documents an order: **Retry, then CircuitBreaker, then
+RateLimiter, then TimeLimiter, then Bulkhead**, outermost first.
+
+## 4. Opening, waiting, closing again
+
+From the hand written breaker, one character per call:
+
+```
+xxx--- |......
+
+.  went through and worked
+x  went through and failed
+-  refused by the breaker without touching the service
+|  waited out the open period, and the service recovered
+
+state path: CLOSED -&gt; OPEN   OPEN -&gt; HALF_OPEN   HALF_OPEN -&gt; CLOSED
+calls the service actually received: 9 out of 12 attempted
+```
+
+Three failures open it. The next three are refused without a call. After the
+cooling off period it allows trial calls, they succeed, and it closes.
+
+## 5. One sick dependency, one shared thread pool
+
+A pool of 10 threads serves two dependencies. Reports has gone slow at 2 seconds
+a call; prices is healthy at 10 ms. 20 report requests arrive, then 20 price
+requests. The measurement is the slowest price call, **timed from submission**,
+because the whole cost of a starved pool is the wait before the task starts.
+
+| | report calls refused | price calls that worked | slowest price call |
+|---|---|---|---|
+| no bulkhead | 0 | 20 | **3986 ms** |
+| bulkhead, 4 permits | 16 | 20 | **60 ms** |
+
+A call to a perfectly healthy service went from four seconds to 60 milliseconds.
+The bulkhead achieves that by refusing 16 report calls, which is the trade: you
+give up some of the sick dependency to keep everything else moving.
+
+The first version of this demo timed the price calls from inside the task and
+showed 25 ms against 15 ms, which proved nothing. The queue wait was the entire
+effect and it was being measured out of the result.
+
+## 6. A call that never comes back
+
+```
+no timeout      waited 3007 ms, got "eventually"
+200 ms timeout  waited 213 ms, got "gave up"
+```
+
+The timeout freed the **caller** after 213 ms. Whether the work stopped is a
+separate question: cancelling only interrupts, and code that ignores
+interruption keeps running. A timeout with no way to stop the work still leaks
+threads.
+
+## 7. Bulkhead against rate limiter
+
+From Resilience4j:
+
+```
+bulkhead of 4, hit with 20 calls at once:
+  ran 4, rejected immediately 16, service received 4
+
+rate limiter of 10 per second, hit with 25 calls at once:
+  allowed 10, blocked 15, service received 10
+```
+
+A bulkhead limits how many run **at once**. A rate limiter limits how many run
+**per period**. Different questions, and a service under strain often needs both.
+
+## What the two projects cost
+
+The hand written circuit breaker is about 90 lines including comments, and it
+gave the same answers as the library for a service that is fully down. It fell
+apart on the case in section 2, which is a partly failing service, and that is
+the honest argument for the library: not that it is faster or shorter, but that
+somebody has already thought about sliding windows, half open trial calls,
+slow call rates and the metrics you need to tune any of it.
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">handbuilt</h2>
+<details class="f">
+<summary><span class="fname">Breaker.java</span><span class="fmeta">3.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep13/handbuilt/Breaker.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * A circuit breaker, written out in full so the state machine is visible.
+ * This is the whole thing: three states and two counters.
+ *
+ *   CLOSED     calls go through. Enough failures in a row and it opens.
+ *   OPEN       calls are refused immediately, without touching the service.
+ *              After a cooling off period it moves to half open.
+ *   HALF_OPEN  a few trial calls are allowed through. If they work it closes.
+ *              If one fails it opens again and the clock restarts.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Breaker {
+
+    <span class="kw">public</span> <span class="kw">enum</span> State { CLOSED, OPEN, HALF_OPEN }
+
+    <span class="kw">private</span> <span class="kw">final</span> String name;
+    <span class="kw">private</span> <span class="kw">final</span> <span class="kw">int</span> failureThreshold;   <span class="cm">// failures in a row before opening</span>
+    <span class="kw">private</span> <span class="kw">final</span> <span class="kw">long</span> openMillis;        <span class="cm">// how long to stay open</span>
+    <span class="kw">private</span> <span class="kw">final</span> <span class="kw">int</span> trialCalls;         <span class="cm">// how many calls to test with</span>
+
+    <span class="kw">private</span> State state = State.CLOSED;
+    <span class="kw">private</span> <span class="kw">int</span> consecutiveFailures;
+    <span class="kw">private</span> <span class="kw">long</span> openedAt;
+    <span class="kw">private</span> <span class="kw">int</span> trialsStarted;
+    <span class="kw">private</span> <span class="kw">int</span> trialsSucceeded;
+
+    <span class="kw">private</span> <span class="kw">int</span> allowed;
+    <span class="kw">private</span> <span class="kw">int</span> refused;
+    <span class="kw">private</span> <span class="kw">final</span> StringBuilder transitions = <span class="kw">new</span> StringBuilder();
+
+    <span class="kw">public</span> Breaker(String name, <span class="kw">int</span> failureThreshold, <span class="kw">long</span> openMillis, <span class="kw">int</span> trialCalls) {
+        <span class="kw">this</span>.name = name;
+        <span class="kw">this</span>.failureThreshold = failureThreshold;
+        <span class="kw">this</span>.openMillis = openMillis;
+        <span class="kw">this</span>.trialCalls = trialCalls;
+    }
+
+    <span class="cm">/** Ask before calling. False means refuse without touching the service. */</span>
+    <span class="kw">public</span> <span class="kw">synchronized</span> <span class="kw">boolean</span> allow() {
+        <span class="kw">if</span> (state == State.OPEN) {
+            <span class="kw">if</span> (System.currentTimeMillis() - openedAt &gt;= openMillis) {
+                moveTo(State.HALF_OPEN);
+                trialsStarted = <span class="nm">0</span>;
+                trialsSucceeded = <span class="nm">0</span>;
+            } <span class="kw">else</span> {
+                refused++;
+                <span class="kw">return</span> <span class="kw">false</span>;
+            }
+        }
+        <span class="kw">if</span> (state == State.HALF_OPEN) {
+            <span class="kw">if</span> (trialsStarted &gt;= trialCalls) { refused++; <span class="kw">return</span> <span class="kw">false</span>; }
+            trialsStarted++;
+        }
+        allowed++;
+        <span class="kw">return</span> <span class="kw">true</span>;
+    }
+
+    <span class="kw">public</span> <span class="kw">synchronized</span> <span class="kw">void</span> recordSuccess() {
+        <span class="kw">if</span> (state == State.HALF_OPEN) {
+            <span class="kw">if</span> (++trialsSucceeded &gt;= trialCalls) {
+                moveTo(State.CLOSED);
+                consecutiveFailures = <span class="nm">0</span>;
+            }
+        } <span class="kw">else</span> {
+            consecutiveFailures = <span class="nm">0</span>;
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">synchronized</span> <span class="kw">void</span> recordFailure() {
+        <span class="kw">if</span> (state == State.HALF_OPEN) {
+            trip();
+            <span class="kw">return</span>;
+        }
+        <span class="kw">if</span> (++consecutiveFailures &gt;= failureThreshold) {
+            trip();
+        }
+    }
+
+    <span class="kw">private</span> <span class="kw">void</span> trip() {
+        moveTo(State.OPEN);
+        openedAt = System.currentTimeMillis();
+        consecutiveFailures = <span class="nm">0</span>;
+    }
+
+    <span class="kw">private</span> <span class="kw">void</span> moveTo(State next) {
+        <span class="kw">if</span> (next != state) {
+            transitions.append(state).append(<span class="st">" -&gt; "</span>).append(next).append(<span class="st">"  "</span>);
+            state = next;
+        }
+    }
+
+    <span class="kw">public</span> <span class="kw">synchronized</span> State state()   { <span class="kw">return</span> state; }
+    <span class="kw">public</span> <span class="kw">synchronized</span> <span class="kw">int</span> allowed()   { <span class="kw">return</span> allowed; }
+    <span class="kw">public</span> <span class="kw">synchronized</span> <span class="kw">int</span> refused()   { <span class="kw">return</span> refused; }
+    <span class="kw">public</span> <span class="kw">synchronized</span> String path()   { <span class="kw">return</span> transitions.toString().trim(); }
+    <span class="kw">public</span> String name()                { <span class="kw">return</span> name; }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">FlakyService.java</span><span class="fmeta">1.1 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep13/handbuilt/FlakyService.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+
+<span class="cm">/**
+ * Stands in for a downstream service. It counts every call that actually
+ * reaches it, which is the number the whole episode is about: the point of
+ * these patterns is to reduce it when the service is unwell.
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> FlakyService {
+
+    <span class="kw">private</span> <span class="kw">final</span> AtomicInteger callsReceived = <span class="kw">new</span> AtomicInteger();
+    <span class="kw">private</span> <span class="kw">volatile</span> <span class="kw">boolean</span> healthy = <span class="kw">true</span>;
+    <span class="kw">private</span> <span class="kw">volatile</span> <span class="kw">long</span> latencyMs = <span class="nm">5</span>;
+
+    <span class="kw">public</span> String call(String what) {
+        callsReceived.incrementAndGet();
+        sleep(latencyMs);
+        <span class="kw">if</span> (!healthy) {
+            <span class="kw">throw</span> <span class="kw">new</span> RuntimeException(<span class="st">"downstream is down"</span>);
+        }
+        <span class="kw">return</span> <span class="st">"ok:"</span> + what;
+    }
+
+    <span class="kw">public</span> <span class="kw">void</span> goDown()      { healthy = <span class="kw">false</span>; }
+    <span class="kw">public</span> <span class="kw">void</span> comeBack()    { healthy = <span class="kw">true</span>; }
+    <span class="kw">public</span> <span class="kw">void</span> slowTo(<span class="kw">long</span> ms) { latencyMs = ms; }
+
+    <span class="kw">public</span> <span class="kw">int</span> callsReceived() { <span class="kw">return</span> callsReceived.get(); }
+    <span class="kw">public</span> <span class="kw">void</span> resetCounter() { callsReceived.set(<span class="nm">0</span>); }
+
+    <span class="kw">static</span> <span class="kw">void</span> sleep(<span class="kw">long</span> ms) {
+        <span class="kw">try</span> { Thread.sleep(ms); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Isolation.java</span><span class="fmeta">5.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep13/handbuilt/Isolation.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.concurrent.*;
+<span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+
+<span class="cm">/**
+ * The two patterns that are about resources rather than about failure:
+ * a bulkhead, which stops one sick dependency eating the whole thread pool,
+ * and a timeout, which stops a call holding a thread for ever.
+ *
+ *   java Isolation.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Isolation {
+
+    <span class="kw">static</span> <span class="kw">void</span> head(String s) {
+        System.out.println();
+        System.out.println(<span class="st">"=== "</span> + s + <span class="st">" ==="</span>);
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        bulkhead();
+        timeout();
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 4</span>
+
+    <span class="cm">/** A bulkhead is a permit count. That is genuinely all it is. */</span>
+    <span class="kw">static</span> <span class="kw">class</span> Bulkhead {
+        <span class="kw">private</span> <span class="kw">final</span> Semaphore <span class="kw">permits</span>;
+        <span class="kw">private</span> <span class="kw">final</span> AtomicInteger rejected = <span class="kw">new</span> AtomicInteger();
+        Bulkhead(<span class="kw">int</span> n) { <span class="kw">this</span>.<span class="kw">permits</span> = <span class="kw">new</span> Semaphore(n); }
+
+        &lt;T&gt; T call(Callable&lt;T&gt; work) <span class="kw">throws</span> Exception {
+            <span class="kw">if</span> (!<span class="kw">permits</span>.tryAcquire()) {
+                rejected.incrementAndGet();
+                <span class="kw">throw</span> <span class="kw">new</span> RejectedExecutionException(<span class="st">"bulkhead full"</span>);
+            }
+            <span class="kw">try</span> { <span class="kw">return</span> work.call(); } <span class="kw">finally</span> { <span class="kw">permits</span>.release(); }
+        }
+        <span class="kw">int</span> rejected() { <span class="kw">return</span> rejected.get(); }
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> bulkhead() <span class="kw">throws</span> Exception {
+        head(<span class="st">"4. one sick dependency, one shared thread pool"</span>);
+        System.out.println(<span class="st">"  A pool of 10 threads serves two dependencies."</span>);
+        System.out.println(<span class="st">"  The reports service has gone slow: 2 seconds a call."</span>);
+        System.out.println(<span class="st">"  The prices service is fine: 10 ms a call."</span>);
+        System.out.println(<span class="st">"  20 report requests arrive, then 20 price requests."</span>);
+        System.out.println();
+
+        System.out.printf(<span class="st">"  %-26s %14s %14s %14s%n"</span>,
+                <span class="st">""</span>, <span class="st">"report calls"</span>, <span class="st">"price calls"</span>, <span class="st">"slowest price"</span>);
+        System.out.printf(<span class="st">"  %-26s %14s %14s %14s%n"</span>,
+                <span class="st">""</span>, <span class="st">"refused"</span>, <span class="st">"that worked"</span>, <span class="st">"wait, submit"</span>);
+        System.out.printf(<span class="st">"  %-26s %14s %14s %14s%n"</span>,
+                <span class="st">""</span>, <span class="st">""</span>, <span class="st">""</span>, <span class="st">"to done"</span>);
+        System.out.println(<span class="st">"  "</span> + <span class="st">"-"</span>.repeat(<span class="nm">70</span>));
+
+        run(<span class="st">"no bulkhead"</span>, <span class="kw">null</span>);
+        run(<span class="st">"bulkhead, 4 permits"</span>, <span class="kw">new</span> Bulkhead(<span class="nm">4</span>));
+
+        System.out.println();
+        System.out.println(<span class="st">"  Without a bulkhead the slow dependency owns every thread, so"</span>);
+        System.out.println(<span class="st">"  calls to a perfectly healthy service queue behind it. The"</span>);
+        System.out.println(<span class="st">"  bulkhead refuses some report calls so the prices keep flowing."</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> run(String label, Bulkhead bulkhead) <span class="kw">throws</span> Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(<span class="nm">10</span>);
+        AtomicInteger priceOk = <span class="kw">new</span> AtomicInteger();
+        AtomicInteger slowestPrice = <span class="kw">new</span> AtomicInteger();
+        List&lt;Future&lt;?&gt;&gt; all = <span class="kw">new</span> ArrayList&lt;&gt;();
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) {
+            all.add(pool.submit(() -&gt; {
+                <span class="kw">try</span> {
+                    Callable&lt;String&gt; work = () -&gt; { FlakyService.sleep(<span class="nm">2000</span>); <span class="kw">return</span> <span class="st">"report"</span>; };
+                    <span class="kw">if</span> (bulkhead == <span class="kw">null</span>) work.call(); <span class="kw">else</span> bulkhead.call(work);
+                } <span class="kw">catch</span> (RejectedExecutionException e) {
+                    <span class="cm">// the bulkhead refused it, which is the point</span>
+                } <span class="kw">catch</span> (Exception ignored) { }
+            }));
+        }
+
+        FlakyService.sleep(<span class="nm">50</span>);          <span class="cm">// let the reports get in first</span>
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) {
+            <span class="cm">// measured from SUBMISSION, not from when the task starts running.</span>
+            <span class="cm">// The whole cost of a starved pool is the wait before it runs, and</span>
+            <span class="cm">// timing from inside the task hides exactly that.</span>
+            <span class="kw">final</span> <span class="kw">long</span> submittedAt = System.nanoTime();
+            all.add(pool.submit(() -&gt; {
+                FlakyService.sleep(<span class="nm">10</span>);
+                priceOk.incrementAndGet();
+                <span class="kw">int</span> ms = (<span class="kw">int</span>) ((System.nanoTime() - submittedAt) / <span class="nm">1_000_000</span>);
+                slowestPrice.accumulateAndGet(ms, Math::max);
+            }));
+        }
+
+        <span class="kw">for</span> (Future&lt;?&gt; f : all) f.get();
+        pool.shutdown();
+
+        System.out.printf(<span class="st">"  %-26s %14d %14d %11d ms%n"</span>,
+                label, bulkhead == <span class="kw">null</span> ? <span class="nm">0</span> : bulkhead.rejected(), priceOk.get(),
+                slowestPrice.get());
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 5</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> timeout() <span class="kw">throws</span> Exception {
+        head(<span class="st">"5. a call that never comes back"</span>);
+
+        ExecutorService pool = Executors.newFixedThreadPool(<span class="nm">2</span>);
+
+        <span class="kw">long</span> start = System.nanoTime();
+        Future&lt;String&gt; slow = pool.submit(() -&gt; { FlakyService.sleep(<span class="nm">3000</span>); <span class="kw">return</span> <span class="st">"eventually"</span>; });
+        String answer = slow.get();
+        <span class="kw">long</span> waited = (System.nanoTime() - start) / <span class="nm">1_000_000</span>;
+        System.out.printf(<span class="st">"  no timeout      waited %d ms, got \"%s\"%n"</span>, waited, answer);
+
+        start = System.nanoTime();
+        Future&lt;String&gt; slow2 = pool.submit(() -&gt; { FlakyService.sleep(<span class="nm">3000</span>); <span class="kw">return</span> <span class="st">"eventually"</span>; });
+        String result;
+        <span class="kw">try</span> {
+            result = slow2.get(<span class="nm">200</span>, TimeUnit.MILLISECONDS);
+        } <span class="kw">catch</span> (TimeoutException e) {
+            result = <span class="st">"gave up"</span>;
+            slow2.cancel(<span class="kw">true</span>);
+        }
+        <span class="kw">long</span> waited2 = (System.nanoTime() - start) / <span class="nm">1_000_000</span>;
+        System.out.printf(<span class="st">"  200 ms timeout  waited %d ms, got \"%s\"%n"</span>, waited2, result);
+
+        pool.shutdownNow();
+        System.out.println();
+        System.out.println(<span class="st">"  The timeout freed the CALLER after "</span> + waited2 + <span class="st">" ms."</span>);
+        System.out.println(<span class="st">"  Whether the work itself stopped is a separate question: cancel"</span>);
+        System.out.println(<span class="st">"  only interrupts, and code that ignores interruption keeps going."</span>);
+        System.out.println(<span class="st">"  A timeout with no way to stop the work still leaks threads."</span>);
+    }
+}
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">Main.java</span><span class="fmeta">6.5 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep13/handbuilt/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="cm">/**
+ * The circuit breaker, measured. Everything here is the hand written Breaker,
+ * so nothing is hidden inside a library.
+ *
+ *   java Main.java
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Main {
+
+    <span class="kw">static</span> <span class="kw">void</span> head(String s) {
+        System.out.println();
+        System.out.println(<span class="st">"=== "</span> + s + <span class="st">" ==="</span>);
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        noProtectionVersusBreaker();
+        theOrderQuestion();
+        recovery();
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 1</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> noProtectionVersusBreaker() {
+        head(<span class="st">"1. one hundred calls to a service that is down"</span>);
+
+        FlakyService plain = <span class="kw">new</span> FlakyService();
+        plain.goDown();
+        plain.slowTo(<span class="nm">20</span>);                 <span class="cm">// a failing call is rarely instant</span>
+        <span class="kw">long</span> start = System.nanoTime();
+        <span class="kw">int</span> failures = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">100</span>; i++) {
+            <span class="kw">try</span> { plain.call(<span class="st">"x"</span>); } <span class="kw">catch</span> (RuntimeException e) { failures++; }
+        }
+        <span class="kw">long</span> plainMs = (System.nanoTime() - start) / <span class="nm">1_000_000</span>;
+
+        FlakyService guarded = <span class="kw">new</span> FlakyService();
+        guarded.goDown();
+        guarded.slowTo(<span class="nm">20</span>);
+        Breaker breaker = <span class="kw">new</span> Breaker(<span class="st">"orders"</span>, <span class="nm">5</span>, <span class="nm">10_000</span>, <span class="nm">2</span>);
+        start = System.nanoTime();
+        <span class="kw">int</span> refusedFast = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">100</span>; i++) {
+            <span class="kw">if</span> (!breaker.allow()) { refusedFast++; <span class="kw">continue</span>; }
+            <span class="kw">try</span> {
+                guarded.call(<span class="st">"x"</span>);
+                breaker.recordSuccess();
+            } <span class="kw">catch</span> (RuntimeException e) {
+                breaker.recordFailure();
+            }
+        }
+        <span class="kw">long</span> guardedMs = (System.nanoTime() - start) / <span class="nm">1_000_000</span>;
+
+        System.out.printf(<span class="st">"  %-22s %10s %14s %12s%n"</span>,
+                <span class="st">""</span>, <span class="st">"calls that"</span>, <span class="st">"refused"</span>, <span class="st">"total"</span>);
+        System.out.printf(<span class="st">"  %-22s %10s %14s %12s%n"</span>,
+                <span class="st">""</span>, <span class="st">"reached it"</span>, <span class="st">"without calling"</span>, <span class="st">"time"</span>);
+        System.out.println(<span class="st">"  "</span> + <span class="st">"-"</span>.repeat(<span class="nm">62</span>));
+        System.out.printf(<span class="st">"  %-22s %10d %14d %10d ms%n"</span>,
+                <span class="st">"no protection"</span>, plain.callsReceived(), <span class="nm">0</span>, plainMs);
+        System.out.printf(<span class="st">"  %-22s %10d %14d %10d ms%n"</span>,
+                <span class="st">"circuit breaker"</span>, guarded.callsReceived(), refusedFast, guardedMs);
+        System.out.println();
+        System.out.println(<span class="st">"  breaker state: "</span> + breaker.state() + <span class="st">", path: "</span> + breaker.path());
+        System.out.printf(<span class="st">"  The failing service took %d calls instead of %d, and the caller%n"</span>,
+                guarded.callsReceived(), plain.callsReceived());
+        System.out.printf(<span class="st">"  got its answer in %d ms instead of %d.%n"</span>, guardedMs, plainMs);
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 2</span>
+
+    <span class="cm">/** Retry on the OUTSIDE: every attempt is checked by the breaker. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> retryOutsideBreaker(FlakyService svc, Breaker b, <span class="kw">int</span> attempts) {
+        <span class="kw">for</span> (<span class="kw">int</span> a = <span class="nm">0</span>; a &lt; attempts; a++) {
+            <span class="kw">if</span> (!b.allow()) <span class="kw">return</span>;                   <span class="cm">// breaker open, stop trying</span>
+            <span class="kw">try</span> { svc.call(<span class="st">"x"</span>); b.recordSuccess(); <span class="kw">return</span>; }
+            <span class="kw">catch</span> (RuntimeException e) { b.recordFailure(); }
+        }
+    }
+
+    <span class="cm">/** Retry on the INSIDE: the breaker sees one call, which secretly made three. */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> retryInsideBreaker(FlakyService svc, Breaker b, <span class="kw">int</span> attempts) {
+        <span class="kw">if</span> (!b.allow()) <span class="kw">return</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> a = <span class="nm">0</span>; a &lt; attempts; a++) {
+            <span class="kw">try</span> { svc.call(<span class="st">"x"</span>); b.recordSuccess(); <span class="kw">return</span>; }
+            <span class="kw">catch</span> (RuntimeException e) { <span class="cm">/* keep trying inside */</span> }
+        }
+        b.recordFailure();                            <span class="cm">// one failure for three calls</span>
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> theOrderQuestion() {
+        head(<span class="st">"2. retry outside the breaker, or inside it"</span>);
+        System.out.println(<span class="st">"  20 logical calls, 3 attempts each, against a service that is down."</span>);
+        System.out.println(<span class="st">"  Both breakers open after 5 failures."</span>);
+        System.out.println();
+
+        FlakyService a = <span class="kw">new</span> FlakyService(); a.goDown();
+        Breaker outside = <span class="kw">new</span> Breaker(<span class="st">"outside"</span>, <span class="nm">5</span>, <span class="nm">10_000</span>, <span class="nm">2</span>);
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) retryOutsideBreaker(a, outside, <span class="nm">3</span>);
+
+        FlakyService b = <span class="kw">new</span> FlakyService(); b.goDown();
+        Breaker inside = <span class="kw">new</span> Breaker(<span class="st">"inside"</span>, <span class="nm">5</span>, <span class="nm">10_000</span>, <span class="nm">2</span>);
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) retryInsideBreaker(b, inside, <span class="nm">3</span>);
+
+        System.out.printf(<span class="st">"  %-38s %12s %10s%n"</span>, <span class="st">""</span>, <span class="st">"calls that"</span>, <span class="st">"breaker"</span>);
+        System.out.printf(<span class="st">"  %-38s %12s %10s%n"</span>, <span class="st">""</span>, <span class="st">"reached it"</span>, <span class="st">"state"</span>);
+        System.out.println(<span class="st">"  "</span> + <span class="st">"-"</span>.repeat(<span class="nm">62</span>));
+        System.out.printf(<span class="st">"  %-38s %12d %10s%n"</span>,
+                <span class="st">"retry OUTSIDE, breaker sees attempts"</span>, a.callsReceived(), outside.state());
+        System.out.printf(<span class="st">"  %-38s %12d %10s%n"</span>,
+                <span class="st">"retry INSIDE, breaker sees one call"</span>, b.callsReceived(), inside.state());
+        System.out.println();
+        System.out.printf(<span class="st">"  The service that is already down took %d calls instead of %d,%n"</span>,
+                b.callsReceived(), a.callsReceived());
+        System.out.println(<span class="st">"  which is the difference between helping it and finishing it off."</span>);
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 3</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> recovery() {
+        head(<span class="st">"3. opening, waiting, and closing again"</span>);
+
+        FlakyService svc = <span class="kw">new</span> FlakyService();
+        Breaker breaker = <span class="kw">new</span> Breaker(<span class="st">"recovery"</span>, <span class="nm">3</span>, <span class="nm">300</span>, <span class="nm">2</span>);
+        StringBuilder line = <span class="kw">new</span> StringBuilder();
+
+        svc.goDown();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">6</span>; i++) line.append(oneCall(svc, breaker));
+        line.append(<span class="st">" |"</span>);
+
+        FlakyService.sleep(<span class="nm">350</span>);                       <span class="cm">// wait out the open period</span>
+        svc.comeBack();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">6</span>; i++) line.append(oneCall(svc, breaker));
+
+        System.out.println(<span class="st">"  each character is one call, in order:"</span>);
+        System.out.println(<span class="st">"    "</span> + line);
+        System.out.println();
+        System.out.println(<span class="st">"    .  went through and worked"</span>);
+        System.out.println(<span class="st">"    x  went through and failed"</span>);
+        System.out.println(<span class="st">"    -  refused by the breaker without touching the service"</span>);
+        System.out.println(<span class="st">"    |  waited out the open period, and the service recovered"</span>);
+        System.out.println();
+        System.out.println(<span class="st">"  state path: "</span> + breaker.path());
+        System.out.println(<span class="st">"  final state: "</span> + breaker.state());
+        System.out.println(<span class="st">"  calls the service actually received: "</span> + svc.callsReceived()
+                + <span class="st">" out of 12 attempted"</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> String oneCall(FlakyService svc, Breaker b) {
+        <span class="kw">if</span> (!b.allow()) <span class="kw">return</span> <span class="st">"-"</span>;
+        <span class="kw">try</span> { svc.call(<span class="st">"x"</span>); b.recordSuccess(); <span class="kw">return</span> <span class="st">"."</span>; }
+        <span class="kw">catch</span> (RuntimeException e) { b.recordFailure(); <span class="kw">return</span> <span class="st">"x"</span>; }
+    }
+}
+</code></pre></div>
+</details>
+</section>
+<section class="grp">
+<h2 class="grph">resilience4j</h2>
+<details class="f">
+<summary><span class="fname">pom.xml</span><span class="fmeta">1.6 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep13/resilience4j/pom.xml">raw file</a><button class="copy" type="button">copy</button></div><pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"&gt;
+  &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+
+  &lt;groupId&gt;study&lt;/groupId&gt;
+  &lt;artifactId&gt;ep13-resilience4j&lt;/artifactId&gt;
+  &lt;version&gt;1&lt;/version&gt;
+  &lt;name&gt;Episode 13, the real library&lt;/name&gt;
+
+  &lt;properties&gt;
+    &lt;maven.compiler.release&gt;24&lt;/maven.compiler.release&gt;
+    &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
+    &lt;resilience4j.version&gt;2.2.0&lt;/resilience4j.version&gt;
+  &lt;/properties&gt;
+
+  &lt;dependencies&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;io.github.resilience4j&lt;/groupId&gt;
+      &lt;artifactId&gt;resilience4j-circuitbreaker&lt;/artifactId&gt;
+      &lt;version&gt;${resilience4j.version}&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;io.github.resilience4j&lt;/groupId&gt;
+      &lt;artifactId&gt;resilience4j-retry&lt;/artifactId&gt;
+      &lt;version&gt;${resilience4j.version}&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;io.github.resilience4j&lt;/groupId&gt;
+      &lt;artifactId&gt;resilience4j-bulkhead&lt;/artifactId&gt;
+      &lt;version&gt;${resilience4j.version}&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;io.github.resilience4j&lt;/groupId&gt;
+      &lt;artifactId&gt;resilience4j-timelimiter&lt;/artifactId&gt;
+      &lt;version&gt;${resilience4j.version}&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;io.github.resilience4j&lt;/groupId&gt;
+      &lt;artifactId&gt;resilience4j-ratelimiter&lt;/artifactId&gt;
+      &lt;version&gt;${resilience4j.version}&lt;/version&gt;
+    &lt;/dependency&gt;
+  &lt;/dependencies&gt;
+&lt;/project&gt;
+</code></pre></div>
+</details>
+<details class="f">
+<summary><span class="fname">src/main/java/demo/Main.java</span><span class="fmeta">13.7 KB</span></summary>
+<div class="fbody"><div class="ftools"><a href="raw/ep13/resilience4j/src/main/java/demo/Main.java">raw file</a><button class="copy" type="button">copy</button></div><pre><code><span class="kw">package</span> demo;
+
+<span class="kw">import</span> io.github.resilience4j.bulkhead.Bulkhead;
+<span class="kw">import</span> io.github.resilience4j.bulkhead.BulkheadConfig;
+<span class="kw">import</span> io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+<span class="kw">import</span> io.github.resilience4j.circuitbreaker.CircuitBreaker;
+<span class="kw">import</span> io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+<span class="kw">import</span> io.github.resilience4j.ratelimiter.RateLimiter;
+<span class="kw">import</span> io.github.resilience4j.ratelimiter.RateLimiterConfig;
+<span class="kw">import</span> io.github.resilience4j.retry.Retry;
+<span class="kw">import</span> io.github.resilience4j.retry.RetryConfig;
+
+<span class="kw">import</span> java.time.Duration;
+<span class="kw">import</span> java.util.ArrayList;
+<span class="kw">import</span> java.util.List;
+<span class="kw">import</span> java.util.Random;
+<span class="kw">import</span> java.util.concurrent.Callable;
+<span class="kw">import</span> java.util.concurrent.ExecutorService;
+<span class="kw">import</span> java.util.concurrent.Executors;
+<span class="kw">import</span> java.util.concurrent.Future;
+<span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+<span class="kw">import</span> java.util.function.Supplier;
+
+<span class="cm">/**
+ * The same scenarios as the hand written version, through Resilience4j 2.2.0.
+ *
+ *   mvn compile
+ *   mvn exec:java   (or run demo.Main with the built classpath)
+ */</span>
+<span class="kw">public</span> <span class="kw">class</span> Main {
+
+    <span class="cm">// ---- the downstream service, same idea as the hand written demo ----</span>
+    <span class="kw">static</span> <span class="kw">class</span> Downstream {
+        <span class="kw">private</span> <span class="kw">final</span> AtomicInteger received = <span class="kw">new</span> AtomicInteger();
+        <span class="kw">private</span> <span class="kw">volatile</span> <span class="kw">boolean</span> healthy = <span class="kw">true</span>;
+        <span class="kw">private</span> <span class="kw">volatile</span> <span class="kw">int</span> failPercent = <span class="nm">0</span>;
+        <span class="kw">private</span> <span class="kw">volatile</span> <span class="kw">long</span> latencyMs = <span class="nm">5</span>;
+        <span class="kw">private</span> <span class="kw">final</span> Random rnd;
+        Downstream()          { <span class="kw">this</span>(<span class="nm">7</span>); }
+        Downstream(<span class="kw">long</span> seed) { <span class="kw">this</span>.rnd = <span class="kw">new</span> Random(seed); }
+
+        String call() {
+            received.incrementAndGet();
+            sleep(latencyMs);
+            <span class="kw">boolean</span> fail = !healthy || (failPercent &gt; <span class="nm">0</span> &amp;&amp; rnd.nextInt(<span class="nm">100</span>) &lt; failPercent);
+            <span class="kw">if</span> (fail) <span class="kw">throw</span> <span class="kw">new</span> RuntimeException(<span class="st">"downstream is unwell"</span>);
+            <span class="kw">return</span> <span class="st">"ok"</span>;
+        }
+        <span class="kw">void</span> goDown()               { healthy = <span class="kw">false</span>; }
+        <span class="kw">void</span> failSometimes(<span class="kw">int</span> pct) { healthy = <span class="kw">true</span>; failPercent = pct; }
+        <span class="kw">void</span> slowTo(<span class="kw">long</span> ms)        { latencyMs = ms; }
+        <span class="kw">int</span> received()              { <span class="kw">return</span> received.get(); }
+    }
+
+    <span class="cm">/**
+     * The hand written breaker again, cut down to the part that matters here:
+     * it counts failures IN A ROW. That one design choice is what the second
+     * demo below is about.
+     */</span>
+    <span class="kw">static</span> <span class="kw">class</span> ConsecutiveBreaker {
+        <span class="kw">private</span> <span class="kw">final</span> <span class="kw">int</span> threshold;
+        <span class="kw">private</span> <span class="kw">int</span> inARow;
+        <span class="kw">private</span> <span class="kw">boolean</span> open;
+        <span class="kw">private</span> <span class="kw">int</span> refused;
+
+        ConsecutiveBreaker(<span class="kw">int</span> threshold) { <span class="kw">this</span>.threshold = threshold; }
+        <span class="kw">synchronized</span> <span class="kw">boolean</span> allow() { <span class="kw">if</span> (open) { refused++; <span class="kw">return</span> <span class="kw">false</span>; } <span class="kw">return</span> <span class="kw">true</span>; }
+        <span class="kw">synchronized</span> <span class="kw">void</span> success()  { inARow = <span class="nm">0</span>; }
+        <span class="kw">synchronized</span> <span class="kw">void</span> failure()  { <span class="kw">if</span> (++inARow &gt;= threshold) open = <span class="kw">true</span>; }
+        <span class="kw">synchronized</span> <span class="kw">boolean</span> isOpen(){ <span class="kw">return</span> open; }
+        <span class="kw">synchronized</span> <span class="kw">int</span> refused()   { <span class="kw">return</span> refused; }
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> sleep(<span class="kw">long</span> ms) {
+        <span class="kw">try</span> { Thread.sleep(ms); } <span class="kw">catch</span> (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
+    <span class="kw">static</span> <span class="kw">void</span> head(String s) {
+        System.out.println();
+        System.out.println(<span class="st">"=== "</span> + s + <span class="st">" ==="</span>);
+    }
+
+    <span class="kw">public</span> <span class="kw">static</span> <span class="kw">void</span> main(String[] args) <span class="kw">throws</span> Exception {
+        sameScenarioAsHandWritten();
+        theCaseForTheLibrary();
+        theOrderQuestion();
+        bulkheadAndRateLimiter();
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 1</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> CircuitBreaker countBased(String name) {
+        <span class="kw">return</span> countBased(name, <span class="nm">10</span>, <span class="nm">5</span>);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> CircuitBreaker countBased(String name, <span class="kw">int</span> window, <span class="kw">int</span> minimum) {
+        <span class="kw">return</span> CircuitBreaker.of(name, CircuitBreakerConfig.custom()
+                .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                .slidingWindowSize(window)
+                .minimumNumberOfCalls(minimum)
+                .failureRateThreshold(<span class="nm">50</span>)
+                .waitDurationInOpenState(Duration.ofSeconds(<span class="nm">10</span>))
+                .permittedNumberOfCallsInHalfOpenState(<span class="nm">2</span>)
+                .build());
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> sameScenarioAsHandWritten() {
+        head(<span class="st">"1. one hundred calls to a service that is down"</span>);
+
+        Downstream svc = <span class="kw">new</span> Downstream();
+        svc.goDown();
+        svc.slowTo(<span class="nm">20</span>);
+
+        CircuitBreaker cb = countBased(<span class="st">"orders"</span>);
+        Supplier&lt;String&gt; guarded = CircuitBreaker.decorateSupplier(cb, svc::call);
+
+        <span class="kw">long</span> start = System.nanoTime();
+        <span class="kw">int</span> refused = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">100</span>; i++) {
+            <span class="kw">try</span> { guarded.get(); }
+            <span class="kw">catch</span> (CallNotPermittedException e) { refused++; }
+            <span class="kw">catch</span> (RuntimeException e) { <span class="cm">/* a real failure */</span> }
+        }
+        <span class="kw">long</span> ms = (System.nanoTime() - start) / <span class="nm">1_000_000</span>;
+
+        System.out.println(<span class="st">"  config: count based window of 10, opens above a 50 percent"</span>);
+        System.out.println(<span class="st">"          failure rate, once at least 5 calls have been seen"</span>);
+        System.out.println();
+        System.out.printf(<span class="st">"  calls that reached the service : %d%n"</span>, svc.received());
+        System.out.printf(<span class="st">"  refused without calling        : %d%n"</span>, refused);
+        System.out.printf(<span class="st">"  total time                     : %d ms%n"</span>, ms);
+        System.out.printf(<span class="st">"  breaker state                  : %s%n"</span>, cb.getState());
+        System.out.println();
+        System.out.println(<span class="st">"  The hand written breaker in the other project gave 5 calls,"</span>);
+        System.out.println(<span class="st">"  95 refused and 103 ms. The same shape, from 20 lines of config."</span>);
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 2</span>
+
+    <span class="cm">/**
+     * How many calls reach the service before each breaker opens, over ten
+     * runs of the same scenario. The interesting number turned out not to be
+     * whether they open but how much the answer moves between runs.
+     */</span>
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> theCaseForTheLibrary() {
+        head(<span class="st">"2. a service that fails 30 percent of the time, ten runs each"</span>);
+        System.out.println(<span class="st">"  Not down, just unwell. Each run makes 300 calls."</span>);
+        System.out.println();
+
+        <span class="kw">int</span>[] consecutiveTrips = <span class="kw">new</span> <span class="kw">int</span>[<span class="nm">10</span>];
+        <span class="kw">int</span>[] rateTrips = <span class="kw">new</span> <span class="kw">int</span>[<span class="nm">10</span>];
+        <span class="kw">int</span>[] wideTrips = <span class="kw">new</span> <span class="kw">int</span>[<span class="nm">10</span>];
+
+        <span class="kw">for</span> (<span class="kw">int</span> run = <span class="nm">0</span>; run &lt; <span class="nm">10</span>; run++) {
+            <span class="kw">long</span> seed = <span class="nm">100</span> + run;
+
+            Downstream a = <span class="kw">new</span> Downstream(seed);
+            a.failSometimes(<span class="nm">30</span>);
+            ConsecutiveBreaker cons = <span class="kw">new</span> ConsecutiveBreaker(<span class="nm">5</span>);
+            <span class="kw">int</span> reachedA = -<span class="nm">1</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">300</span>; i++) {
+                <span class="kw">if</span> (!cons.allow()) { <span class="kw">if</span> (reachedA &lt; <span class="nm">0</span>) reachedA = a.received(); <span class="kw">continue</span>; }
+                <span class="kw">try</span> { a.call(); cons.success(); } <span class="kw">catch</span> (RuntimeException e) { cons.failure(); }
+            }
+            consecutiveTrips[run] = cons.isOpen() ? (reachedA &lt; <span class="nm">0</span> ? a.received() : reachedA) : -<span class="nm">1</span>;
+
+            Downstream b = <span class="kw">new</span> Downstream(seed);
+            b.failSometimes(<span class="nm">30</span>);
+            CircuitBreaker rate = countBased(<span class="st">"rate"</span> + run);
+            Supplier&lt;String&gt; guarded = CircuitBreaker.decorateSupplier(rate, b::call);
+            <span class="kw">int</span> reachedB = -<span class="nm">1</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">300</span>; i++) {
+                <span class="kw">try</span> { guarded.get(); }
+                <span class="kw">catch</span> (CallNotPermittedException e) { <span class="kw">if</span> (reachedB &lt; <span class="nm">0</span>) reachedB = b.received(); }
+                <span class="kw">catch</span> (RuntimeException e) { }
+            }
+            rateTrips[run] = rate.getState() == CircuitBreaker.State.OPEN
+                    ? (reachedB &lt; <span class="nm">0</span> ? b.received() : reachedB) : -<span class="nm">1</span>;
+
+            Downstream c = <span class="kw">new</span> Downstream(seed);
+            c.failSometimes(<span class="nm">30</span>);
+            CircuitBreaker wide = countBased(<span class="st">"wide"</span> + run, <span class="nm">100</span>, <span class="nm">50</span>);
+            Supplier&lt;String&gt; guardedWide = CircuitBreaker.decorateSupplier(wide, c::call);
+            <span class="kw">int</span> reachedC = -<span class="nm">1</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">300</span>; i++) {
+                <span class="kw">try</span> { guardedWide.get(); }
+                <span class="kw">catch</span> (CallNotPermittedException e) { <span class="kw">if</span> (reachedC &lt; <span class="nm">0</span>) reachedC = c.received(); }
+                <span class="kw">catch</span> (RuntimeException e) { }
+            }
+            wideTrips[run] = wide.getState() == CircuitBreaker.State.OPEN
+                    ? (reachedC &lt; <span class="nm">0</span> ? c.received() : reachedC) : -<span class="nm">1</span>;
+        }
+
+        report(<span class="st">"hand written, 5 failures IN A ROW"</span>, consecutiveTrips);
+        report(<span class="st">"Resilience4j, 50 percent over a window of 10"</span>, rateTrips);
+        report(<span class="st">"Resilience4j, 50 percent over a window of 100"</span>, wideTrips);
+    }
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> report(String label, <span class="kw">int</span>[] trips) {
+        <span class="kw">int</span> opened = <span class="nm">0</span>, min = Integer.MAX_VALUE, max = <span class="nm">0</span>, total = <span class="nm">0</span>;
+        StringBuilder each = <span class="kw">new</span> StringBuilder();
+        <span class="kw">for</span> (<span class="kw">int</span> t : trips) {
+            each.append(t &lt; <span class="nm">0</span> ? <span class="st">"never"</span> : String.valueOf(t)).append(<span class="st">" "</span>);
+            <span class="kw">if</span> (t &gt;= <span class="nm">0</span>) { opened++; total += t; min = Math.min(min, t); max = Math.max(max, t); }
+        }
+        System.out.println(<span class="st">"  "</span> + label);
+        System.out.println(<span class="st">"    calls before it opened, per run: "</span> + each.toString().trim());
+        <span class="kw">if</span> (opened == <span class="nm">0</span>) {
+            System.out.println(<span class="st">"    never opened in any run"</span>);
+        } <span class="kw">else</span> {
+            System.out.printf(<span class="st">"    opened in %d of 10 runs, from %d to %d calls, average %d%n"</span>,
+                    opened, min, max, total / opened);
+        }
+        System.out.println();
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 3</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> theOrderQuestion() {
+        head(<span class="st">"3. retry outside the breaker, or inside it"</span>);
+        System.out.println(<span class="st">"  20 logical calls, 3 attempts each, against a service that is down."</span>);
+        System.out.println();
+
+        RetryConfig retryConfig = RetryConfig.custom()
+                .maxAttempts(<span class="nm">3</span>)
+                .waitDuration(Duration.ofMillis(<span class="nm">1</span>))
+                .build();
+
+        <span class="cm">// Retry on the OUTSIDE: each attempt passes through the breaker</span>
+        Downstream a = <span class="kw">new</span> Downstream(); a.goDown();
+        CircuitBreaker cbA = countBased(<span class="st">"outside"</span>);
+        Supplier&lt;String&gt; throughBreaker = CircuitBreaker.decorateSupplier(cbA, a::call);
+        Retry retryA = Retry.of(<span class="st">"outside"</span>, retryConfig);
+        Supplier&lt;String&gt; outside = Retry.decorateSupplier(retryA, throughBreaker);
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) { <span class="kw">try</span> { outside.get(); } <span class="kw">catch</span> (RuntimeException e) { } }
+
+        <span class="cm">// Retry on the INSIDE: the breaker sees one call that secretly made three</span>
+        Downstream b = <span class="kw">new</span> Downstream(); b.goDown();
+        Retry retryB = Retry.of(<span class="st">"inside"</span>, retryConfig);
+        Supplier&lt;String&gt; withRetries = Retry.decorateSupplier(retryB, b::call);
+        CircuitBreaker cbB = countBased(<span class="st">"inside"</span>);
+        Supplier&lt;String&gt; inside = CircuitBreaker.decorateSupplier(cbB, withRetries);
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) { <span class="kw">try</span> { inside.get(); } <span class="kw">catch</span> (RuntimeException e) { } }
+
+        System.out.printf(<span class="st">"  %-40s %12s %10s%n"</span>, <span class="st">""</span>, <span class="st">"calls that"</span>, <span class="st">"breaker"</span>);
+        System.out.printf(<span class="st">"  %-40s %12s %10s%n"</span>, <span class="st">""</span>, <span class="st">"reached it"</span>, <span class="st">"state"</span>);
+        System.out.println(<span class="st">"  "</span> + <span class="st">"-"</span>.repeat(<span class="nm">64</span>));
+        System.out.printf(<span class="st">"  %-40s %12d %10s%n"</span>,
+                <span class="st">"Retry.decorate(CircuitBreaker.decorate(f))"</span>, a.received(), cbA.getState());
+        System.out.printf(<span class="st">"  %-40s %12d %10s%n"</span>,
+                <span class="st">"CircuitBreaker.decorate(Retry.decorate(f))"</span>, b.received(), cbB.getState());
+        System.out.println();
+        System.out.println(<span class="st">"  Resilience4j documents the order as Retry outermost, then"</span>);
+        System.out.println(<span class="st">"  CircuitBreaker, then RateLimiter, then TimeLimiter, then Bulkhead."</span>);
+        System.out.println(<span class="st">"  The numbers above are why: get it backwards and the breaker only"</span>);
+        System.out.println(<span class="st">"  sees a third of what is really happening."</span>);
+    }
+
+    <span class="cm">// ------------------------------------------------------------------ 4</span>
+
+    <span class="kw">private</span> <span class="kw">static</span> <span class="kw">void</span> bulkheadAndRateLimiter() <span class="kw">throws</span> Exception {
+        head(<span class="st">"4. bulkhead and rate limiter"</span>);
+
+        Bulkhead bulkhead = Bulkhead.of(<span class="st">"reports"</span>, BulkheadConfig.custom()
+                .maxConcurrentCalls(<span class="nm">4</span>)
+                .maxWaitDuration(Duration.ZERO)
+                .build());
+
+        Downstream slow = <span class="kw">new</span> Downstream();
+        slow.slowTo(<span class="nm">500</span>);
+        ExecutorService pool = Executors.newFixedThreadPool(<span class="nm">20</span>);
+        List&lt;Future&lt;?&gt;&gt; futures = <span class="kw">new</span> ArrayList&lt;&gt;();
+        AtomicInteger ran = <span class="kw">new</span> AtomicInteger(), rejected = <span class="kw">new</span> AtomicInteger();
+
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">20</span>; i++) {
+            futures.add(pool.submit(() -&gt; {
+                <span class="kw">try</span> {
+                    Callable&lt;String&gt; c = Bulkhead.decorateCallable(bulkhead, slow::call);
+                    c.call();
+                    ran.incrementAndGet();
+                } <span class="kw">catch</span> (Exception e) {
+                    rejected.incrementAndGet();
+                }
+            }));
+        }
+        <span class="kw">for</span> (Future&lt;?&gt; f : futures) f.get();
+        pool.shutdown();
+
+        System.out.println(<span class="st">"  bulkhead of 4, hit with 20 calls at once:"</span>);
+        System.out.printf(<span class="st">"    ran %d, rejected immediately %d, service received %d%n"</span>,
+                ran.get(), rejected.get(), slow.received());
+
+        RateLimiter limiter = RateLimiter.of(<span class="st">"prices"</span>, RateLimiterConfig.custom()
+                .limitForPeriod(<span class="nm">10</span>)
+                .limitRefreshPeriod(Duration.ofSeconds(<span class="nm">1</span>))
+                .timeoutDuration(Duration.ZERO)
+                .build());
+
+        Downstream fast = <span class="kw">new</span> Downstream();
+        Supplier&lt;String&gt; limited = RateLimiter.decorateSupplier(limiter, fast::call);
+        <span class="kw">int</span> allowed = <span class="nm">0</span>, blocked = <span class="nm">0</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nm">0</span>; i &lt; <span class="nm">25</span>; i++) {
+            <span class="kw">try</span> { limited.get(); allowed++; } <span class="kw">catch</span> (RuntimeException e) { blocked++; }
+        }
+
+        System.out.println();
+        System.out.println(<span class="st">"  rate limiter of 10 per second, hit with 25 calls at once:"</span>);
+        System.out.printf(<span class="st">"    allowed %d, blocked %d, service received %d%n"</span>,
+                allowed, blocked, fast.received());
+        System.out.println();
+        System.out.println(<span class="st">"  A bulkhead limits how many run AT ONCE. A rate limiter limits"</span>);
+        System.out.println(<span class="st">"  how many run PER PERIOD. They are different questions and a"</span>);
+        System.out.println(<span class="st">"  service under strain often needs both."</span>);
+    }
+}
+</code></pre></div>
+</details>
+</section>
+</main>
+<script>
+document.addEventListener("click", function (e) {
+  var b = e.target.closest(".copy");
+  if (!b) return;
+  var code = b.closest(".fbody").querySelector("code");
+  var done = function (ok) {
+    b.textContent = ok ? "copied" : "press ctrl c";
+    setTimeout(function () { b.textContent = "copy"; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code.textContent).then(function () { done(true); },
+                                                        function () { done(false); });
+  } else {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    done(false);
+  }
+});
+</script>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  if(!btn) return;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  function effective(){
+    var t=root.getAttribute('data-theme');
+    return t ? t : (mq.matches ? 'dark' : 'light');
+  }
+  function paint(){
+    var e=effective();
+    btn.dataset.mode=e;
+    var label=(e==='dark') ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label',label);
+    btn.setAttribute('title',label);
+  }
+  btn.addEventListener('click',function(){
+    var next=(effective()==='dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('site-theme',next);}catch(e){}
+    paint();
+  });
+  try{ mq.addEventListener('change',paint); }catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
